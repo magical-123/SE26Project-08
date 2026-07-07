@@ -9,7 +9,7 @@ export function User() {
           <h1>用户中心</h1>
           <p className="user-email">user@infodigest.com</p>
         </header>
-
+        //基本信息界面
         <section className="user-section">
           <h2>基本信息</h2>
           <div className="info-grid">
@@ -31,7 +31,7 @@ export function User() {
             </div>
           </div>
         </section>
-
+        //偏好设置界面
         <section className="user-section">
           <h2>偏好设置</h2>
           <div className="settings-grid">
@@ -53,7 +53,7 @@ export function User() {
             </label>
           </div>
         </section>
-
+        //数据统计界面
         <section className="user-section">
           <h2>数据统计</h2>
           <div className="stats-grid">
