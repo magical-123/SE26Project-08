@@ -96,8 +96,8 @@ export function NutritionLabel() {
         />
       </div>
 
-      <div className="nl-footer">
-        * 饼图展示了您本周内的信息摄入比例，通过透明材质和莱茵生命配色进行渲染。
+      <div className="nutrition-footer">
+        * 饼图展示了您本周内的信息摄入比例。
       </div>
     </div>
   );
