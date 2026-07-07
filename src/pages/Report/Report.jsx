@@ -14,13 +14,13 @@ export function Report() {
         type: 'pie',
         radius: ['50%', '70%'],
         avoidLabelOverlap: false,
-        label: { show: true, position: 'outside', color: 'rgba(255,255,255,0.7)' },
-        labelLine: { show: true },
+        label: { show: true, position: 'outside', color: '#444', fontWeight: 'bold' },
+        labelLine: { show: true, lineStyle: { color: '#888' } },
         data: [
-          { value: 35, name: '深度知识', itemStyle: { color: '#10B981' } },
+          { value: 35, name: '深度知识', itemStyle: { color: '#0EA5E9' } },
           { value: 45, name: '娱乐短剧', itemStyle: { color: '#F43F5E' } },
           { value: 15, name: '行业资讯', itemStyle: { color: '#F59E0B' } },
-          { value: 5, name: '创意灵感', itemStyle: { color: '#3B82F6' } }
+          { value: 5, name: '创意灵感', itemStyle: { color: '#10B981' } }
         ]
       }
     ]
@@ -32,17 +32,19 @@ export function Report() {
     xAxis: {
       type: 'category',
       data: reportData.trend.map(d => d.date),
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } },
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
+      axisLabel: { color: '#666' }
     },
     yAxis: {
       type: 'value',
-      splitLine: { show: false }
+      splitLine: { show: true, lineStyle: { color: 'rgba(0,0,0,0.05)' } },
+      axisLabel: { color: '#666' }
     },
     series: [{
       data: reportData.trend.map(d => d.value),
       type: 'line',
       smooth: true,
-      lineStyle: { color: '#3B82F6', width: 3 }
+      lineStyle: { color: '#0EA5E9', width: 3 }
     }]
   };
 

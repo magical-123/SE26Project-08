@@ -12,23 +12,24 @@
 .inbox-header h1 {
   font-size: 28px;
   letter-spacing: -0.5px;
+  font-weight: 800;
 }
 
 .inbox-filters {
   display: flex;
   gap: 8px;
-  background: rgba(255,255,255,0.03);
+  background: rgba(0,0,0,0.02);
   padding: 4px;
-  border-radius: 12px;
+  border-radius: 6px;
   border: 1px solid var(--border-glass);
 }
 
 .filter-btn {
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
   transition: all 0.2s;
 }
 
@@ -37,8 +38,9 @@
 }
 
 .filter-btn.active {
-  background: rgba(255,255,255,0.1);
+  background: #fff;
   color: var(--text-main);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .inbox-grid {

@@ -11,6 +11,7 @@
 
 .social-header h1 {
   font-size: 28px;
+  font-weight: 800;
 }
 
 .social-actions {
@@ -22,10 +23,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255,255,255,0.05);
+  background: #fff;
   border: 1px solid var(--border-glass);
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .search-box input {
@@ -33,17 +34,18 @@
   border: none;
   color: var(--text-main);
   outline: none;
+  font-size: 13px;
 }
 
 .add-friend-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--primary);
-  color: #000;
+  background: var(--text-main);
+  color: #fff;
   padding: 8px 16px;
-  border-radius: 8px;
-  font-weight: 600;
+  border-radius: 4px;
+  font-weight: 700;
 }
 
 .friends-grid {
@@ -68,18 +70,19 @@
 .fc-avatar {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  font-weight: 700;
-  color: #000;
+  font-weight: 800;
+  color: #fff;
 }
 
 .fc-info h3 {
   margin: 0 0 4px;
   font-size: 16px;
+  font-weight: 700;
 }
 
 .fc-info p {
@@ -94,9 +97,11 @@
 }
 
 .fc-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
   margin-bottom: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
 .fc-tags {
@@ -106,31 +111,34 @@
 }
 
 .fc-tag {
-  font-size: 12px;
+  font-size: 11px;
   padding: 4px 10px;
-  background: rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.03);
   border: 1px solid var(--border-glass);
-  border-radius: 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .fc-graph-preview {
   margin-top: 16px;
   height: 100px;
-  background: rgba(0,0,0,0.3);
-  border-radius: 8px;
+  background: rgba(0,0,0,0.02);
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px dashed var(--border-glass);
   font-size: 12px;
+  font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .fc-graph-preview:hover {
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.05);
   border-color: var(--glow);
   color: var(--glow);
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
 }
