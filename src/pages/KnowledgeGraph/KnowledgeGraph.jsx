@@ -32,19 +32,19 @@ export function KnowledgeGraph() {
       behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element'],
       node: {
         style: (model) => {
-          let color = '#10B981';
+          let color = '#0EA5E9';
           if (model.cluster === 'design') color = '#F59E0B';
           if (model.cluster === 'philosophy') color = '#F43F5E';
           return {
-            fill: '#000',
+            fill: '#fff',
             stroke: color,
             lineWidth: 2,
-            shadowColor: color,
-            shadowBlur: 15,
+            shadowColor: 'rgba(0,0,0,0.1)',
+            shadowBlur: 10,
             labelPlacement: 'bottom',
             labelText: model.label,
-            labelFill: '#fff',
-            labelBackgroundFill: 'rgba(0,0,0,0.5)',
+            labelFill: '#111',
+            labelBackgroundFill: 'rgba(255,255,255,0.8)',
             labelBackgroundRadius: 4,
             labelPadding: [2, 4]
           };
@@ -52,9 +52,9 @@ export function KnowledgeGraph() {
       },
       edge: {
         style: {
-          stroke: 'rgba(255,255,255,0.2)',
+          stroke: 'rgba(0,0,0,0.2)',
           lineWidth: 1,
-          lineDash: [5, 5],
+          lineDash: [4, 4],
         }
       }
     });

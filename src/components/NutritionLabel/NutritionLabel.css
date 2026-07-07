@@ -1,124 +1,60 @@
-.nutrition-wrapper {
-  background: white;
-  color: black;
-  border-radius: 8px;
-  padding: 12px;
-  font-family: 'Inter', sans-serif;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  transform-style: preserve-3d;
-  height: 100%;
-}
-
 .nutrition-label {
-  border: 1px solid black;
-  padding: 8px;
-  transform: translateZ(20px);
-}
-
-.nutrition-header h1 {
-  font-size: 32px;
-  font-weight: 800;
-  margin: 0;
-  line-height: 1;
-  letter-spacing: -1px;
-  color: black;
-}
-
-.nutrition-header .subtitle {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 4px 0 0;
-}
-
-.nutrition-divider {
-  background: black;
   width: 100%;
-  margin: 6px 0;
-}
-
-.nutrition-divider.thick {
-  height: 12px;
-}
-
-.nutrition-divider.medium {
-  height: 6px;
-}
-
-.nutrition-divider.solid {
-  height: 1px;
-}
-
-.nutrition-serving {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 8px 0;
-}
-
-.nutrition-serving p {
-  margin: 2px 0;
-}
-
-.nutrition-calories {
+  height: 100%;
+  padding: 32px;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin: 8px 0;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
 }
 
-.nutrition-calories h2 {
-  font-size: 28px;
-  font-weight: 800;
+/* Glass panel style for the pie chart container */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-glass);
+  border-radius: 4px;
+}
+
+.nl-header {
+  border-bottom: 2px solid rgba(0,0,0,0.1);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.nl-header h2 {
+  font-size: 32px;
+  font-weight: 900;
   margin: 0;
-  color: black;
-}
-
-.nutrition-calories span {
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.nutrition-daily-value {
-  font-size: 14px;
-}
-
-.nutrition-daily-value .right-align {
-  text-align: right;
-  font-weight: 600;
-  border-bottom: 1px solid black;
-  padding-bottom: 4px;
-  margin-bottom: 4px;
-}
-
-.nutrition-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 0;
-  border-bottom: 1px solid #ccc;
-}
-
-.nutrition-row:last-child {
-  border-bottom: none;
-}
-
-.nutrition-row-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.bullet {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.nutrition-row-value {
-  font-weight: 700;
-}
-
-.nutrition-footer {
-  font-size: 11px;
+  letter-spacing: -1px;
   line-height: 1.2;
+  color: var(--text-main);
+}
+
+.nl-header p {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.nl-chart-container {
+  flex: 1;
+  position: relative;
+  min-height: 250px;
+}
+
+.nl-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  font-weight: 600;
+  border-top: 1px dashed rgba(0,0,0,0.1);
 }
