@@ -37,36 +37,20 @@ export function RootLayout({ children }) {
           </div>
         </div>
 
-        <div className="cascade-perspective">
-          <nav className="cascade-nav-arc">
-            {navItems.map((item, index) => {
-              // Calculate fan layout variables
-              // Base rotation for the arc
-              const rotation = (index - totalItems / 2) * 5; 
-              // Offset to create the arc shape visually
-              const translateY = Math.abs(index - totalItems / 2) * 8;
-              
-              return (
-                <NavLink 
-                  key={item.path} 
-                  to={item.path} 
-                  className={({isActive}) => isActive ? "arc-item active" : "arc-item"}
-                  style={{ 
-                    '--layer-index': index,
-                    '--total-items': totalItems,
-                    '--rot-z': `${rotation}deg`,
-                    '--trans-y': `${translateY}px`
-                  }}
-                >
-                  <div className="arc-content">
-                    <div className="arc-icon">
-                      <item.icon size={20} strokeWidth={1.5} />
-                    </div>
-                    <span className="arc-label">{item.label}</span>
-                  </div>
-                </NavLink>
-              );
-            })}
+        <div className="nav-container-inner">
+          <nav className="plain-nav-stack">
+            {navItems.map((item) => (
+              <NavLink 
+                key={item.path} 
+                to={item.path} 
+                className={({isActive}) => isActive ? "nav-item active" : "nav-item"}
+              >
+                <div className="nav-content">
+                  <item.icon size={20} strokeWidth={1.5} className="nav-icon" />
+                  <span className="nav-label">{item.label}</span>
+                </div>
+              </NavLink>
+            ))}
           </nav>
         </div>
 
