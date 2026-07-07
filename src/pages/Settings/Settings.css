@@ -10,6 +10,7 @@
 
 .settings-header h1 {
   font-size: 28px;
+  font-weight: 800;
 }
 
 .settings-content {
@@ -23,12 +24,13 @@
 }
 
 .settings-section h2 {
-  font-size: 18px;
+  font-size: 16px;
+  font-weight: 700;
   margin-bottom: 8px;
 }
 
 .section-desc {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
   margin-bottom: 24px;
 }
@@ -44,13 +46,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background: rgba(255,255,255,0.02);
+  background: #fff;
   border: 1px solid var(--border-glass);
-  border-radius: 12px;
+  border-radius: 4px;
 }
 
 .platform-info h3 {
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 700;
   margin-bottom: 4px;
 }
 
@@ -60,26 +63,27 @@
 }
 
 .status.connected {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--primary);
-  background: rgba(16,185,129,0.1);
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-weight: 500;
+  background: rgba(14,165,233,0.1);
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
 .connect-btn {
-  background: rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.05);
   color: var(--text-main);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
   transition: all 0.2s;
 }
 
 .connect-btn:hover {
-  background: rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.1);
 }
 
 .privacy-settings {
@@ -95,12 +99,13 @@
 }
 
 .pi-info h4 {
-  font-size: 15px;
+  font-size: 14px;
+  font-weight: 700;
   margin-bottom: 4px;
 }
 
 .pi-info p {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -125,7 +130,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255,255,255,0.1);
+  background-color: rgba(0,0,0,0.1);
   transition: .4s;
   border-radius: 24px;
 }
@@ -140,6 +145,7 @@
   background-color: white;
   transition: .4s;
   border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 input:checked + .slider {
