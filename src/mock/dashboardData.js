@@ -11,9 +11,22 @@ export const trendData = {
 };
 
 export const aiQuotes = [
-  "你最近对「大模型架构」的关注度显著上升，这与你上个月研究的「Transformer 机制」形成了很好的知识闭环。",
-  "昨天晚上你花了两小时浏览了高密度的哲学内容，这是很好的深度思考时刻。",
-  "不要让算法决定你的数字饮食，尝试主动摄入更多维生素类的信息吧。"
+  {
+    id: 1,
+    summary: "你最近对「大模型架构」的关注度显著上升...",
+    fullText: "你最近对「大模型架构」的关注度显著上升，这与你上个月研究的「Transformer 机制」形成了很好的知识闭环。建议你可以继续深入了解 MoE (Mixture of Experts) 的混合专家架构，以拓展你对参数扩展的理解边界。",
+    sourcePlatform: "B站 · 深度技术解析",
+    sourceLink: "https://bilibili.com/video/xxx",
+    tags: ["大模型", "Transformer", "MoE"]
+  },
+  {
+    id: 2,
+    summary: "昨天晚上你浏览了高密度的哲学内容...",
+    fullText: "昨天晚上你花了两小时浏览了高密度的哲学内容，这是很好的深度思考时刻。在碎片化时代，能够保持长达两小时的心流状态是非常难得的“数字冥想”。",
+    sourcePlatform: "知乎 · 哲学板块",
+    sourceLink: "https://zhihu.com/xxx",
+    tags: ["哲学", "心流", "深度思考"]
+  }
 ];
 
 export const reviewCards = [
@@ -28,3 +41,98 @@ export const reviewCards = [
     source: "B站 · 交互设计"
   }
 ];
+
+export const wordCloudData = [
+  { name: '大模型架构', value: 15000 },
+  { name: 'React 19', value: 10081 },
+  { name: 'Framer Motion', value: 9386 },
+  { name: 'UI 设计心理学', value: 8500 },
+  { name: '独立开发', value: 6000 },
+  { name: '个人知识管理', value: 5500 },
+  { name: 'WebGL 渲染', value: 4200 },
+  { name: '播客访谈', value: 3800 },
+  { name: '数字饮食', value: 3200 },
+  { name: '微前端', value: 2500 }
+];
+
+export const historicalWordCloudData = [
+  {
+    date: '6天前',
+    data: [
+      { name: '个人知识管理', value: 14000 },
+      { name: 'WebGL 渲染', value: 9000 },
+      { name: 'React 19', value: 8000 },
+      { name: '播客访谈', value: 5000 },
+      { name: 'UI 设计心理学', value: 4000 }
+    ]
+  },
+  {
+    date: '5天前',
+    data: [
+      { name: '个人知识管理', value: 11000 },
+      { name: 'WebGL 渲染', value: 10000 },
+      { name: 'React 19', value: 9000 },
+      { name: '独立开发', value: 7000 },
+      { name: '数字饮食', value: 4500 }
+    ]
+  },
+  {
+    date: '4天前',
+    data: [
+      { name: 'WebGL 渲染', value: 13000 },
+      { name: '微前端', value: 9500 },
+      { name: 'React 19', value: 9000 },
+      { name: '独立开发', value: 8000 },
+      { name: '大模型架构', value: 5000 }
+    ]
+  },
+  {
+    date: '3天前',
+    data: [
+      { name: '微前端', value: 12000 },
+      { name: 'React 19', value: 11000 },
+      { name: '独立开发', value: 8000 },
+      { name: 'UI 设计心理学', value: 6000 },
+      { name: '大模型架构', value: 4000 }
+    ]
+  },
+  {
+    date: '2天前',
+    data: [
+      { name: 'React 19', value: 13000 },
+      { name: '大模型架构', value: 8000 },
+      { name: 'Framer Motion', value: 7500 },
+      { name: '微前端', value: 7000 },
+      { name: 'UI 设计心理学', value: 6500 }
+    ]
+  },
+  {
+    date: '昨天',
+    data: [
+      { name: '大模型架构', value: 12000 },
+      { name: 'Framer Motion', value: 11000 },
+      { name: 'React 19', value: 9000 },
+      { name: 'UI 设计心理学', value: 8000 },
+      { name: '个人知识管理', value: 5000 }
+    ]
+  },
+  {
+    date: '今天',
+    data: wordCloudData
+  }
+];
+
+// 模拟溯源数据映射
+export const sourceMapping = {
+  '大模型架构': [
+    { title: '【深度】AI 时代的前端架构演进', platform: 'BILIBILI', time: '2小时前', category: '深度知识' },
+    { title: '深入理解 MoE 混合专家模型', platform: 'ZHIHU', time: '昨天', category: '深度知识' }
+  ],
+  'React 19': [
+    { title: 'React 19 新特性完全解析', platform: 'BILIBILI', time: '3小时前', category: '行业资讯' }
+  ],
+  'Framer Motion': [
+    { title: '如何用 React 实现丝滑的弹簧动画', platform: 'ZHIHU', time: '5小时前', category: '实操技巧' },
+    { title: 'Framer Motion 高级实战指南', platform: 'ZHIHU', time: '2天前', category: '深度知识' }
+  ]
+};
