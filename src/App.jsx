@@ -1,17 +1,26 @@
+import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Layout } from './components/Layout/Layout';
-import { Home } from './pages/Home/Home';
-import { User } from './pages/User/User';
+import { RootLayout } from './layouts/RootLayout';
+import { Dashboard } from './pages/Dashboard/Dashboard';
+import { Inbox } from './pages/Inbox/Inbox';
+import { KnowledgeGraph } from './pages/KnowledgeGraph/KnowledgeGraph';
+import { Report } from './pages/Report/Report';
+import { Social } from './pages/Social/Social';
+import { Settings } from './pages/Settings/Settings';
 
 function App() {
   return (
     <BrowserRouter>
-      <Layout>
+      <RootLayout>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/user" element={<User />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/inbox" element={<Inbox />} />
+          <Route path="/graph" element={<KnowledgeGraph />} />
+          <Route path="/report" element={<Report />} />
+          <Route path="/social" element={<Social />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
-      </Layout>
+      </RootLayout>
     </BrowserRouter>
   );
 }
