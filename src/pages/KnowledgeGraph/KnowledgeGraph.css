@@ -3,7 +3,20 @@
   height: 100%;
   position: relative;
   overflow: hidden;
-  background: #000;
+  background: var(--bg-main);
+}
+
+.knowledge-graph-page::before {
+  content: "GRAPH DB // 1000 NODES ACTIVE";
+  position: absolute;
+  top: 16px;
+  left: 24px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  z-index: 10;
+  pointer-events: none;
 }
 
 .kg-container {
@@ -18,27 +31,29 @@
   transform: translateX(-50%);
   display: flex;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-glass);
   padding: 8px;
-  border-radius: 20px;
+  border-radius: 4px;
+  box-shadow: var(--shadow-glass);
   z-index: 10;
 }
 
 .kg-controls button {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  color: var(--text-main);
+  border-radius: 4px;
+  color: var(--text-secondary);
   transition: all 0.2s;
+  background: rgba(0,0,0,0.02);
 }
 
 .kg-controls button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--primary);
+  background: rgba(0,0,0,0.05);
+  color: var(--text-main);
 }

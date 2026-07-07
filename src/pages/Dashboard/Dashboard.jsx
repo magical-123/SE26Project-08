@@ -16,13 +16,13 @@ export function Dashboard() {
     xAxis: {
       type: 'category',
       data: trendData.days,
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } },
-      axisLabel: { color: 'rgba(255,255,255,0.6)' }
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
+      axisLabel: { color: '#666' }
     },
     yAxis: {
       type: 'value',
       splitLine: { show: false },
-      axisLabel: { color: 'rgba(255,255,255,0.6)' }
+      axisLabel: { color: '#666' }
     },
     series: [{
       data: trendData.values,
@@ -30,9 +30,9 @@ export function Dashboard() {
       smooth: true,
       symbol: 'none',
       lineStyle: {
-        color: '#10B981',
+        color: '#0EA5E9',
         width: 3,
-        shadowColor: 'rgba(16,185,129,0.8)',
+        shadowColor: 'rgba(14,165,233,0.3)',
         shadowBlur: 10
       },
       areaStyle: {
@@ -40,8 +40,8 @@ export function Dashboard() {
           type: 'linear',
           x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
-            { offset: 0, color: 'rgba(16,185,129,0.3)' },
-            { offset: 1, color: 'rgba(16,185,129,0)' }
+            { offset: 0, color: 'rgba(14,165,233,0.1)' },
+            { offset: 1, color: 'rgba(14,165,233,0)' }
           ]
         }
       }

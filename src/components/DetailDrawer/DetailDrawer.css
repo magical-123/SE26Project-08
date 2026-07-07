@@ -1,8 +1,8 @@
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(8px);
   z-index: 900;
 }
 
@@ -12,12 +12,12 @@
   right: 16px;
   bottom: 16px;
   width: 400px;
-  background: rgba(15, 15, 17, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
   border: 1px solid var(--border-glass);
-  border-radius: 16px;
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -33,9 +33,10 @@
 
 .drawer-header h2 {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   line-height: 1.3;
+  color: var(--text-main);
 }
 
 .close-btn {
@@ -43,10 +44,11 @@
   padding: 4px;
   border-radius: 4px;
   transition: all 0.2s;
+  background: rgba(0,0,0,0.05);
 }
 .close-btn:hover {
   color: var(--text-main);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .drawer-content {
@@ -59,10 +61,18 @@
 }
 
 .ai-summary {
-  background: rgba(16, 185, 129, 0.05);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: 12px;
+  background: rgba(14, 165, 233, 0.05);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-radius: 4px;
   padding: 16px;
+  position: relative;
+}
+
+.ai-summary::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0; width: 3px;
+  background: var(--primary);
 }
 
 .ai-summary-header {
@@ -70,14 +80,15 @@
   align-items: center;
   gap: 8px;
   color: var(--primary);
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 12px;
-  font-size: 14px;
+  font-size: 12px;
+  letter-spacing: 1px;
 }
 
 .ai-summary p {
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -92,25 +103,29 @@
   align-items: center;
   gap: 8px;
   color: var(--text-main);
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 12px;
-  font-size: 14px;
+  font-size: 12px;
+  letter-spacing: 1px;
 }
 
 .notes-input {
   flex: 1;
   min-height: 200px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.02);
   border: 1px solid var(--border-glass);
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 16px;
   color: var(--text-main);
   resize: none;
   transition: border-color 0.2s;
+  font-family: inherit;
+  font-size: 14px;
 }
 .notes-input:focus {
   outline: none;
   border-color: var(--primary);
+  background: #fff;
 }
 
 .drawer-footer {
@@ -121,14 +136,13 @@
 .save-btn {
   width: 100%;
   padding: 12px;
-  background: var(--primary);
-  color: #000;
-  font-weight: 600;
-  border-radius: 8px;
+  background: var(--text-main);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 4px;
   transition: all 0.2s;
-  box-shadow: 0 0 15px var(--primary-glow);
 }
 .save-btn:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
+  background: var(--primary);
 }
