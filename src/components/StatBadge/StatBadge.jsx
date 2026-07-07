@@ -1,9 +1,9 @@
 import React from 'react';
 import './StatBadge.css';
 
-export function StatBadge({ label, value, unit, icon }) {
+export function StatBadge({ label, value, unit, icon, onClick }) {
   return (
-    <div className="stat-badge">
+    <div className="stat-badge" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
       <div className="sb-icon">{icon}</div>
       <div className="sb-content">
         <div className="sb-value">
