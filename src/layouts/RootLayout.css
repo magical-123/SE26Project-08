@@ -76,57 +76,44 @@
 }
 
 /* ====================
-   3D Arc Cascading Nav 
+   Plain Vertical Nav
    ==================== */
-.cascade-perspective {
+.nav-container-inner {
   flex: 1;
-  perspective: 1200px;
-  perspective-origin: center right; /* Looking from slight angle */
   display: flex;
-  align-items: center; /* Center the arc vertically */
+  align-items: flex-start; /* Move to top instead of center */
+  padding-top: 40px; /* Distance from the brand logo */
 }
 
-.cascade-nav-arc {
-  position: relative;
+.plain-nav-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   width: 100%;
-  height: 400px; /* Container height for arc */
-  transform-style: preserve-3d;
-  /* Rotate container slightly so we see the 3D depth of folders standing */
-  transform: rotateY(15deg); 
-  /* Group hover base animation - no crazy shifting, just subtle depth */
 }
 
-.arc-item {
-  position: absolute;
-  left: 0;
-  /* Start near center, offset by index */
-  top: calc(50% + (var(--layer-index) * 45px) - 150px);
+.nav-item {
+  position: relative;
   width: 260px;
-  height: 64px; /* Folder height */
+  height: 64px;
   
   background: var(--bg-glass);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   border: 1px solid var(--border-glass);
   
-  /* Standing up orientation, arrayed in a fan curve */
-  transform-origin: center left;
-  transform: translateY(var(--trans-y)) rotateZ(var(--rot-z)) rotateX(-5deg);
-  
   border-radius: 4px;
   display: flex;
   align-items: center;
   padding: 0 24px;
-  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.4s, background 0.4s;
-  z-index: var(--layer-index);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s, background 0.3s;
   cursor: pointer;
   
-  /* Drop shadow gives depth to standing cards */
-  box-shadow: 10px 10px 20px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
 }
 
 /* Base item structure to look like a folder tab */
-.arc-item::before {
+.nav-item::before {
   content: "";
   position: absolute;
   left: -2px;
@@ -139,37 +126,35 @@
   border-radius: 2px;
 }
 
-/* Hovering on a specific folder (pulling it out like a drawer) */
-.cascade-nav-arc .arc-item:hover {
+/* Hovering on a specific folder (pulling it out like a drawer to the right) */
+.plain-nav-stack .nav-item:hover {
   background: rgba(255, 255, 255, 0.9);
-  /* Translate it rightwards (pulling out of file cabinet) and slightly towards user */
-  transform: translateY(var(--trans-y)) rotateZ(var(--rot-z)) rotateX(0deg) translateX(30px) translateZ(20px);
-  box-shadow: 15px 15px 30px rgba(0,0,0,0.1);
+  /* Translate it purely rightwards */
+  transform: translateX(20px);
+  box-shadow: 10px 10px 20px rgba(0,0,0,0.08);
 }
 
-/* Active State - NOT lifted, just visually highlighted */
-.arc-item.active {
+/* Active State - visually highlighted */
+.nav-item.active {
   background: rgba(255, 255, 255, 0.7);
 }
 
-.arc-item.active::before {
+.nav-item.active::before {
   opacity: 1; /* Show the black tab indicator */
 }
 
-.arc-content {
+.nav-content {
   display: flex;
   align-items: center;
   gap: 16px;
-  /* Counteract the base rotation slightly to keep text horizontal-ish if desired,
-     but keeping it aligned with the card looks better */
 }
 
-.arc-icon {
+.nav-icon {
   color: var(--text-main);
   opacity: 0.8;
 }
 
-.arc-label {
+.nav-label {
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 1px;
@@ -214,12 +199,19 @@
 
 .main-glass-board {
   flex: 1;
-  background: var(--bg-glass-heavy);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid var(--border-glass);
-  box-shadow: var(--shadow-glass);
-  border-radius: 4px;
+  /* Extreme transparent glass to show the hexagon background */
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.0) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  
+  /* Crisp glassy edges */
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 
+    0 20px 40px rgba(0,0,0,0.02),
+    inset 1px 1px 0px rgba(255,255,255,0.6),
+    inset -1px -1px 0px rgba(255,255,255,0.1);
+    
+  border-radius: 8px;
   overflow-y: auto;
   position: relative;
   z-index: 10;
