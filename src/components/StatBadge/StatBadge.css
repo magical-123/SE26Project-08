@@ -1,0 +1,45 @@
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+}
+
+.sb-icon {
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(16,185,129,0.1);
+}
+
+.sb-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.sb-value {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.sb-unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.sb-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

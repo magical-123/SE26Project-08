@@ -1,0 +1,48 @@
+.inbox {
+  padding: 32px;
+}
+
+.inbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.inbox-header h1 {
+  font-size: 28px;
+  letter-spacing: -0.5px;
+}
+
+.inbox-filters {
+  display: flex;
+  gap: 8px;
+  background: rgba(255,255,255,0.03);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  color: var(--text-main);
+}
+
+.filter-btn.active {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-main);
+}
+
+.inbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}

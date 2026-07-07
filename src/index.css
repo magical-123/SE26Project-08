@@ -1,28 +1,19 @@
 :root {
-  --text: #2c3e50;
-  --text-light: #7f8c8d;
-  --bg: #f8f9fa;
-  --white: #ffffff;
-  --primary: #2c3e50;
-  --primary-light: #34495e;
-  --accent: #3498db;
-  --accent-hover: #2980b9;
-  --border: #e1e8ed;
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
-  --radius: 8px;
-  --transition: all 0.2s ease;
+  /* Colors */
+  --bg-base: #09090B;
+  --bg-surface: rgba(255, 255, 255, 0.03);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --primary: #10B981;
+  --primary-glow: rgba(16, 185, 129, 0.4);
+  --warning: #F43F5E;
+  
+  /* Text */
+  --text-main: rgba(255, 255, 255, 1);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --text-muted: rgba(255, 255, 255, 0.4);
 
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-
-  font: 16px/1.5 var(--sans);
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 * {
@@ -32,102 +23,69 @@
 }
 
 body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Background gradient animation */
+body::before {
+  content: "";
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.03) 0%, transparent 60%);
+  z-index: -1;
+  animation: rotateGradient 60s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rotateGradient {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 a {
-  color: var(--accent);
+  color: inherit;
   text-decoration: none;
-  transition: var(--transition);
 }
 
-a:hover {
-  color: var(--accent-hover);
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
-ul, ol {
+ul {
   list-style: none;
 }
 
 button {
   font-family: inherit;
-  font-size: inherit;
-  cursor: pointer;
   border: none;
   background: none;
+  cursor: pointer;
+  color: inherit;
 }
 
-input, textarea {
-  font-family: inherit;
-  font-size: inherit;
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  color: var(--text-main);
 }
 
-#root {
-  min-height: 100vh;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-
-body {
-  margin: 0;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
-  color: var(--text-h);
 }
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

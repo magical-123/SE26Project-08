@@ -1,0 +1,134 @@
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 900;
+}
+
+.detail-drawer {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: 400px;
+  background: rgba(15, 15, 17, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.drawer-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.close-btn {
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.close-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.drawer-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ai-summary {
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.ai-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+  font-weight: 600;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.ai-summary p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.user-notes {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.notes-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-main);
+  font-weight: 600;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.notes-input {
+  flex: 1;
+  min-height: 200px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  padding: 16px;
+  color: var(--text-main);
+  resize: none;
+  transition: border-color 0.2s;
+}
+.notes-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.drawer-footer {
+  padding: 20px 24px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.save-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: #000;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s;
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+.save-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
