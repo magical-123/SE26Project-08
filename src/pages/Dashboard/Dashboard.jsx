@@ -1,52 +1,58 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
+import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { NutritionLabel } from '../../components/NutritionLabel/NutritionLabel';
 import { StatBadge } from '../../components/StatBadge/StatBadge';
+import { AIQuoteCard } from '../../components/AIQuoteCard/AIQuoteCard';
+import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { BookOpen, Zap, Clock } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { nutritionData, trendData, aiQuotes, reviewCards } from '../../mock/dashboardData';
+import { motion, AnimatePresence } from 'framer-motion';
+import { nutritionData, wordCloudData, aiQuotes, reviewCards } from '../../mock/dashboardData';
 import './Dashboard.css';
 
 export function Dashboard() {
-  const chartOption = {
+  const navigate = useNavigate();
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+
+  const wordCloudOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'axis', axisPointer: { type: 'line' } },
-    grid: { top: 40, right: 20, bottom: 30, left: 40 },
-    xAxis: {
-      type: 'category',
-      data: trendData.days,
-      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
-      axisLabel: { color: '#666' }
-    },
-    yAxis: {
-      type: 'value',
-      splitLine: { show: false },
-      axisLabel: { color: '#666' }
-    },
+    tooltip: { show: true },
     series: [{
-      data: trendData.values,
-      type: 'line',
-      smooth: true,
-      symbol: 'none',
-      lineStyle: {
-        color: '#0EA5E9',
-        width: 3,
-        shadowColor: 'rgba(14,165,233,0.3)',
-        shadowBlur: 10
-      },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(14,165,233,0.1)' },
-            { offset: 1, color: 'rgba(14,165,233,0)' }
-          ]
+      type: 'wordCloud',
+      shape: 'circle',
+      keepAspect: false,
+      left: 'center',
+      top: 'center',
+      width: '100%',
+      height: '100%',
+      right: null,
+      bottom: null,
+      sizeRange: [12, 40],
+      rotationRange: [-45, 45],
+      rotationStep: 45,
+      gridSize: 8,
+      drawOutOfBound: false,
+      layoutAnimation: true,
+      textStyle: {
+        fontFamily: 'Inter, sans-serif',
+        fontWeight: 'bold',
+        color: function () {
+          return 'rgb(' + [
+            Math.round(Math.random() * 100),
+            Math.round(Math.random() * 100),
+            Math.round(Math.random() * 150 + 50)
+          ].join(',') + ')';
         }
-      }
+      },
+      emphasis: {
+        focus: 'self',
+        textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
+      },
+      data: wordCloudData
     }]
-  };
+  }), []);
 
   return (
     <div className="dashboard">
@@ -55,32 +61,29 @@ export function Dashboard() {
       </header>
 
       <div className="stats-row">
-        <StatBadge icon={<BookOpen />} label="今日浏览总量" value="12" />
-        <StatBadge icon={<Zap />} label="优质信息源" value="4" />
-        <StatBadge icon={<Clock />} label="今日沉浸时长" value="2.5" unit="h" />
+        <StatBadge icon={<BookOpen />} label="今日浏览总量" value="12" onClick={() => navigate('/inbox')} />
+        <StatBadge icon={<Zap />} label="优质信息源" value="4" onClick={() => navigate('/graph')} />
+        <StatBadge icon={<Clock />} label="今日沉浸时长" value="2.5" unit="h" onClick={() => navigate('/report')} />
       </div>
 
       <div className="bento-grid">
-        <div className="bento-nutrition">
+        <div className="bento-nutrition" onClick={() => navigate('/report')} style={{ cursor: 'pointer' }}>
           <NutritionLabel data={nutritionData} />
         </div>
         
-        <GlassCard className="bento-trend">
-          <h3>近期关注点流变趋势</h3>
+        <GlassCard className="bento-trend" onClick={() => navigate('/report')} style={{ cursor: 'pointer' }}>
+          <h3>近期关注点流变</h3>
           <div className="chart-container">
-            <ReactECharts option={chartOption} style={{ height: '100%', width: '100%' }} />
+            <ReactECharts option={wordCloudOption} style={{ height: '100%', width: '100%' }} />
           </div>
         </GlassCard>
 
-        <motion.div whileHover={{ y: -4 }} className="bento-quote">
-          <GlassCard className="quote-card">
-            <h3>💡 AI 洞察金句</h3>
-            <p>{aiQuotes[0]}</p>
-          </GlassCard>
-        </motion.div>
+        <div className="bento-quote">
+          <AIQuoteCard quote={aiQuotes[0]} />
+        </div>
 
-        <motion.div whileHover={{ y: -4 }} className="bento-review">
-          <GlassCard className="review-card">
+        <motion.div whileHover={{ y: -4 }} className="bento-review" onClick={() => setIsReviewOpen(true)}>
+          <GlassCard className="review-card" style={{ cursor: 'pointer' }}>
             <div className="rc-header">
               <h3>待复习卡片</h3>
               <span className="rc-badge">记忆曲线</span>
@@ -91,6 +94,12 @@ export function Dashboard() {
           </GlassCard>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {isReviewOpen && (
+          <ReviewModal cards={reviewCards} onClose={() => setIsReviewOpen(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
