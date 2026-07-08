@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { InfoSourceCard } from '../../components/InfoSourceCard/InfoSourceCard';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
-import { initialInboxItems } from '../../mock/inboxData';
+import { useInboxItems } from '../../hooks/useInboxItems';
 import './Inbox.css';
 
 const containerVariants = {
@@ -20,7 +20,7 @@ const itemVariants = {
 
 export function Inbox() {
   const [filter, setFilter] = useState('All');
-  const [items, setItems] = useState(initialInboxItems);
+  const { items, setItems, togglePremium, saveNote } = useInboxItems();
   const [selectedItem, setSelectedItem] = useState(null);
   const [draftNote, setDraftNote] = useState('');
   const [draftTags, setDraftTags] = useState([]);
@@ -42,25 +42,16 @@ export function Inbox() {
 
   const handleSaveNote = () => {
     if (!selectedItem) return;
-    setItems(prev => prev.map(item =>
-      item.id === selectedItem.id
-        ? { ...item, hasNote: true, note: draftNote, tags: draftTags }
-        : item
-    ));
+    saveNote(selectedItem.id, draftNote, draftTags);
     setSelectedItem(null);
   };
 
   const handleTogglePremium = (id) => {
-    setItems(prev => prev.map(item =>
-      item.id === id ? { ...item, userPremium: !item.userPremium } : item
-    ));
+    togglePremium(id);
   };
 
   const getPremiumLabel = (item) => {
-    const labels = [];
-    if (item.hasNote) labels.push('已记录');
-    if (item.aiPremium) labels.push('AI 推荐');
-    return labels.length > 0 ? labels.join(' · ') : null;
+    return '优质信息源';
   };
 
   return (
@@ -111,6 +102,10 @@ export function Inbox() {
         onNoteChange={setDraftNote}
         onToggleTag={toggleTag}
         onSave={handleSaveNote}
+        onTogglePremium={(id) => {
+          handleTogglePremium(id);
+          setSelectedItem(null);
+        }}
         sourceTitle={selectedItem?.title}
       />
     </div>

@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Graph } from '@antv/g6';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
-import { initialInboxItems } from '../../mock/inboxData';
-import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { useInboxItems } from '../../hooks/useInboxItems';
+import { ZoomIn, ZoomOut, Maximize, Eye, EyeOff, Camera, Sparkles, SlidersHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
 import './KnowledgeGraph.css';
 
 const CATEGORY_COLORS = {
@@ -13,74 +13,194 @@ const CATEGORY_COLORS = {
 };
 
 const CATEGORY_ORDER = ['深度知识', '实用技巧', '行业资讯', '娱乐科普'];
-const MAX_LABEL_LENGTH = 15;
+const MAX_LABEL_LENGTH = 5;
+const HOVER_LABEL_LENGTH = 12;
 
-function buildGraphData(items) {
+function getNodeWeight(item) {
+  let w = 0;
+  if (item.hasNote) w += 3;
+  if (item.aiPremium) w += 2;
+  if (item.userPremium) w += 1;
+  return w;
+}
+
+function getConnectionStrength(a, b) {
+  let strength = 0;
+  if (a.category === b.category) strength += 0.4;
+  const aTags = new Set(a.tags || []);
+  const bTags = new Set(b.tags || []);
+  const shared = [...aTags].filter(t => bTags.has(t)).length;
+  strength += shared * 0.2;
+  if (a.platform === b.platform) strength += 0.15;
+  return Math.min(1, strength);
+}
+
+function buildGraphData(items, visibleCategories) {
   const premium = items.filter(item => item.hasNote || item.aiPremium || item.userPremium);
-
   if (premium.length === 0) return { nodes: [], edges: [] };
 
-  // Sort by category so same-category nodes are contiguous on the circle
-  const sorted = [...premium].sort((a, b) => {
+  const filtered = premium.filter(item => !visibleCategories || visibleCategories.has(item.category));
+  if (filtered.length === 0) return { nodes: [], edges: [] };
+
+  const sorted = [...filtered].sort((a, b) => {
     const ai = CATEGORY_ORDER.indexOf(a.category);
     const bi = CATEGORY_ORDER.indexOf(b.category);
     return ai - bi;
   });
 
-  const nodes = sorted.map((item) => ({
-    id: `premium-${item.id}`,
-    size: 20,
-    data: {
-      category: item.category,
-      sourceTitle: item.title,
-      note: item.note,
-      tags: item.tags,
-      platform: item.platform,
-      author: item.author,
-      hasNote: item.hasNote,
-      aiPremium: item.aiPremium,
-      userPremium: item.userPremium,
-    },
-  }));
+  const nodes = sorted.map((item) => {
+    const weight = getNodeWeight(item);
+    return {
+      id: `premium-${item.id}`,
+      size: 20 + weight * 4,
+      data: {
+        category: item.category,
+        sourceTitle: item.title,
+        summary: item.summary,
+        note: item.note,
+        tags: item.tags,
+        platform: item.platform,
+        author: item.author,
+        duration: item.duration,
+        date: item.date,
+        hasNote: item.hasNote,
+        aiPremium: item.aiPremium,
+        userPremium: item.userPremium,
+        weight,
+      },
+    };
+  });
 
   const edges = [];
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
-      const ni = sorted[i], nj = sorted[j];
-      if (ni.category === nj.category) {
-        edges.push({ source: nodes[i].id, target: nodes[j].id });
+      const strength = getConnectionStrength(sorted[i], sorted[j]);
+      if (strength >= 0.4) {
+        edges.push({
+          id: `edge-${nodes[i].id}-${nodes[j].id}`,
+          source: nodes[i].id,
+          target: nodes[j].id,
+          data: { strength },
+        });
       }
     }
   }
 
-  // Count connections per node to determine size
-  const connCount = {};
-  nodes.forEach(n => connCount[n.id] = 0);
-  edges.forEach(e => {
-    connCount[e.source] = (connCount[e.source] || 0) + 1;
-    connCount[e.target] = (connCount[e.target] || 0) + 1;
-  });
-  nodes.forEach(n => {
-    const c = connCount[n.id] || 0;
-    if (c >= 4) n.size = 26;
-    else if (c >= 2) n.size = 20;
-    else n.size = 14;
-  });
-
-  return { nodes, edges, sortedItems: sorted };
+  return { nodes, edges };
 }
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function truncateLabel(text, len) {
+  if (!text) return '';
+  return text.length > len ? text.slice(0, len) + '…' : text;
+}
+
+function createGlassSphereFill(color, weight) {
+  // Use a translucent tint of the category color
+  const alpha = 0.22 + weight * 0.05;
+  return hexToRgba(color, alpha);
+}
+
 
 export function KnowledgeGraph() {
   const containerRef = useRef(null);
   const graphRef = useRef(null);
+  const focusedNodeRef = useRef(null);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [focusedNode, setFocusedNode] = useState(null);
+  const [focusPosition, setFocusPosition] = useState(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const { items } = useInboxItems();
 
+  // Keep ref in sync with state so event handlers in single-useEffect read latest value
+  useEffect(() => {
+    focusedNodeRef.current = focusedNode;
+  }, [focusedNode]);
+
+  const [visibleCategories, setVisibleCategories] = useState(() => {
+    const set = new Set();
+    items.forEach(item => {
+      if (item.hasNote || item.aiPremium || item.userPremium) {
+        set.add(item.category);
+      }
+    });
+    return set;
+  });
+
+  const toggleCategory = (cat) => {
+    setVisibleCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) {
+        if (next.size > 1) next.delete(cat);
+      } else {
+        next.add(cat);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setVisibleCategories(prev => {
+      if (prev.size === CATEGORY_ORDER.length) {
+        return new Set([CATEGORY_ORDER[0]]);
+      }
+      return new Set(CATEGORY_ORDER);
+    });
+  };
+
+  const exportImage = () => {
+    if (!graphRef.current) return;
+    const canvas = containerRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = 'knowledge-graph.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  const clearFocus = () => {
+    setFocusedNode(null);
+    setFocusPosition(null);
+    const g = graphRef.current;
+    if (!g) return;
+    try {
+      const allNodes = g.getNodeData();
+      const allEdges = g.getEdgeData();
+      const stateMap = {};
+      allNodes.forEach(node => { stateMap[node.id] = []; });
+      allEdges.forEach(edge => { stateMap[edge.id] = []; });
+      g.setElementState(stateMap);
+    } catch {}
+  };
+
+  const handleDrawerClose = () => {
+    setSelectedNode(null);
+    clearFocus();
+    // 关闭抽屉时恢复所有优质信息源分类显示
+    const allCategories = new Set();
+    items.forEach(item => {
+      if (item.hasNote || item.aiPremium || item.userPremium) {
+        allCategories.add(item.category);
+      }
+    });
+    setVisibleCategories(allCategories);
+  };
+
+  const graphData = useMemo(() => buildGraphData(items, visibleCategories), [items, visibleCategories]);
+
+  // Effect 1: Initialize graph ONCE
   useEffect(() => {
     if (!containerRef.current) return;
 
     const width = containerRef.current.clientWidth || 800;
     const height = containerRef.current.clientHeight || 600;
-    const { nodes, edges, sortedItems } = buildGraphData(initialInboxItems);
+    const { nodes, edges } = graphData;
 
     if (nodes.length === 0) return;
 
@@ -91,38 +211,118 @@ export function KnowledgeGraph() {
       data: { nodes, edges },
       layout: {
         type: 'circular',
-        radius: Math.min(width, height) * 0.35,
-        divisions: 1,
+        radius: Math.min(width, height) * 0.36,
+        divisions: CATEGORY_ORDER.length,
         ordering: 'topology',
+        startAngle: 0,
+        endAngle: 360,
       },
+      animation: false,
       behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element'],
       node: {
-        size: (model) => model.size || 20,
+        size: (model) => model.size || 24,
         style: (model) => {
           const cat = model.data?.category || '';
           const color = CATEGORY_COLORS[cat] || '#0EA5E9';
+          const weight = model.data?.weight || 0;
+          const isHighWeight = weight >= 4;
           return {
-            fill: '#fff',
+            fill: createGlassSphereFill(color, weight),
+            fillOpacity: 0.95,
             stroke: color,
-            lineWidth: 2,
+            strokeOpacity: 0.85,
+            lineWidth: isHighWeight ? 2.5 : 1.5,
+            shadowColor: color,
+            shadowBlur: isHighWeight ? 28 : 14,
+            shadowOffsetX: 0,
+            shadowOffsetY: 0,
+            cursor: 'pointer',
             labelText: model.id
-              ? (model.data?.sourceTitle || model.id).length > MAX_LABEL_LENGTH
-                ? (model.data?.sourceTitle || model.id).slice(0, MAX_LABEL_LENGTH) + '…'
-                : (model.data?.sourceTitle || model.id)
+              ? truncateLabel(model.data?.sourceTitle || model.id, MAX_LABEL_LENGTH)
               : '',
-            labelFill: '#1a1a1a',
+            labelFill: '#2a2a2a',
             labelFontSize: 10,
+            labelFontWeight: 600,
             labelPlacement: 'bottom',
-            labelBackgroundFill: 'rgba(255,255,255,0.88)',
-            labelBackgroundRadius: 3,
-            labelPadding: [2, 6],
+            labelOffsetY: 8,
+            labelTextAlign: 'center',
+            labelOffsetX: 0,
+            labelBackgroundFill: 'rgba(255,255,255,0.78)',
+            labelBackgroundRadius: 4,
+            labelPadding: [3, 7],
+            labelBackgroundOpacity: 0.9,
+          };
+        },
+        state: {
+          highlight: {
+            fillOpacity: 1,
+            strokeOpacity: 1,
+            lineWidth: 3.5,
+            shadowBlur: 42,
+            labelFillOpacity: 1,
+            zIndex: 10,
+          },
+          dim: {
+            fillOpacity: 0.18,
+            strokeOpacity: 0.15,
+            shadowBlur: 0,
+            labelFillOpacity: 0.1,
+            zIndex: 0,
+          },
+          focused: {
+            lineWidth: 4,
+            shadowBlur: 56,
+            stroke: '#FBBF24',
+            labelFillOpacity: 1,
+            zIndex: 20,
+          },
+        },
+        tooltip: (model) => {
+          const d = model.data || {};
+          const badges = [];
+          if (d.hasNote) badges.push('📝 已记录');
+          if (d.aiPremium) badges.push('✨ AI推荐');
+          if (d.userPremium) badges.push('⭐ 用户标记');
+          return {
+            title: d.sourceTitle || model.id,
+            content: [
+              `分类: ${d.category || '-'}`,
+              `平台: ${d.platform || '-'}`,
+              `作者: ${d.author || '-'}`,
+              badges.length ? `标识: ${badges.join(' · ')}` : '',
+              d.note ? `笔记: ${d.note.slice(0, 60)}${d.note.length > 60 ? '…' : ''}` : '',
+            ].filter(Boolean).join('\n'),
           };
         },
       },
       edge: {
-        style: {
-          stroke: 'rgba(0,0,0,0.06)',
-          lineWidth: 1,
+        style: (model) => {
+          const strength = model.data?.strength || 0.15;
+          return {
+            stroke: 'rgba(120,120,130,0.22)',
+            strokeOpacity: 0.3 + strength * 0.5,
+            lineWidth: 0.8 + strength * 2.2,
+            lineDash: [4, 6],
+          };
+        },
+        animate: {
+          stroke: 'rgba(120,120,130,0.35)',
+          lineDashOffset: -12,
+          duration: 1200,
+          iterations: Infinity,
+          easing: 'linear',
+        },
+        state: {
+          highlight: {
+            strokeOpacity: 0.85,
+            stroke: 'rgba(80,80,90,0.45)',
+            lineWidth: (model) => 1 + (model.data?.strength || 0) * 2.5,
+            zIndex: 5,
+          },
+          dim: {
+            strokeOpacity: 0.04,
+            zIndex: 0,
+          },
         },
       },
       autoFit: 'view',
@@ -131,32 +331,63 @@ export function KnowledgeGraph() {
     graph.render();
     graphRef.current = graph;
 
-    graph.on('node:click', (e) => {
-      const item = graph.getNodeData(e.target.id);
+    const handleClick = (e) => {
+      const g = graphRef.current;
+      if (!g) return;
+
+      const nodeId = e.target?.id;
+      if (!nodeId) return;
+
+      const item = g.getNodeData(nodeId);
+      const screenPos = e.canvas || g.getViewportCenter?.();
+
       setSelectedNode({
         title: item.data?.sourceTitle || item.id,
         ...item,
       });
-    });
+      setFocusedNode(nodeId);
+      setFocusPosition(screenPos);
 
-    // Hover: glow effect instead of size change (more reliable in G6 v8)
-    graph.on('node:mouseenter', (e) => {
-      const id = e.target.id;
-      graph.updateNodeData([{
-        id,
-        style: { lineWidth: 4, shadowBlur: 12, shadowColor: 'rgba(0,0,0,0.2)' },
-      }]);
-      graph.draw();
-    });
+      // Focus mode: highlight selected + neighbors, dim others
+      const allNodes = g.getNodeData();
+      const allEdges = g.getEdgeData();
+      const neighbors = new Set([nodeId]);
+      const connectedEdges = new Set();
+      allEdges.forEach(edge => {
+        if (edge.source === nodeId) {
+          neighbors.add(edge.target);
+          connectedEdges.add(edge.id);
+        }
+        if (edge.target === nodeId) {
+          neighbors.add(edge.source);
+          connectedEdges.add(edge.id);
+        }
+      });
 
-    graph.on('node:mouseleave', (e) => {
-      const id = e.target.id;
-      graph.updateNodeData([{
-        id,
-        style: { lineWidth: 2, shadowBlur: 0, shadowColor: 'transparent' },
-      }]);
-      graph.draw();
-    });
+      const stateMap = {};
+      allNodes.forEach(node => {
+        if (node.id === nodeId) stateMap[node.id] = 'focused';
+        else if (neighbors.has(node.id)) stateMap[node.id] = 'highlight';
+        else stateMap[node.id] = 'dim';
+      });
+      allEdges.forEach(edge => {
+        stateMap[edge.id] = connectedEdges.has(edge.id) ? 'highlight' : 'dim';
+      });
+
+      try {
+        g.setElementState(stateMap);
+      } catch {}
+    };
+
+    const handleCanvasClick = () => {
+      if (selectedNode || focusedNode) {
+        setSelectedNode(null);
+        clearFocus();
+      }
+    };
+
+    graph.on('node:click', handleClick);
+    graph.on('canvas:click', handleCanvasClick);
 
     const handleResize = () => {
       if (containerRef.current && graphRef.current) {
@@ -170,36 +401,115 @@ export function KnowledgeGraph() {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      graph.destroy();
+      graph.off('node:click', handleClick);
+      graph.off('canvas:click', handleCanvasClick);
+      if (graphRef.current) {
+        graphRef.current.destroy();
+        graphRef.current = null;
+      }
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Effect 2: Update data when categories change
+  useEffect(() => {
+    if (!graphRef.current) return;
+    const g = graphRef.current;
+    if (g.destroyed || g.isDestroyed?.()) return;
+
+    const { nodes, edges } = graphData;
+
+    g.setData({ nodes, edges });
+    try {
+      g.layout();
+      g.render();
+    } catch (err) {
+      console.warn('Graph update failed:', err);
+    }
+
+    // Clear focus state after data update
+    if (focusedNode) {
+      clearFocus();
+      setSelectedNode(null);
+    }
+  }, [graphData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasCat = (cat) =>
-    initialInboxItems.some(i => i.category === cat && (i.hasNote || i.aiPremium || i.userPremium));
+    items.some(i => i.category === cat && (i.hasNote || i.aiPremium || i.userPremium));
+
+  const allVisible = visibleCategories.size === CATEGORY_ORDER.length;
 
   return (
     <div className="knowledge-graph-page">
-      <div className="kg-container" ref={containerRef}></div>
-
-      <div className="kg-legend">
-        <span className="kg-legend-title">图例</span>
-        {CATEGORY_ORDER.filter(hasCat).map(cat => (
-          <div key={cat} className="kg-legend-item">
-            <span className="kg-legend-dot" style={{ background: CATEGORY_COLORS[cat] }} />
-            <span className="kg-legend-label">{cat}</span>
+      {/* Top legend bar */}
+      <div className="kg-legend-bar">
+        <div className="kg-legend-bar-inner">
+          <div className="kg-legend-items">
+            {CATEGORY_ORDER.filter(hasCat).map(cat => (
+              <button
+                key={cat}
+                className={`kg-legend-item ${visibleCategories.has(cat) ? 'active' : 'hidden'}`}
+                onClick={() => toggleCategory(cat)}
+                title={visibleCategories.has(cat) ? '点击隐藏' : '点击显示'}
+              >
+                <span className="kg-legend-dot" style={{ background: CATEGORY_COLORS[cat] }} />
+                <span className="kg-legend-label">{cat}</span>
+                {visibleCategories.has(cat) ? <Eye size={12} /> : <EyeOff size={12} />}
+              </button>
+            ))}
           </div>
-        ))}
+          <button className="kg-legend-toggle-all" onClick={toggleAll}>
+            {allVisible ? <EyeOff size={12} /> : <Eye size={12} />}
+            <span>{allVisible ? '仅首个' : '全显示'}</span>
+          </button>
+        </div>
       </div>
 
-      <div className="kg-controls">
-        <button onClick={() => graphRef.current?.zoomBy(1.2)} title="放大"><ZoomIn size={18} /></button>
-        <button onClick={() => graphRef.current?.zoomBy(0.8)} title="缩小"><ZoomOut size={18} /></button>
-        <button onClick={() => graphRef.current?.fitView()} title="适应画布"><Maximize size={18} /></button>
+      <div className="kg-container" ref={containerRef}></div>
+
+      {/* Focus scrim overlay */}
+      {focusedNode && focusPosition && (
+        <div
+          className="kg-focus-scrim"
+          style={{
+            '--focus-x': `${focusPosition.x}px`,
+            '--focus-y': `${focusPosition.y}px`,
+          }}
+        />
+      )}
+
+      {/* Floating control cube panel */}
+      <div className={`kg-control-cube ${isPanelOpen ? 'open' : ''}`}>
+        <button
+          className="kg-cube-toggle"
+          onClick={() => setIsPanelOpen(v => !v)}
+          title={isPanelOpen ? '收起控制面板' : '展开控制面板'}
+        >
+          <SlidersHorizontal size={16} />
+          {isPanelOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+        </button>
+
+        <div className="kg-cube-body">
+          {/* Controls */}
+          <div className="kg-cube-section">
+            <div className="kg-cube-section-title">视图</div>
+            <div className="kg-cube-controls">
+              <button onClick={() => graphRef.current?.zoomBy(1.2)} title="放大"><ZoomIn size={16} /></button>
+              <button onClick={() => graphRef.current?.zoomBy(0.8)} title="缩小"><ZoomOut size={16} /></button>
+              <button onClick={() => graphRef.current?.fitView()} title="适应画布"><Maximize size={16} /></button>
+              <button onClick={exportImage} title="导出图片"><Camera size={16} /></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="kg-tip">
+        <Sparkles size={12} />
+        <span>点击节点查看详情</span>
       </div>
 
       <DetailDrawer
         isOpen={!!selectedNode}
-        onClose={() => setSelectedNode(null)}
+        onClose={handleDrawerClose}
         data={selectedNode}
         sourceTitle={selectedNode?.title}
       />
