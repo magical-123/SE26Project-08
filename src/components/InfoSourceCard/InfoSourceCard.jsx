@@ -1,6 +1,6 @@
 import React from 'react';
 import { GlassCard } from '../GlassCard/GlassCard';
-import { Clock, PlayCircle, FileText, Mic, ArrowUpRight } from 'lucide-react';
+import { Clock, PlayCircle, FileText, Mic, ArrowUpRight, Heart, Star } from 'lucide-react';
 import './InfoSourceCard.css';
 
 const platformIcon = {
@@ -9,9 +9,19 @@ const platformIcon = {
   Podcast: <Mic size={14} />
 };
 
+// 判断是否显示红点：点赞或收藏了，但没有笔记
+const shouldShowRedDot = (data) => {
+  return (data.isFavorite || data.isLiked) && !data.hasNote;
+};
+
 export function InfoSourceCard({ data, onClick }) {
+  const showRedDot = shouldShowRedDot(data);
+  
   return (
     <GlassCard className="info-source-card" onClick={onClick}>
+      {showRedDot && (
+        <div className="isc-red-dot" />
+      )}
       <div className="isc-header">
         <div className="isc-platform">
           {platformIcon[data.platform] || <FileText size={14} />}
@@ -32,6 +42,20 @@ export function InfoSourceCard({ data, onClick }) {
           <span className="isc-divider">|</span>
           <Clock size={12} className="isc-clock-icon" />
           <span className="isc-duration">{data.duration}</span>
+          {data.isFavorite && (
+            <>
+              <span className="isc-divider">|</span>
+              <Heart size={12} className="isc-action-icon isc-favorite" fill="#EF4444" />
+              <span className="isc-action-label">收藏</span>
+            </>
+          )}
+          {data.isLiked && (
+            <>
+              <span className="isc-divider">|</span>
+              <Star size={12} className="isc-action-icon isc-liked" fill="#F59E0B" />
+              <span className="isc-action-label">点赞</span>
+            </>
+          )}
           <span className="isc-divider">|</span>
           <span className="isc-time">{data.date}</span>
         </div>
