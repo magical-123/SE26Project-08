@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Edit3 } from 'lucide-react';
 import './DetailDrawer.css';
 
-export function DetailDrawer({ isOpen, onClose, data, title }) {
+const TAG_OPTIONS = ['兴趣', '实用', '震撼', '共鸣'];
+
+export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNoteChange, onToggleTag, onSave, sourceTitle }) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -23,12 +25,12 @@ export function DetailDrawer({ isOpen, onClose, data, title }) {
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           >
             <div className="drawer-header">
-              <h2>{title || data?.title || 'Details'}</h2>
+              <h2>{sourceTitle || data?.title || '详情'}</h2>
               <button className="close-btn" onClick={onClose}>
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="drawer-content">
               <div className="ai-summary">
                 <div className="ai-summary-header">
@@ -43,18 +45,55 @@ export function DetailDrawer({ isOpen, onClose, data, title }) {
               <div className="user-notes">
                 <div className="notes-header">
                   <Edit3 size={16} />
-                  <span>我的笔记</span>
+                  <span>{data?.hasNote ? '已升格 - 编辑笔记' : '这一刻什么打动了你？记录下来，将其升格为优质信息源...'}</span>
                 </div>
-                <textarea 
-                  className="notes-input" 
+                <textarea
+                  className="notes-input"
                   placeholder="这一刻什么打动了你？记录下来，将其升格为优质信息源..."
-                  defaultValue={data?.note || ''}
+                  value={draftNote ?? data?.note ?? ''}
+                  onChange={(e) => onNoteChange?.(e.target.value)}
+                  readOnly={!!data?.hasNote}
                 />
               </div>
+
+              <div className="tag-section">
+                <div className="tag-section-label">情感标签</div>
+                <div className="tag-options">
+                  {TAG_OPTIONS.map(tag => {
+                    const active = (draftTags || data?.tags || []).includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        className={`tag-chip ${active ? 'active' : ''}`}
+                        onClick={() => onToggleTag?.(tag)}
+                        disabled={!!data?.hasNote}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {data?.note && (
+                <div className="existing-note">
+                  <div className="existing-note-label">当前笔记</div>
+                  <p>{data.note}</p>
+                </div>
+              )}
             </div>
-            
+
             <div className="drawer-footer">
-              <button className="save-btn">保存并升格</button>
+              {!data?.hasNote ? (
+                <button className="save-btn" onClick={onSave}>
+                  保存并升格
+                </button>
+              ) : (
+                <button className="save-btn saved" disabled>
+                  已升格
+                </button>
+              )}
             </div>
           </motion.div>
         </>
