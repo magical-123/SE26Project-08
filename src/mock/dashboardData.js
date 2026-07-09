@@ -132,7 +132,33 @@ export const sourceMapping = {
     { title: 'React 19 新特性完全解析', platform: 'BILIBILI', time: '3小时前', category: '行业资讯' }
   ],
   'Framer Motion': [
-    { title: '如何用 React 实现丝滑的弹簧动画', platform: 'ZHIHU', time: '5小时前', category: '实操技巧' },
-    { title: 'Framer Motion 高级实战指南', platform: 'ZHIHU', time: '2天前', category: '深度知识' }
+    { title: 'Framer Motion 布局动画实战', platform: 'Bilibili', time: '11:45', category: '视频' },
+    { title: 'React 动画终极指南', platform: '掘金', time: '09:20', category: '文章' }
   ]
+};
+
+// 饼图数据
+export const weeklyPieData = [
+  { value: 35, name: '深度知识', itemStyle: { color: '#0EA5E9' } },
+  { value: 45, name: '娱乐短剧', itemStyle: { color: '#F43F5E' } },
+  { value: 15, name: '行业资讯', itemStyle: { color: '#F59E0B' } },
+  { value: 5, name: '创意灵感', itemStyle: { color: '#10B981' } }
+];
+
+export const dailyPieData = [
+  { value: 60, name: '深度知识', itemStyle: { color: '#0EA5E9' } },
+  { value: 10, name: '娱乐短剧', itemStyle: { color: '#F43F5E' } },
+  { value: 20, name: '行业资讯', itemStyle: { color: '#F59E0B' } },
+  { value: 10, name: '创意灵感', itemStyle: { color: '#10B981' } }
+];
+
+// AI 联合语境洞察数据
+export const weeklyAiInsight = {
+  title: "本周数字饮食洞察",
+  summary: "本周您在「娱乐短剧」上耗费了45%的时间，呈现出明显的**多巴胺代偿期**特征。但值得肯定的是，周三和周四对「大模型架构」与「前端动画」的集中攻坚，为您挽回了整体的营养价值。建议下周适当控制碎片化娱乐，将更多时间倾斜至您重点关注的「知识管理体系」。"
+};
+
+export const dailyAiInsight = {
+  title: "今日数字饮食洞察",
+  summary: "今天您的信息摄入极为**聚焦且硬核**！高达60%的深度知识摄入（主要集中在「个人知识管理」与「WebGL」），表明您正处于极佳的深度工作流中。今天几乎完全隔离了短视频干扰，这种“低多巴胺、高内聚”的摄入模式非常有助于长期记忆的构建，请继续保持！"
 };

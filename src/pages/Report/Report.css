@@ -237,6 +237,52 @@
   height: 350px;
 }
 
+.insight-card {
+  height: 350px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.4) 100%);
+  border-left: 4px solid var(--primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.insight-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.insight-icon {
+  color: var(--primary);
+  filter: drop-shadow(0 0 8px var(--primary));
+}
+
+.insight-content {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  font-weight: 500;
+  flex: 1;
+}
+
+.insight-content strong {
+  color: var(--text-main);
+  font-weight: 800;
+  position: relative;
+  display: inline-block;
+}
+
+.insight-content strong::after {
+  content: '';
+  position: absolute;
+  bottom: 0px;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: rgba(14, 165, 233, 0.2);
+  border-radius: 2px;
+}
+
 .topics-card {
   grid-column: span 2;
 }
