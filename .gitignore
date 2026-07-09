@@ -32,6 +32,8 @@ logs/
 
 # Java/Maven
 backend/target/
+backend/jdk17.zip
+backend/jdk17/
 *.class
 *.jar
 *.war
