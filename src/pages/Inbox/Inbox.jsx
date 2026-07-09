@@ -20,18 +20,21 @@ const itemVariants = {
 
 export function Inbox() {
   const [filter, setFilter] = useState('All');
-  const { items, setItems, togglePremium, saveNote } = useInboxItems();
+  const { items, setItems, togglePremium, saveNote, updateItem } = useInboxItems();
   const [selectedItem, setSelectedItem] = useState(null);
   const [draftNote, setDraftNote] = useState('');
   const [draftTags, setDraftTags] = useState([]);
 
   const filteredItems = filter === 'All' ? items : items.filter(item => item.platform === filter);
-  const premiumCount = items.filter(i => i.hasNote || i.aiPremium || i.userPremium).length;
+  const premiumCount = items.filter(i => i.hasNote).length;
 
   const openDrawer = (item) => {
     setSelectedItem(item);
     setDraftNote(item.note || '');
     setDraftTags(item.tags || []);
+    if (!item.opened) {
+      updateItem(item.id, { opened: true });
+    }
   };
 
   const toggleTag = (tag) => {
@@ -40,7 +43,14 @@ export function Inbox() {
     );
   };
 
-  const handleSaveNote = () => {
+  const handleCloseDrawer = () => {
+    if (selectedItem) {
+      updateItem(selectedItem.id, { note: draftNote, tags: draftTags });
+    }
+    setSelectedItem(null);
+  };
+
+  const handleUpgrade = () => {
     if (!selectedItem) return;
     saveNote(selectedItem.id, draftNote, draftTags);
     setSelectedItem(null);
@@ -84,7 +94,7 @@ export function Inbox() {
           <motion.div key={item.id} variants={itemVariants}>
             <InfoSourceCard
               data={item}
-              isPremium={item.hasNote || item.aiPremium || item.userPremium}
+              isPremium={item.hasNote}
               premiumLabel={getPremiumLabel(item)}
               onTogglePremium={handleTogglePremium}
               onClick={() => openDrawer(item)}
@@ -95,13 +105,13 @@ export function Inbox() {
 
       <DetailDrawer
         isOpen={!!selectedItem}
-        onClose={() => setSelectedItem(null)}
+        onClose={handleCloseDrawer}
         data={selectedItem}
         draftNote={draftNote}
         draftTags={draftTags}
         onNoteChange={setDraftNote}
         onToggleTag={toggleTag}
-        onSave={handleSaveNote}
+        onUpgrade={handleUpgrade}
         onTogglePremium={(id) => {
           handleTogglePremium(id);
           setSelectedItem(null);

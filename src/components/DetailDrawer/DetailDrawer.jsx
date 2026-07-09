@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Edit3, PlayCircle, FileText, Mic, Clock, Calendar } from 'lucide-react';
 import './DetailDrawer.css';
@@ -27,12 +28,21 @@ function getTagColor(tag) {
   }
 }
 
-export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNoteChange, onToggleTag, onSave, onTogglePremium, sourceTitle }) {
+export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNoteChange, onToggleTag, onUpgrade, onTogglePremium, sourceTitle }) {
   const d = data?.data || data || {};
   const categoryColor = CATEGORY_COLORS[d.category] || '#0EA5E9';
-  const isPremium = !!(d.hasNote || d.aiPremium || d.userPremium);
+  const isPremium = !!d.hasNote;
 
-  return (
+  // 打开抽屉时锁定 body 滚动，防止滚动栏影响抽屉显示
+  useEffect(() => {
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [isOpen]);
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -46,10 +56,10 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
           />
           <motion.div
             className="detail-drawer"
-            initial={{ x: '100%', opacity: 0.8 }}
+            initial={{ x: '100%', opacity: 0.5 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '100%', opacity: 0.8 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 260, mass: 0.8 }}
+            exit={{ x: '100%', opacity: 0.5 }}
+            transition={{ type: 'spring', damping: 32, stiffness: 300, mass: 0.9 }}
           >
             <div className="drawer-glow-border" style={{ '--accent': categoryColor }} />
 
@@ -105,14 +115,14 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
               <div className="user-notes">
                 <div className="notes-header">
                   <Edit3 size={16} />
-                  <span>{d.hasNote ? '已升格 - 编辑笔记' : '这一刻什么打动了你？记录下来，将其升格为优质信息源...'}</span>
+                  <span>这一刻什么打动了你？记录下来，将其升格为优质信息源...</span>
                 </div>
                 <textarea
                   className="notes-input"
                   placeholder="这一刻什么打动了你？记录下来，将其升格为优质信息源..."
                   value={draftNote ?? d.note ?? ''}
                   onChange={(e) => onNoteChange?.(e.target.value)}
-                  readOnly={!!d.hasNote}
+
                 />
               </div>
 
@@ -130,7 +140,7 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
                         className={`tag-chip ${active ? 'active' : ''}`}
                         style={{ '--tag-color': color }}
                         onClick={() => onToggleTag?.(tag)}
-                        disabled={!!d.hasNote}
+
                       >
                         {tag}
                       </button>
@@ -139,38 +149,24 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
                 </div>
               </div>
 
-              {d.note && (
-                <div className="existing-note">
-                  <div className="existing-note-label">当前笔记</div>
-                  <p>{d.note}</p>
-                </div>
-              )}
+
             </div>
 
             <div className="drawer-footer">
-              {onTogglePremium ? (
-                isPremium ? (
-                  <button className="save-btn danger" onClick={() => onTogglePremium(d.id)}>
-                    取消优质信息源标识
-                  </button>
-                ) : (
-                  <button className="save-btn primary" onClick={() => onTogglePremium(d.id)}>
-                    升格为优质信息源
-                  </button>
-                )
-              ) : !d.hasNote ? (
-                <button className="save-btn primary" onClick={onSave}>
-                  保存并升格
+              {d.hasNote ? (
+                <button className="save-btn danger" onClick={() => onTogglePremium?.(d.id)}>
+                  取消优质信息源标识
                 </button>
               ) : (
-                <button className="save-btn saved" disabled>
-                  已升格为优质信息源
+                <button className="save-btn primary" onClick={onUpgrade}>
+                  升格为优质信息源
                 </button>
               )}
             </div>
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

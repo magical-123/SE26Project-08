@@ -19,11 +19,7 @@ const STORAGE_KEY = 'infodigest_knowledge_graph_categories';
 const NODE_POSITIONS_KEY = 'infodigest_knowledge_graph_node_positions';
 
 function getNodeWeight(item) {
-  let w = 0;
-  if (item.hasNote) w += 3;
-  if (item.aiPremium) w += 2;
-  if (item.userPremium) w += 1;
-  return w;
+  return item.hasNote ? 3 : 0;
 }
 
 function getConnectionStrength(a, b) {
@@ -38,7 +34,7 @@ function getConnectionStrength(a, b) {
 }
 
 function buildGraphData(items, visibleCategories) {
-  const premium = items.filter(item => item.hasNote || item.aiPremium || item.userPremium);
+  const premium = items.filter(item => item.hasNote);
   if (premium.length === 0) return { nodes: [], edges: [] };
 
   const filtered = premium.filter(item => !visibleCategories || visibleCategories.has(item.category));
@@ -143,7 +139,7 @@ export function KnowledgeGraph() {
     // 如果没有保存的设置，则初始化为所有优质信息源的分类
     const set = new Set();
     items.forEach(item => {
-      if (item.hasNote || item.aiPremium || item.userPremium) {
+      if (item.hasNote) {
         set.add(item.category);
       }
     });
@@ -528,7 +524,7 @@ export function KnowledgeGraph() {
   }, [graphData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasCat = (cat) =>
-    items.some(i => i.category === cat && (i.hasNote || i.aiPremium || i.userPremium));
+    items.some(i => i.category === cat && i.hasNote);
 
   const allVisible = visibleCategories.size === CATEGORY_ORDER.length;
 
