@@ -1,6 +1,6 @@
 import React from 'react';
 import { GlassCard } from '../GlassCard/GlassCard';
-import { Clock, PlayCircle, FileText, Mic, ArrowUpRight, Heart, Star } from 'lucide-react';
+import { Clock, PlayCircle, FileText, Mic, ArrowUpRight, Heart, Star, Sparkles } from 'lucide-react';
 import './InfoSourceCard.css';
 
 const platformIcon = {
@@ -14,13 +14,24 @@ const shouldShowRedDot = (data) => {
   return (data.isFavorite || data.isLiked) && !data.hasNote;
 };
 
-export function InfoSourceCard({ data, onClick }) {
+export function InfoSourceCard({ data, onClick, onTogglePremium, isPremium, premiumLabel }) {
   const showRedDot = shouldShowRedDot(data);
-  
+
+  const handleTogglePremium = (e) => {
+    e.stopPropagation();
+    onTogglePremium?.(data.id);
+  };
+
   return (
-    <GlassCard className="info-source-card" onClick={onClick}>
+    <GlassCard className={`info-source-card ${isPremium ? 'is-premium' : ''}`} onClick={onClick}>
       {showRedDot && (
         <div className="isc-red-dot" />
+      )}
+      {isPremium && premiumLabel && (
+        <div className="isc-premium-badge">
+          <Sparkles size={10} />
+          <span>{premiumLabel}</span>
+        </div>
       )}
       <div className="isc-header">
         <div className="isc-platform">
@@ -31,40 +42,46 @@ export function InfoSourceCard({ data, onClick }) {
           {data.category}
         </div>
       </div>
-      
+
       <div className="isc-body">
         <h3 className="isc-title">{data.title}</h3>
       </div>
-      
+
       <div className="isc-footer">
         <div className="isc-meta">
           <span className="isc-author">{data.author}</span>
           <span className="isc-divider">|</span>
           <Clock size={12} className="isc-clock-icon" />
           <span className="isc-duration">{data.duration}</span>
-          {data.isFavorite && (
-            <>
-              <span className="isc-divider">|</span>
-              <Heart size={12} className="isc-action-icon isc-favorite" fill="#EF4444" />
-              <span className="isc-action-label">收藏</span>
-            </>
-          )}
-          {data.isLiked && (
-            <>
-              <span className="isc-divider">|</span>
-              <Star size={12} className="isc-action-icon isc-liked" fill="#F59E0B" />
-              <span className="isc-action-label">点赞</span>
-            </>
-          )}
           <span className="isc-divider">|</span>
           <span className="isc-time">{data.date}</span>
         </div>
-        
-        <button className="isc-extract-btn">
-          <span>提取知识</span>
-          <ArrowUpRight size={14} />
-        </button>
+
+        <div className="isc-actions">
+          <button
+            className={`isc-action-btn ${data.isFavorite ? 'active' : ''}`}
+            onClick={handleTogglePremium}
+            title={data.isFavorite ? '取消收藏' : '收藏'}
+          >
+            <Heart size={14} fill={data.isFavorite ? '#EF4444' : 'none'} />
+          </button>
+          <button
+            className={`isc-action-btn ${data.isLiked ? 'active' : ''}`}
+            onClick={handleTogglePremium}
+            title={data.isLiked ? '取消点赞' : '点赞'}
+          >
+            <Star size={14} fill={data.isLiked ? '#F59E0B' : 'none'} />
+          </button>
+          <button className="isc-extract-btn" onClick={(e) => e.stopPropagation()}>
+            <span>提取知识</span>
+            <ArrowUpRight size={14} />
+          </button>
+        </div>
       </div>
+
+      {isPremium && (
+        <div className="isc-premium-indicator" />
+      )}
     </GlassCard>
   );
 }
