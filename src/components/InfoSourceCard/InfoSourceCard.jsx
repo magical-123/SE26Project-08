@@ -9,9 +9,9 @@ const platformIcon = {
   Podcast: <Mic size={14} />
 };
 
-// 判断是否显示红点：点赞或收藏了，但没有笔记
+// 判断是否显示红点：点赞或收藏了，但还没打开看过
 const shouldShowRedDot = (data) => {
-  return (data.isFavorite || data.isLiked) && !data.hasNote;
+  return (data.isFavorite || data.isLiked) && !data.opened;
 };
 
 export function InfoSourceCard({ data, onClick, onTogglePremium, isPremium, premiumLabel }) {

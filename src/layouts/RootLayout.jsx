@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Compass, BookOpen, Search, PieChart, User, Settings } from 'lucide-react';
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
-import { inboxItems } from '../mock/inboxData';
+import { useInboxItems } from '../hooks/useInboxItems';
 import './RootLayout.css';
 
 export function RootLayout({ children }) {
@@ -15,10 +15,9 @@ export function RootLayout({ children }) {
     { path: "/settings", icon: Settings, label: "SETTINGS" },
   ];
 
-  // 计算是否有未读/待处理项：收藏或点赞但无笔记
-  const hasInboxRedDot = useMemo(() => {
-    return inboxItems.some(item => (item.isFavorite || item.isLiked) && !item.hasNote);
-  }, []);
+  // 计算是否有未读/待处理项：收藏或点赞但未打开看过
+  const { items } = useInboxItems();
+  const hasInboxRedDot = items.some(item => (item.isFavorite || item.isLiked) && !item.opened);
 
   const totalItems = navItems.length;
 
