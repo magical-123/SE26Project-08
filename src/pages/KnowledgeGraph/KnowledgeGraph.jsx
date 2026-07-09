@@ -15,6 +15,8 @@ const CATEGORY_COLORS = {
 const CATEGORY_ORDER = ['深度知识', '实用技巧', '行业资讯', '娱乐科普'];
 const MAX_LABEL_LENGTH = 5;
 const HOVER_LABEL_LENGTH = 12;
+const STORAGE_KEY = 'infodigest_knowledge_graph_categories';
+const NODE_POSITIONS_KEY = 'infodigest_knowledge_graph_node_positions';
 
 function getNodeWeight(item) {
   let w = 0;
@@ -124,6 +126,21 @@ export function KnowledgeGraph() {
   }, [focusedNode]);
 
   const [visibleCategories, setVisibleCategories] = useState(() => {
+    // 优先从localStorage加载用户的分类显示/隐藏设置
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return new Set(parsed);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load saved categories:', e);
+      }
+    }
+    // 如果没有保存的设置，则初始化为所有优质信息源的分类
     const set = new Set();
     items.forEach(item => {
       if (item.hasNote || item.aiPremium || item.userPremium) {
@@ -141,16 +158,30 @@ export function KnowledgeGraph() {
       } else {
         next.add(cat);
       }
+      // 保存到localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+        } catch (e) {
+          console.warn('Failed to save categories:', e);
+        }
+      }
       return next;
     });
   };
 
   const toggleAll = () => {
     setVisibleCategories(prev => {
-      if (prev.size === CATEGORY_ORDER.length) {
-        return new Set([CATEGORY_ORDER[0]]);
+      const next = prev.size === CATEGORY_ORDER.length ? new Set([CATEGORY_ORDER[0]]) : new Set(CATEGORY_ORDER);
+      // 保存到localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+        } catch (e) {
+          console.warn('Failed to save categories:', e);
+        }
       }
-      return new Set(CATEGORY_ORDER);
+      return next;
     });
   };
 
@@ -182,14 +213,8 @@ export function KnowledgeGraph() {
   const handleDrawerClose = () => {
     setSelectedNode(null);
     clearFocus();
-    // 关闭抽屉时恢复所有优质信息源分类显示
-    const allCategories = new Set();
-    items.forEach(item => {
-      if (item.hasNote || item.aiPremium || item.userPremium) {
-        allCategories.add(item.category);
-      }
-    });
-    setVisibleCategories(allCategories);
+    // 关闭抽屉时不重置 visibleCategories，保留用户的分类显示/隐藏设置
+    // 只有在特定情况下才重置，例如当用户点击"重置分类"按钮时
   };
 
   const graphData = useMemo(() => buildGraphData(items, visibleCategories), [items, visibleCategories]);
@@ -331,6 +356,29 @@ export function KnowledgeGraph() {
     graph.render();
     graphRef.current = graph;
 
+    // 如果有保存的节点位置，应用它们
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(NODE_POSITIONS_KEY);
+        if (saved) {
+          const savedPositions = JSON.parse(saved);
+          const nodeData = graph.getNodeData();
+          nodeData.forEach(node => {
+            if (savedPositions[node.id]) {
+              graph.updateNodeData({
+                id: node.id,
+                x: savedPositions[node.id].x,
+                y: savedPositions[node.id].y,
+              });
+            }
+          });
+          graph.render();
+        }
+      } catch (e) {
+        console.warn('Failed to apply saved node positions:', e);
+      }
+    }
+
     const handleClick = (e) => {
       const g = graphRef.current;
       if (!g) return;
@@ -389,6 +437,22 @@ export function KnowledgeGraph() {
     graph.on('node:click', handleClick);
     graph.on('canvas:click', handleCanvasClick);
 
+    // 监听节点拖拽结束事件，保存节点位置
+    const handleDragEnd = () => {
+      try {
+        const nodeData = graph.getNodeData();
+        const positions = {};
+        nodeData.forEach(node => {
+          positions[node.id] = { x: node.x, y: node.y };
+        });
+        localStorage.setItem(NODE_POSITIONS_KEY, JSON.stringify(positions));
+      } catch (e) {
+        console.warn('Failed to save node positions:', e);
+      }
+    };
+
+    graph.on('node:dragend', handleDragEnd);
+
     const handleResize = () => {
       if (containerRef.current && graphRef.current) {
         graphRef.current.setSize(
@@ -403,6 +467,7 @@ export function KnowledgeGraph() {
       window.removeEventListener('resize', handleResize);
       graph.off('node:click', handleClick);
       graph.off('canvas:click', handleCanvasClick);
+      graph.off('node:dragend', handleDragEnd);
       if (graphRef.current) {
         graphRef.current.destroy();
         graphRef.current = null;
@@ -420,8 +485,37 @@ export function KnowledgeGraph() {
 
     g.setData({ nodes, edges });
     try {
-      g.layout();
-      g.render();
+      // 优先使用localStorage保存的节点位置，若不存在则重新布局
+      let savedPositions = null;
+      if (typeof window !== 'undefined') {
+        try {
+          const saved = localStorage.getItem(NODE_POSITIONS_KEY);
+          if (saved) {
+            savedPositions = JSON.parse(saved);
+          }
+        } catch (e) {
+          console.warn('Failed to load saved node positions:', e);
+        }
+      }
+
+      if (savedPositions) {
+        // 应用保存的节点位置
+        const nodeData = g.getNodeData();
+        nodeData.forEach(node => {
+          if (savedPositions[node.id]) {
+            g.updateNodeData({
+              id: node.id,
+              x: savedPositions[node.id].x,
+              y: savedPositions[node.id].y,
+            });
+          }
+        });
+        g.render();
+      } else {
+        // 没有保存的位置，使用布局算法重新布局
+        g.layout();
+        g.render();
+      }
     } catch (err) {
       console.warn('Graph update failed:', err);
     }
