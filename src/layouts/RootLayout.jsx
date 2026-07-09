@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Compass, BookOpen, Search, PieChart, User, Settings } from 'lucide-react';
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { inboxItems } from '../mock/inboxData';
 import './RootLayout.css';
 
 export function RootLayout({ children }) {
+  const location = useLocation();
   const navItems = [
     { path: "/", icon: Compass, label: "DASHBOARD" },
     { path: "/inbox", icon: BookOpen, label: "INBOX" },
@@ -75,7 +77,17 @@ export function RootLayout({ children }) {
 
       {/* Main Content Glass Board */}
       <main className="main-glass-board">
-        {children}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
       
       {/* Background Decor */}

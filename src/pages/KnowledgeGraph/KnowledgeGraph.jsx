@@ -328,7 +328,9 @@ export function KnowledgeGraph() {
       autoFit: 'view',
     });
 
-    graph.render();
+    graph.render().then(() => {
+      graph.fitView();
+    });
     graphRef.current = graph;
 
     const handleClick = (e) => {
@@ -421,7 +423,9 @@ export function KnowledgeGraph() {
     g.setData({ nodes, edges });
     try {
       g.layout();
-      g.render();
+      g.render().then(() => {
+        if (!g.destroyed) g.fitView();
+      });
     } catch (err) {
       console.warn('Graph update failed:', err);
     }

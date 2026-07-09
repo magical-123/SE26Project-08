@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { socialFriends } from '../../mock/socialData';
-import { UserPlus, Search } from 'lucide-react';
+import { UserPlus, Search, ArrowUpRight } from 'lucide-react';
 import './Social.css';
 
 export function Social() {
+  const navigate = useNavigate();
   return (
     <div className="social-page">
       <header className="social-header">
@@ -41,8 +43,8 @@ export function Social() {
                 ))}
               </div>
             </div>
-            <div className="fc-graph-preview" style={{ '--glow': friend.activeColor }}>
-              <span>点击查看图谱网络</span>
+            <div className="fc-graph-preview" style={{ '--glow': friend.activeColor }} onClick={() => navigate('/graph')}>
+              <span>查看图谱网络 <ArrowUpRight size={12} /></span>
             </div>
           </GlassCard>
         ))}
