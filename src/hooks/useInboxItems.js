@@ -64,10 +64,11 @@ export function useInboxItems() {
     const current = sharedItems ?? inboxItems;
     const next = current.map(item => {
       if (item.id !== id) return item;
-      if (item.hasNote) {
-        return { ...item, hasNote: false };
+      const isPremium = item.hasNote || item.aiPremium || item.userPremium;
+      if (isPremium) {
+        return { ...item, hasNote: false, aiPremium: false, userPremium: false, note: '', tags: [] };
       }
-      return { ...item, hasNote: true };
+      return { ...item, userPremium: true };
     });
     persist(next);
   };

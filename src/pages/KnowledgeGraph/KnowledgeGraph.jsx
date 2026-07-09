@@ -112,12 +112,38 @@ export function KnowledgeGraph() {
   const [focusedNode, setFocusedNode] = useState(null);
   const [focusPosition, setFocusPosition] = useState(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
-  const { items } = useInboxItems();
+  const [draftNote, setDraftNote] = useState('');
+  const [draftTags, setDraftTags] = useState([]);
+  const { items, togglePremium, saveNote } = useInboxItems();
 
   // Keep ref in sync with state so event handlers in single-useEffect read latest value
   useEffect(() => {
     focusedNodeRef.current = focusedNode;
   }, [focusedNode]);
+
+  const openDrawer = (node) => {
+    const item = node?.data || node || {};
+    setDraftNote(item.note || '');
+    setDraftTags(item.tags || []);
+  };
+
+  const toggleTag = (tag) => {
+    setDraftTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleSaveNote = () => {
+    if (!selectedNode?.data?.id) return;
+    saveNote(selectedNode.data.id, draftNote, draftTags);
+    setSelectedNode(null);
+    setDraftNote('');
+    setDraftTags([]);
+  };
+
+  const handleTogglePremium = (id) => {
+    togglePremium(id);
+  };
 
   const [visibleCategories, setVisibleCategories] = useState(() => {
     const set = new Set();
@@ -341,6 +367,7 @@ export function KnowledgeGraph() {
         title: item.data?.sourceTitle || item.id,
         ...item,
       });
+      openDrawer(item);
       setFocusedNode(nodeId);
       setFocusPosition(screenPos);
 
@@ -507,6 +534,15 @@ export function KnowledgeGraph() {
         isOpen={!!selectedNode}
         onClose={handleDrawerClose}
         data={selectedNode}
+        draftNote={draftNote}
+        draftTags={draftTags}
+        onNoteChange={setDraftNote}
+        onToggleTag={toggleTag}
+        onSave={handleSaveNote}
+        onTogglePremium={(id) => {
+          handleTogglePremium(id);
+          handleDrawerClose();
+        }}
         sourceTitle={selectedNode?.title}
       />
     </div>

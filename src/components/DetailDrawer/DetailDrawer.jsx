@@ -28,10 +28,10 @@ function getTagColor(tag) {
   }
 }
 
-export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNoteChange, onToggleTag, onUpgrade, onTogglePremium, sourceTitle }) {
+export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNoteChange, onToggleTag, onSave, onTogglePremium, sourceTitle }) {
   const d = data?.data || data || {};
   const categoryColor = CATEGORY_COLORS[d.category] || '#0EA5E9';
-  const isPremium = !!d.hasNote;
+  const isPremium = !!(d.hasNote || d.aiPremium || d.userPremium);
 
   // 打开抽屉时锁定 body 滚动，防止滚动栏影响抽屉显示
   useEffect(() => {
@@ -106,9 +106,15 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
                   <Sparkles size={16} />
                   <span>AI 智能摘要</span>
                 </div>
-                <p>
+                <div className="ai-summary-body">
                   {d.summary || '系统已经对该信息源进行了智能解析。本文探讨了相关领域的核心概念和未来发展趋势，是一篇高质量的内容。'}
-                </p>
+                </div>
+                {!d.summary && (
+                  <div className="ai-summary-placeholder">
+                    <Sparkles size={14} />
+                    <span>AI 摘要生成中，请稍后查看完整分析...</span>
+                  </div>
+                )}
               </div>
 
               {/* User Notes */}
@@ -140,7 +146,6 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
                         className={`tag-chip ${active ? 'active' : ''}`}
                         style={{ '--tag-color': color }}
                         onClick={() => onToggleTag?.(tag)}
-
                       >
                         {tag}
                       </button>
@@ -153,13 +158,28 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
             </div>
 
             <div className="drawer-footer">
-              {d.hasNote ? (
-                <button className="save-btn danger" onClick={() => onTogglePremium?.(d.id)}>
-                  取消优质信息源标识
+              {onSave && (
+                <button className="save-btn primary" onClick={onSave}>
+                  保存笔记
+                </button>
+              )}
+              {onTogglePremium ? (
+                isPremium ? (
+                  <button className="save-btn danger" onClick={() => onTogglePremium(d.id)}>
+                    取消优质信息源标识
+                  </button>
+                ) : (
+                  <button className="save-btn primary" onClick={() => onTogglePremium(d.id)}>
+                    升格为优质信息源
+                  </button>
+                )
+              ) : !isPremium ? (
+                <button className="save-btn primary" onClick={onSave}>
+                  保存并升格
                 </button>
               ) : (
-                <button className="save-btn primary" onClick={onUpgrade}>
-                  升格为优质信息源
+                <button className="save-btn saved" disabled>
+                  已升格为优质信息源
                 </button>
               )}
             </div>
