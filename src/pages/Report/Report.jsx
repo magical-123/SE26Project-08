@@ -3,13 +3,23 @@ import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { reportData } from '../../mock/reportData';
-import { historicalWordCloudData, sourceMapping } from '../../mock/dashboardData';
-import { Download, ExternalLink, ArrowRight } from 'lucide-react';
+import { 
+  historicalWordCloudData, 
+  sourceMapping,
+  weeklyPieData,
+  dailyPieData,
+  weeklyAiInsight,
+  dailyAiInsight
+} from '../../mock/dashboardData';
+import { Download, ExternalLink, ArrowRight, Sparkles } from 'lucide-react';
+import { PosterModal } from '../../components/PosterModal/PosterModal';
 import './Report.css';
 
 export function Report() {
+  const [activeTab, setActiveTab] = useState('weekly');
   const [selectedWord, setSelectedWord] = useState(null);
   const [timeIndex, setTimeIndex] = useState(historicalWordCloudData.length - 1);
+  const [showPoster, setShowPoster] = useState(false);
 
   const pieOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
@@ -21,15 +31,10 @@ export function Report() {
         avoidLabelOverlap: false,
         label: { show: true, position: 'outside', color: '#444', fontWeight: 'bold' },
         labelLine: { show: true, lineStyle: { color: '#888' } },
-        data: [
-          { value: 35, name: '深度知识', itemStyle: { color: '#0EA5E9' } },
-          { value: 45, name: '娱乐短剧', itemStyle: { color: '#F43F5E' } },
-          { value: 15, name: '行业资讯', itemStyle: { color: '#F59E0B' } },
-          { value: 5, name: '创意灵感', itemStyle: { color: '#10B981' } }
-        ]
+        data: activeTab === 'weekly' ? weeklyPieData : dailyPieData
       }
     ]
-  }), []);
+  }), [activeTab]);
 
   const wordCloudOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
@@ -65,9 +70,11 @@ export function Report() {
         focus: 'self',
         textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
       },
-      data: historicalWordCloudData[timeIndex].data
+      data: activeTab === 'weekly' 
+              ? historicalWordCloudData[timeIndex].data 
+              : historicalWordCloudData[historicalWordCloudData.length - 1].data
     }]
-  }), [timeIndex]);
+  }), [timeIndex, activeTab]);
 
   const onChartClick = (e) => {
     if (e.name) {
@@ -75,19 +82,27 @@ export function Report() {
     }
   };
 
-  const onWordClick = (wordName) => {
-    setSelectedWord(wordName);
-  };
-
   const currentSources = selectedWord ? (sourceMapping[selectedWord] || []) : [];
+  const currentTopics = activeTab === 'weekly' ? reportData.weeklyTopicClusters : reportData.dailyTopicClusters;
+  const currentInsight = activeTab === 'weekly' ? weeklyAiInsight : dailyAiInsight;
 
   return (
     <div className="report-page">
       <header className="report-header">
         <h1>数字饮食报告</h1>
         <div className="report-tabs">
-          <button className="active">周报</button>
-          <button>日报</button>
+          <button 
+            className={activeTab === 'weekly' ? 'active' : ''}
+            onClick={() => setActiveTab('weekly')}
+          >
+            周报
+          </button>
+          <button 
+            className={activeTab === 'daily' ? 'active' : ''}
+            onClick={() => setActiveTab('daily')}
+          >
+            日报
+          </button>
         </div>
       </header>
 
@@ -99,10 +114,22 @@ export function Report() {
           </div>
         </GlassCard>
 
+        <GlassCard className="report-card insight-card">
+          <div className="insight-header">
+            <Sparkles className="insight-icon" size={18} />
+            <h3>{currentInsight.title}</h3>
+          </div>
+          <div className="insight-content">
+            {currentInsight.summary.split(/\*\*(.*?)\*\*/g).map((part, i) => 
+              i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+            )}
+          </div>
+        </GlassCard>
+
         <div className="report-trend-container">
           <GlassCard className="report-card trend-card">
-            <h3>近期关注点流变 (词云)</h3>
-            <p className="card-hint">点击词汇查看溯源 / 拖动底部滑块查看历史流变</p>
+            <h3>{activeTab === 'weekly' ? '近期关注点流变 (词云)' : '今日关注点 (词云)'}</h3>
+            <p className="card-hint">点击词汇查看溯源 {activeTab === 'weekly' && '/ 拖动底部滑块查看历史流变'}</p>
             <div className="chart-box" style={{ height: '260px', position: 'relative' }}>
               <ReactECharts 
                 option={wordCloudOption} 
@@ -111,23 +138,25 @@ export function Report() {
               />
             </div>
             
-            <div className="timeline-slider-container">
-              <input 
-                type="range" 
-                min="0" 
-                max={historicalWordCloudData.length - 1} 
-                value={timeIndex}
-                onChange={(e) => setTimeIndex(Number(e.target.value))}
-                className="timeline-slider"
-              />
-              <div className="timeline-labels">
-                {historicalWordCloudData.map((t, idx) => (
-                  <span key={idx} className={idx === timeIndex ? 'active' : ''}>
-                    {t.date}
-                  </span>
-                ))}
+            {activeTab === 'weekly' && (
+              <div className="timeline-slider-container">
+                <input 
+                  type="range" 
+                  min="0" 
+                  max={historicalWordCloudData.length - 1} 
+                  value={timeIndex}
+                  onChange={(e) => setTimeIndex(Number(e.target.value))}
+                  className="timeline-slider"
+                />
+                <div className="timeline-labels">
+                  {historicalWordCloudData.map((t, idx) => (
+                    <span key={idx} className={idx === timeIndex ? 'active' : ''}>
+                      {t.date}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </GlassCard>
 
           {selectedWord && (
@@ -163,7 +192,7 @@ export function Report() {
         <GlassCard className="report-card topics-card">
           <h3>高频话题聚类</h3>
           <ul className="topic-list">
-            {reportData.topicClusters.map((cluster, i) => (
+            {currentTopics.map((cluster, i) => (
               <li key={i} className="topic-item">
                 <div className="topic-info">
                   <span className="topic-name">{cluster.name}</span>
@@ -179,11 +208,20 @@ export function Report() {
       </div>
 
       <div className="report-actions">
-        <button className="share-btn">
+        <button className="share-btn" onClick={() => setShowPoster(true)}>
           <Download size={16} />
           生成分享海报
         </button>
       </div>
+      
+      {showPoster && (
+        <PosterModal 
+          onClose={() => setShowPoster(false)}
+          pieOption={pieOption}
+          insight={currentInsight}
+          activeTab={activeTab}
+        />
+      )}
     </div>
   );
 }
