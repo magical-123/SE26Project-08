@@ -158,7 +158,7 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
                     升格为优质信息源
                   </button>
                 )
-              ) : !d.hasNote ? (
+              ) : !isPremium ? (
                 <button className="save-btn primary" onClick={onSave}>
                   保存并升格
                 </button>

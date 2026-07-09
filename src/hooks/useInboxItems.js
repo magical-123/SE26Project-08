@@ -66,7 +66,7 @@ export function useInboxItems() {
       if (item.id !== id) return item;
       const isPremium = item.hasNote || item.aiPremium || item.userPremium;
       if (isPremium) {
-        return { ...item, hasNote: false, aiPremium: false, userPremium: false };
+        return { ...item, hasNote: false, aiPremium: false, userPremium: false, note: '', tags: [] };
       }
       return { ...item, userPremium: true };
     });
