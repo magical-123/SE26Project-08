@@ -7,20 +7,26 @@ import { KnowledgeGraph } from './pages/KnowledgeGraph/KnowledgeGraph';
 import { Report } from './pages/Report/Report';
 import { Social } from './pages/Social/Social';
 import { Settings } from './pages/Settings/Settings';
+import { AuthPage } from './pages/Auth/AuthPage';
 
 function App() {
   return (
     <BrowserRouter>
-      <RootLayout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/inbox" element={<Inbox />} />
-          <Route path="/graph" element={<KnowledgeGraph />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/social" element={<Social />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </RootLayout>
+      <Routes>
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/*" element={
+          <RootLayout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/inbox" element={<Inbox />} />
+              <Route path="/graph" element={<KnowledgeGraph />} />
+              <Route path="/report" element={<Report />} />
+              <Route path="/social" element={<Social />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </RootLayout>
+        } />
+      </Routes>
     </BrowserRouter>
   );
 }
