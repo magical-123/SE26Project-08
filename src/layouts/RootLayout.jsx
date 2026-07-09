@@ -64,10 +64,8 @@ export function RootLayout({ children }) {
 
         {/* User Profile */}
         <div className="user-module">
-          <div className="user-avatar">U</div>
           <div className="user-details">
-            <span className="user-name">User</span>
-            <span className="user-hint">SYSTEM ACTIVE</span>
+            <span className="user-name"></span>
           </div>
         </div>
       </aside>
