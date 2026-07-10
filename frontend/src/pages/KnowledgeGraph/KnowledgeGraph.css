@@ -221,6 +221,7 @@
 .kg-legend-bar-inner {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 8px 12px;
   border-radius: 16px;
@@ -230,11 +231,14 @@
   -webkit-backdrop-filter: blur(8px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   pointer-events: auto;
+  max-width: 90vw;
 }
 
 .kg-legend-items {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
 }
 
