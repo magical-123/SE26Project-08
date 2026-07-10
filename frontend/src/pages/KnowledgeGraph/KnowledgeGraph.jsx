@@ -5,82 +5,153 @@ import { useInboxItems } from '../../hooks/useInboxItems';
 import { ZoomIn, ZoomOut, Maximize, Eye, EyeOff, Camera, Sparkles, SlidersHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
 import './KnowledgeGraph.css';
 
-const CATEGORY_COLORS = {
-  '深度知识': '#10B981',
-  '实用技巧': '#0EA5E9',
-  '行业资讯': '#F59E0B',
-  '娱乐科普': '#F43F5E',
-};
-
-const CATEGORY_ORDER = ['深度知识', '实用技巧', '行业资讯', '娱乐科普'];
 const MAX_LABEL_LENGTH = 5;
-const HOVER_LABEL_LENGTH = 12;
+
+const CONCEPT_NODES = [
+  { id: 'concept-frontend-arch', label: '前端架构演进', color: '#10B981' },
+  { id: 'concept-ai-trend', label: 'AI 行业动态', color: '#F59E0B' },
+  { id: 'concept-design-system', label: '设计系统', color: '#0EA5E9' },
+  { id: 'concept-animation', label: '动效与交互', color: '#8B5CF6' },
+  { id: 'concept-science-pop', label: '科学科普', color: '#F43F5E' },
+  { id: 'concept-productivity', label: '效率与认知', color: '#EC4899' },
+];
+
+// 每个 sourceId 可属于多个 conceptId
+const SOURCE_CONCEPT_MAP = {
+  1: ['concept-frontend-arch', 'concept-ai-trend'], // AI时代的前端架构演进
+  2: ['concept-animation', 'concept-frontend-arch'], // 如何用 React 实现丝滑的弹簧动画
+  3: ['concept-ai-trend', 'concept-productivity'], // 硅谷创业播客
+  4: ['concept-science-pop'], // 三分钟看懂量子力学
+  5: ['concept-frontend-arch', 'concept-animation'], // Framer Motion
+  6: ['concept-design-system', 'concept-productivity'], // 设计系统搭建
+  7: ['concept-frontend-arch', 'concept-ai-trend'], // 2026 前端技术趋势展望
+  8: ['concept-ai-trend'], // 大模型推理成本
+  9: ['concept-science-pop'], // 幽默科普：黑洞是什么
+  10: ['concept-frontend-arch', 'concept-design-system'], // TypeScript高级类型体操
+};
 
 function getNodeWeight(item) {
   return item.hasNote ? 3 : 0;
 }
 
-function getConnectionStrength(a, b) {
-  let strength = 0;
-  if (a.category === b.category) strength += 0.4;
-  const aTags = new Set(a.tags || []);
-  const bTags = new Set(b.tags || []);
-  const shared = [...aTags].filter(t => bTags.has(t)).length;
-  strength += shared * 0.2;
-  if (a.platform === b.platform) strength += 0.15;
-  return Math.min(1, strength);
-}
+function buildGraphData(premiumItems, visibleConcepts) {
+  if (premiumItems.length === 0) return { nodes: [], edges: [] };
 
-function buildGraphData(items, visibleCategories) {
-  const premium = items.filter(item => item.hasNote);
-  if (premium.length === 0) return { nodes: [], edges: [] };
-
-  const filtered = premium.filter(item => !visibleCategories || visibleCategories.has(item.category));
-  if (filtered.length === 0) return { nodes: [], edges: [] };
-
-  const sorted = [...filtered].sort((a, b) => {
-    const ai = CATEGORY_ORDER.indexOf(a.category);
-    const bi = CATEGORY_ORDER.indexOf(b.category);
-    return ai - bi;
-  });
-
-  const nodes = sorted.map((item) => {
-    const weight = getNodeWeight(item);
-    return {
-      id: `premium-${item.id}`,
-      size: 20 + weight * 4,
-      data: {
-        category: item.category,
-        sourceTitle: item.title,
-        summary: item.summary,
-        note: item.note,
-        tags: item.tags,
-        platform: item.platform,
-        author: item.author,
-        duration: item.duration,
-        date: item.date,
-        hasNote: item.hasNote,
-        aiPremium: item.aiPremium,
-        userPremium: item.userPremium,
-        weight,
-      },
-    };
-  });
-
+  const nodes = [];
   const edges = [];
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      const strength = getConnectionStrength(sorted[i], sorted[j]);
-      if (strength >= 0.4) {
-        edges.push({
-          id: `edge-${nodes[i].id}-${nodes[j].id}`,
-          source: nodes[i].id,
-          target: nodes[j].id,
-          data: { strength },
-        });
+
+  // Calculate counts for each concept based on premium items
+  const conceptCounts = {};
+  CONCEPT_NODES.forEach(c => conceptCounts[c.id] = 0);
+
+  premiumItems.forEach(item => {
+    const itemConceptIds = SOURCE_CONCEPT_MAP[item.id] || [];
+    itemConceptIds.forEach(cid => {
+      if (conceptCounts[cid] !== undefined) conceptCounts[cid]++;
+    });
+  });
+
+  // Only keep concepts that actually have premium items AND are visible
+  const validConcepts = CONCEPT_NODES.filter(c => conceptCounts[c.id] > 0);
+  const activeConcepts = validConcepts.filter(c => !visibleConcepts || visibleConcepts.has(c.id));
+  const conceptRadius = 260;
+
+  const conceptPositions = {};
+
+  activeConcepts.forEach((concept, index) => {
+    const angle = (2 * Math.PI / activeConcepts.length) * index;
+    const x = conceptRadius * Math.cos(angle);
+    const y = conceptRadius * Math.sin(angle);
+
+    conceptPositions[concept.id] = { x, y, color: concept.color };
+
+    const count = conceptCounts[concept.id];
+
+    nodes.push({
+      id: concept.id,
+      type: 'circle',
+      size: 56,
+      data: {
+        label: concept.label,
+        color: concept.color,
+        count,
+        type: 'concept',
+        x,
+        y
       }
+    });
+  });
+
+  const comboCounts = {};
+
+  // Add Source Nodes
+  premiumItems.forEach((item) => {
+    const itemConceptIds = SOURCE_CONCEPT_MAP[item.id] || [];
+    const activeItemConcepts = itemConceptIds.filter(cid => conceptPositions[cid]);
+
+    if (activeItemConcepts.length === 0) return;
+
+    const comboKey = activeItemConcepts.slice().sort().join(',');
+    comboCounts[comboKey] = (comboCounts[comboKey] || 0) + 1;
+    const localIndex = comboCounts[comboKey];
+
+    let x = 0;
+    let y = 0;
+    const primaryColor = conceptPositions[activeItemConcepts[0]].color;
+    const secondaryColor = activeItemConcepts.length > 1 ? conceptPositions[activeItemConcepts[1]].color : null;
+
+    if (activeItemConcepts.length === 1) {
+      const cid = activeItemConcepts[0];
+      const pos = conceptPositions[cid];
+      const innerRadius = 75 + localIndex * 8;
+      const angle = localIndex * 2.39996; // Golden ratio spread
+      x = pos.x + innerRadius * Math.cos(angle);
+      y = pos.y + innerRadius * Math.sin(angle);
+    } else {
+      activeItemConcepts.forEach(cid => {
+        x += conceptPositions[cid].x;
+        y += conceptPositions[cid].y;
+      });
+      x /= activeItemConcepts.length;
+      y /= activeItemConcepts.length;
+
+      const jitterRadius = 12 + localIndex * 15;
+      const angle = localIndex * 2.39996;
+      x += jitterRadius * Math.cos(angle);
+      y += jitterRadius * Math.sin(angle);
     }
-  }
+
+    const weight = getNodeWeight(item);
+
+    nodes.push({
+      id: `source-${item.id}`,
+      type: 'circle',
+      size: 20 + weight * 2,
+      data: {
+        ...item,
+        type: 'source',
+        sourceTitle: item.title,
+        primaryColor,
+        secondaryColor,
+        weight,
+        conceptIds: activeItemConcepts,
+        x,
+        y
+      }
+    });
+
+    activeItemConcepts.forEach(cid => {
+      edges.push({
+        id: `edge-${item.id}-${cid}`,
+        source: `source-${item.id}`,
+        target: cid,
+        data: {
+          type: 'belongs',
+          color: conceptPositions[cid].color
+        }
+      });
+    });
+  });
 
   return { nodes, edges };
 }
@@ -97,12 +168,6 @@ function truncateLabel(text, len) {
   return text.length > len ? text.slice(0, len) + '…' : text;
 }
 
-function createGlassSphereFill(color, weight) {
-  // Use a translucent tint of the category color
-  const alpha = 0.22 + weight * 0.05;
-  return hexToRgba(color, alpha);
-}
-
 
 export function KnowledgeGraph() {
   const containerRef = useRef(null);
@@ -110,43 +175,36 @@ export function KnowledgeGraph() {
   const focusedNodeRef = useRef(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [focusedNode, setFocusedNode] = useState(null);
-  const [focusPosition, setFocusPosition] = useState(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const { items } = useInboxItems();
 
-  // Keep ref in sync with state so event handlers in single-useEffect read latest value
+  // Keep ref in sync with state so event handlers read latest value
   useEffect(() => {
     focusedNodeRef.current = focusedNode;
   }, [focusedNode]);
 
-  const [visibleCategories, setVisibleCategories] = useState(() => {
-    const set = new Set();
-    items.forEach(item => {
-      if (item.hasNote) {
-        set.add(item.category);
-      }
-    });
-    return set;
+  const [visibleConcepts, setVisibleConcepts] = useState(() => {
+    return new Set(CONCEPT_NODES.map(c => c.id));
   });
 
-  const toggleCategory = (cat) => {
-    setVisibleCategories(prev => {
+  const toggleConcept = (conceptId) => {
+    setVisibleConcepts(prev => {
       const next = new Set(prev);
-      if (next.has(cat)) {
-        if (next.size > 1) next.delete(cat);
+      if (next.has(conceptId)) {
+        if (next.size > 1) next.delete(conceptId);
       } else {
-        next.add(cat);
+        next.add(conceptId);
       }
       return next;
     });
   };
 
   const toggleAll = () => {
-    setVisibleCategories(prev => {
-      if (prev.size === CATEGORY_ORDER.length) {
-        return new Set([CATEGORY_ORDER[0]]);
+    setVisibleConcepts(prev => {
+      if (prev.size === CONCEPT_NODES.length) {
+        return new Set([CONCEPT_NODES[0].id]);
       }
-      return new Set(CATEGORY_ORDER);
+      return new Set(CONCEPT_NODES.map(c => c.id));
     });
   };
 
@@ -162,7 +220,6 @@ export function KnowledgeGraph() {
 
   const clearFocus = () => {
     setFocusedNode(null);
-    setFocusPosition(null);
     const g = graphRef.current;
     if (!g) return;
     try {
@@ -178,27 +235,43 @@ export function KnowledgeGraph() {
   const handleDrawerClose = () => {
     setSelectedNode(null);
     clearFocus();
-    // 关闭抽屉时恢复所有优质信息源分类显示
-    const allCategories = new Set();
-    items.forEach(item => {
-      if (item.hasNote) {
-        allCategories.add(item.category);
-      }
-    });
-    setVisibleCategories(allCategories);
+    setVisibleConcepts(new Set(CONCEPT_NODES.map(c => c.id)));
   };
 
-  const graphData = useMemo(() => buildGraphData(items, visibleCategories), [items, visibleCategories]);
+  const graphData = useMemo(() => {
+    const premiumItems = (items || []).filter(item => item.hasNote);
+    return buildGraphData(premiumItems, visibleConcepts);
+  }, [items, visibleConcepts]);
 
-  // Effect 1: Initialize graph ONCE
+  // Unified effect: create graph on first valid data, update on subsequent changes
   useEffect(() => {
     if (!containerRef.current) return;
 
+    const { nodes, edges } = graphData;
+    if (nodes.length === 0) return;
+
+    // If graph already exists, just update data
+    if (graphRef.current) {
+      const g = graphRef.current;
+      if (g.destroyed || g.isDestroyed?.()) return;
+
+      g.setData({ nodes, edges });
+      try {
+        g.render();
+      } catch (err) {
+        console.warn('Graph update failed:', err);
+      }
+
+      if (focusedNodeRef.current) {
+        clearFocus();
+        setSelectedNode(null);
+      }
+      return; // Don't recreate graph
+    }
+
+    // First time: create the graph
     const width = containerRef.current.clientWidth || 800;
     const height = containerRef.current.clientHeight || 600;
-    const { nodes, edges } = graphData;
-
-    if (nodes.length === 0) return;
 
     const graph = new Graph({
       container: containerRef.current,
@@ -206,32 +279,53 @@ export function KnowledgeGraph() {
       height,
       data: { nodes, edges },
       layout: {
-        type: 'circular',
-        radius: Math.min(width, height) * 0.36,
-        divisions: CATEGORY_ORDER.length,
-        ordering: 'topology',
-        startAngle: 0,
-        endAngle: 360,
+        type: 'preset',
       },
       animation: false,
       behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element'],
       node: {
         size: (model) => model.size || 24,
         style: (model) => {
-          const cat = model.data?.category || '';
-          const color = CATEGORY_COLORS[cat] || '#0EA5E9';
+          const type = model.data?.type;
+          const color = type === 'concept' ? model.data.color : (model.data?.primaryColor || '#0EA5E9');
+          const isConcept = type === 'concept';
+          const x = model.data?.x;
+          const y = model.data?.y;
+
+          if (isConcept) {
+            return {
+              x,
+              y,
+              fill: hexToRgba(color, 0.3),
+              stroke: color,
+              lineWidth: 2.5,
+              shadowColor: color,
+              shadowBlur: 32,
+              cursor: 'pointer',
+              labelText: model.data.label,
+              labelFill: '#2a2a2a',
+              labelFontSize: 12,
+              labelFontWeight: 700,
+              labelPlacement: 'center',
+              labelBackgroundFill: 'rgba(255,255,255,0.85)',
+              labelBackgroundRadius: 4,
+              labelPadding: [4, 8],
+            };
+          }
+
+          // Source Node Style
           const weight = model.data?.weight || 0;
-          const isHighWeight = weight >= 4;
+          const hasSecondary = !!model.data?.secondaryColor;
+
           return {
-            fill: createGlassSphereFill(color, weight),
-            fillOpacity: 0.95,
+            x,
+            y,
+            fill: hexToRgba(color, 0.22 + weight * 0.05),
             stroke: color,
-            strokeOpacity: 0.85,
-            lineWidth: isHighWeight ? 2.5 : 1.5,
+            lineWidth: 1.5,
             shadowColor: color,
-            shadowBlur: isHighWeight ? 28 : 14,
-            shadowOffsetX: 0,
-            shadowOffsetY: 0,
+            shadowBlur: 12,
+            lineDash: hasSecondary ? [4, 4] : undefined,
             cursor: 'pointer',
             labelText: model.id
               ? truncateLabel(model.data?.sourceTitle || model.id, MAX_LABEL_LENGTH)
@@ -241,12 +335,9 @@ export function KnowledgeGraph() {
             labelFontWeight: 600,
             labelPlacement: 'bottom',
             labelOffsetY: 8,
-            labelTextAlign: 'center',
-            labelOffsetX: 0,
             labelBackgroundFill: 'rgba(255,255,255,0.78)',
             labelBackgroundRadius: 4,
             labelPadding: [3, 7],
-            labelBackgroundOpacity: 0.9,
           };
         },
         state: {
@@ -275,6 +366,13 @@ export function KnowledgeGraph() {
         },
         tooltip: (model) => {
           const d = model.data || {};
+          if (d.type === 'concept') {
+            return {
+              title: d.label,
+              content: `包含 ${d.count} 个优质信息源`
+            };
+          }
+
           const badges = [];
           if (d.hasNote) badges.push('📝 已记录');
           if (d.aiPremium) badges.push('✨ AI推荐');
@@ -293,26 +391,17 @@ export function KnowledgeGraph() {
       },
       edge: {
         style: (model) => {
-          const strength = model.data?.strength || 0.15;
+          const color = model.data?.color || '#999';
           return {
-            stroke: 'rgba(120,120,130,0.22)',
-            strokeOpacity: 0.3 + strength * 0.5,
-            lineWidth: 0.8 + strength * 2.2,
-            lineDash: [4, 6],
+            stroke: color,
+            strokeOpacity: 0.35,
+            lineWidth: 1,
           };
-        },
-        animate: {
-          stroke: 'rgba(120,120,130,0.35)',
-          lineDashOffset: -12,
-          duration: 1200,
-          iterations: Infinity,
-          easing: 'linear',
         },
         state: {
           highlight: {
-            strokeOpacity: 0.85,
-            stroke: 'rgba(80,80,90,0.45)',
-            lineWidth: (model) => 1 + (model.data?.strength || 0) * 2.5,
+            strokeOpacity: 0.7,
+            lineWidth: 1.5,
             zIndex: 5,
           },
           dim: {
@@ -327,6 +416,7 @@ export function KnowledgeGraph() {
     graph.render();
     graphRef.current = graph;
 
+    // --- Event Handlers ---
     const handleClick = (e) => {
       const g = graphRef.current;
       if (!g) return;
@@ -335,35 +425,56 @@ export function KnowledgeGraph() {
       if (!nodeId) return;
 
       const item = g.getNodeData(nodeId);
-      const screenPos = e.canvas || g.getViewportCenter?.();
+      const isConcept = item.data?.type === 'concept';
 
-      setSelectedNode({
-        title: item.data?.sourceTitle || item.id,
-        ...item,
-      });
+      if (isConcept) {
+        setSelectedNode(null);
+      } else {
+        setSelectedNode({
+          title: item.data?.sourceTitle || item.id,
+          ...item,
+        });
+      }
       setFocusedNode(nodeId);
-      setFocusPosition(screenPos);
 
-      // Focus mode: highlight selected + neighbors, dim others
       const allNodes = g.getNodeData();
       const allEdges = g.getEdgeData();
-      const neighbors = new Set([nodeId]);
+
+      const highlights = new Set([nodeId]);
       const connectedEdges = new Set();
-      allEdges.forEach(edge => {
-        if (edge.source === nodeId) {
-          neighbors.add(edge.target);
-          connectedEdges.add(edge.id);
+
+      if (isConcept) {
+        // Clicked Concept: Highlight concept + its sources
+        allEdges.forEach(edge => {
+          if (edge.target === nodeId) {
+            highlights.add(edge.source);
+            connectedEdges.add(edge.id);
+          }
+        });
+      } else {
+        // Clicked Source: Highlight source + its concepts + same-author nodes
+        const author = item.data?.author;
+
+        allEdges.forEach(edge => {
+          if (edge.source === nodeId) {
+            highlights.add(edge.target);
+            connectedEdges.add(edge.id);
+          }
+        });
+
+        if (author) {
+          allNodes.forEach(node => {
+            if (node.data?.type === 'source' && node.data?.author === author) {
+              highlights.add(node.id);
+            }
+          });
         }
-        if (edge.target === nodeId) {
-          neighbors.add(edge.source);
-          connectedEdges.add(edge.id);
-        }
-      });
+      }
 
       const stateMap = {};
       allNodes.forEach(node => {
         if (node.id === nodeId) stateMap[node.id] = 'focused';
-        else if (neighbors.has(node.id)) stateMap[node.id] = 'highlight';
+        else if (highlights.has(node.id)) stateMap[node.id] = 'highlight';
         else stateMap[node.id] = 'dim';
       });
       allEdges.forEach(edge => {
@@ -376,10 +487,8 @@ export function KnowledgeGraph() {
     };
 
     const handleCanvasClick = () => {
-      if (selectedNode || focusedNode) {
-        setSelectedNode(null);
-        clearFocus();
-      }
+      setSelectedNode(null);
+      clearFocus();
     };
 
     graph.on('node:click', handleClick);
@@ -404,35 +513,19 @@ export function KnowledgeGraph() {
         graphRef.current = null;
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Effect 2: Update data when categories change
-  useEffect(() => {
-    if (!graphRef.current) return;
-    const g = graphRef.current;
-    if (g.destroyed || g.isDestroyed?.()) return;
-
-    const { nodes, edges } = graphData;
-
-    g.setData({ nodes, edges });
-    try {
-      g.layout();
-      g.render();
-    } catch (err) {
-      console.warn('Graph update failed:', err);
-    }
-
-    // Clear focus state after data update
-    if (focusedNode) {
-      clearFocus();
-      setSelectedNode(null);
-    }
   }, [graphData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hasCat = (cat) =>
-    items.some(i => i.category === cat && i.hasNote);
+  const validConcepts = useMemo(() => {
+    const counts = {};
+    CONCEPT_NODES.forEach(c => counts[c.id] = 0);
+    (items || []).filter(item => item.hasNote).forEach(item => {
+      const cids = SOURCE_CONCEPT_MAP[item.id] || [];
+      cids.forEach(cid => { if (counts[cid] !== undefined) counts[cid]++; });
+    });
+    return CONCEPT_NODES.filter(c => counts[c.id] > 0);
+  }, [items]);
 
-  const allVisible = visibleCategories.size === CATEGORY_ORDER.length;
+  const allVisible = visibleConcepts.size === CONCEPT_NODES.length;
 
   return (
     <div className="knowledge-graph-page">
@@ -440,16 +533,16 @@ export function KnowledgeGraph() {
       <div className="kg-legend-bar">
         <div className="kg-legend-bar-inner">
           <div className="kg-legend-items">
-            {CATEGORY_ORDER.filter(hasCat).map(cat => (
+            {validConcepts.map(concept => (
               <button
-                key={cat}
-                className={`kg-legend-item ${visibleCategories.has(cat) ? 'active' : 'hidden'}`}
-                onClick={() => toggleCategory(cat)}
-                title={visibleCategories.has(cat) ? '点击隐藏' : '点击显示'}
+                key={concept.id}
+                className={`kg-legend-item ${visibleConcepts.has(concept.id) ? 'active' : 'hidden'}`}
+                onClick={() => toggleConcept(concept.id)}
+                title={visibleConcepts.has(concept.id) ? '点击隐藏' : '点击显示'}
               >
-                <span className="kg-legend-dot" style={{ background: CATEGORY_COLORS[cat] }} />
-                <span className="kg-legend-label">{cat}</span>
-                {visibleCategories.has(cat) ? <Eye size={12} /> : <EyeOff size={12} />}
+                <span className="kg-legend-dot" style={{ background: concept.color }} />
+                <span className="kg-legend-label">{concept.label}</span>
+                {visibleConcepts.has(concept.id) ? <Eye size={12} /> : <EyeOff size={12} />}
               </button>
             ))}
           </div>
@@ -461,17 +554,6 @@ export function KnowledgeGraph() {
       </div>
 
       <div className="kg-container" ref={containerRef}></div>
-
-      {/* Focus scrim overlay */}
-      {focusedNode && focusPosition && (
-        <div
-          className="kg-focus-scrim"
-          style={{
-            '--focus-x': `${focusPosition.x}px`,
-            '--focus-y': `${focusPosition.y}px`,
-          }}
-        />
-      )}
 
       {/* Floating control cube panel */}
       <div className={`kg-control-cube ${isPanelOpen ? 'open' : ''}`}>
