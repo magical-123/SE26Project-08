@@ -64,9 +64,22 @@ export function AuthPage() {
 
   return (
     <div className="auth-page-container">
+      {/* Branding - Top Left */}
+      <div className="auth-brand-header">
+        <div className="auth-logo-box">
+          <div className="auth-logo-mark">ID</div>
+        </div>
+        <div className="auth-brand-titles">
+          <h1>InfoDigest</h1>
+          <span className="auth-subtitle">SYNTHESIZE INFORMATION OS</span>
+        </div>
+      </div>
+
+      {/* Decor Text - Bottom Left */}
+      <div className="auth-bg-decor-text">STRUCTURAL SECTION</div>
+
       <div className="auth-glass-card">
         <div className="auth-header">
-          <div className="auth-logo">ID</div>
           <h2>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
           <p>{isLogin ? 'Log in to continue to InfoDigest' : 'Start synthesizing your information'}</p>
         </div>
@@ -132,10 +145,6 @@ export function AuthPage() {
           </button>
         </div>
       </div>
-      
-      {/* Decorative Background Elements */}
-      <div className="auth-decor-circle-1"></div>
-      <div className="auth-decor-circle-2"></div>
     </div>
   );
 }
