@@ -8,12 +8,12 @@ import './KnowledgeGraph.css';
 const MAX_LABEL_LENGTH = 5;
 
 const CONCEPT_NODES = [
-  { id: 'concept-frontend-arch', label: '前端架构演进', color: '#FBBF24' },
-  { id: 'concept-ai-trend', label: 'AI 行业动态', color: '#F59E0B' },
-  { id: 'concept-design-system', label: '设计系统', color: '#FCD34D' },
-  { id: 'concept-animation', label: '动效与交互', color: '#FDE68A' },
-  { id: 'concept-science-pop', label: '科学科普', color: '#D97706' },
-  { id: 'concept-productivity', label: '效率与认知', color: '#B45309' },
+  { id: 'concept-frontend-arch', label: '前端架构演进', color: '#0EA5E9' }, // Sky
+  { id: 'concept-ai-trend', label: 'AI 行业动态', color: '#8B5CF6' },      // Violet
+  { id: 'concept-design-system', label: '设计系统', color: '#F43F5E' },    // Rose
+  { id: 'concept-animation', label: '动效与交互', color: '#F59E0B' },      // Amber
+  { id: 'concept-science-pop', label: '科学科普', color: '#10B981' },      // Emerald
+  { id: 'concept-productivity', label: '效率与认知', color: '#3B82F6' },   // Blue
 ];
 
 // 每个 sourceId 可属于多个 conceptId
@@ -124,6 +124,8 @@ function buildGraphData(premiumItems, visibleConcepts) {
     const itemConceptIds = SOURCE_CONCEPT_MAP[item.id] || [];
     const activeItemConcepts = itemConceptIds.filter(cid => conceptPositions[cid]);
 
+    if (activeItemConcepts.length === 0) return;
+
     let sx = 0;
     let sy = 0;
 
@@ -131,14 +133,11 @@ function buildGraphData(premiumItems, visibleConcepts) {
     comboCounts[comboKey] = (comboCounts[comboKey] || 0) + 1;
     const localIndex = comboCounts[comboKey];
 
-    const primaryColor = activeItemConcepts.length > 0 ? conceptPositions[activeItemConcepts[0]].color : '#999';
+    const activeColors = activeItemConcepts.map(cid => conceptPositions[cid].color);
+    const primaryColor = blendColors(activeColors);
     const secondaryColor = activeItemConcepts.length > 1 ? conceptPositions[activeItemConcepts[1]].color : null;
 
-    if (activeItemConcepts.length === 0) {
-      // 无标签的放中间
-      sx = cx + Math.random() * 100 - 50;
-      sy = cy + Math.random() * 100 - 50;
-    } else if (activeItemConcepts.length === 1) {
+    if (activeItemConcepts.length === 1) {
       // 单节点：均匀分布在圆环外侧的弧线上
       const cid = activeItemConcepts[0];
       const pos = conceptPositions[cid];
@@ -222,6 +221,21 @@ function hexToRgba(hex, alpha) {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function blendColors(hexArray) {
+  if (!hexArray || hexArray.length === 0) return '#ffffff';
+  let r = 0, g = 0, b = 0;
+  hexArray.forEach(hex => {
+    r += parseInt(hex.slice(1, 3), 16);
+    g += parseInt(hex.slice(3, 5), 16);
+    b += parseInt(hex.slice(5, 7), 16);
+  });
+  const count = hexArray.length;
+  r = Math.round(r / count).toString(16).padStart(2, '0');
+  g = Math.round(g / count).toString(16).padStart(2, '0');
+  b = Math.round(b / count).toString(16).padStart(2, '0');
+  return `#${r}${g}${b}`;
 }
 
 function truncateLabel(text, len) {
@@ -345,10 +359,10 @@ export function KnowledgeGraph() {
           y: (model) => model.data?.y,
           size: (model) => model.data?.size || 24,
           r: (model) => (model.data?.size || 24) / 2,
-          fill: (model) => model.data?.type === 'concept' ? hexToRgba(model.data.color, 0.15) : 'rgba(255, 255, 255, 0.25)',
-          stroke: (model) => model.data?.type === 'concept' ? model.data.color : 'rgba(255, 255, 255, 0.8)',
+          fill: (model) => model.data?.type === 'concept' ? hexToRgba(model.data.color, 0.15) : hexToRgba(model.data.primaryColor || '#ffffff', 0.25),
+          stroke: (model) => model.data?.type === 'concept' ? model.data.color : (model.data.primaryColor || 'rgba(255, 255, 255, 0.8)'),
           lineWidth: (model) => model.data?.type === 'concept' ? 2.5 : 1.5,
-          shadowColor: (model) => model.data?.type === 'concept' ? model.data.color : 'rgba(255, 255, 255, 0.6)',
+          shadowColor: (model) => model.data?.type === 'concept' ? model.data.color : (model.data.primaryColor ? hexToRgba(model.data.primaryColor, 0.6) : 'rgba(255, 255, 255, 0.6)'),
           shadowBlur: (model) => model.data?.type === 'concept' ? 32 : 16,
           cursor: 'pointer',
           labelText: (model) => {
