@@ -8,12 +8,12 @@ import './KnowledgeGraph.css';
 const MAX_LABEL_LENGTH = 5;
 
 const CONCEPT_NODES = [
-  { id: 'concept-frontend-arch', label: '前端架构演进', color: '#10B981' },
+  { id: 'concept-frontend-arch', label: '前端架构演进', color: '#FBBF24' },
   { id: 'concept-ai-trend', label: 'AI 行业动态', color: '#F59E0B' },
-  { id: 'concept-design-system', label: '设计系统', color: '#0EA5E9' },
-  { id: 'concept-animation', label: '动效与交互', color: '#8B5CF6' },
-  { id: 'concept-science-pop', label: '科学科普', color: '#F43F5E' },
-  { id: 'concept-productivity', label: '效率与认知', color: '#EC4899' },
+  { id: 'concept-design-system', label: '设计系统', color: '#FCD34D' },
+  { id: 'concept-animation', label: '动效与交互', color: '#FDE68A' },
+  { id: 'concept-science-pop', label: '科学科普', color: '#D97706' },
+  { id: 'concept-productivity', label: '效率与认知', color: '#B45309' },
 ];
 
 // 每个 sourceId 可属于多个 conceptId
@@ -28,6 +28,16 @@ const SOURCE_CONCEPT_MAP = {
   8: ['concept-ai-trend'], // 大模型推理成本
   9: ['concept-science-pop'], // 幽默科普：黑洞是什么
   10: ['concept-frontend-arch', 'concept-design-system'], // TypeScript高级类型体操
+  11: ['concept-ai-trend', 'concept-frontend-arch'], // AI Agent 爆发与前端机会
+  12: ['concept-frontend-arch'], // Rust 工具链
+  13: ['concept-ai-trend', 'concept-productivity'], // 独立开发者 AI
+  14: ['concept-ai-trend'], // GPT-5 解析
+  15: ['concept-ai-trend', 'concept-frontend-arch', 'concept-productivity'], // 个人 AI 助手
+  16: ['concept-ai-trend', 'concept-science-pop'], // 未来科技趋势
+  17: ['concept-productivity', 'concept-ai-trend'], // AI时代认知
+  18: ['concept-productivity'], // 获取信息源
+  19: ['concept-frontend-arch'], // 微前端
+  20: ['concept-design-system', 'concept-ai-trend'], // AIGC 重塑设计
 };
 
 function getNodeWeight(item) {
@@ -54,79 +64,129 @@ function buildGraphData(premiumItems, visibleConcepts) {
   // Only keep concepts that actually have premium items AND are visible
   const validConcepts = CONCEPT_NODES.filter(c => conceptCounts[c.id] > 0);
   const activeConcepts = validConcepts.filter(c => !visibleConcepts || visibleConcepts.has(c.id));
-  const conceptRadius = 260;
-
+  
+  const width = window.innerWidth || 800;
+  const height = window.innerHeight || 600;
+  const conceptRadius = Math.min(width, height) * 0.28 || 240; 
   const conceptPositions = {};
+  
+  // G6 v5 的画布原点 (0,0) 就是视口正中心
+  const cx = 0;
+  const cy = 0; // 由于我们已经用 CSS 压缩了画布，这里不需要再便宜，保持绝对中心
 
-  activeConcepts.forEach((concept, index) => {
-    const angle = (2 * Math.PI / activeConcepts.length) * index;
-    const x = conceptRadius * Math.cos(angle);
-    const y = conceptRadius * Math.sin(angle);
+  // 计算总权重以分配角度 (每个 concept 至少拥有基础权重，避免重叠)
+  const getWeight = (c) => Math.max(conceptCounts[c.id] || 0, 1);
+  const totalWeight = activeConcepts.reduce((sum, c) => sum + getWeight(c), 0);
+  let currentAngle = 0;
 
-    conceptPositions[concept.id] = { x, y, color: concept.color };
+  activeConcepts.forEach((concept) => {
+    const count = conceptCounts[concept.id] || 0;
+    const weight = getWeight(concept);
+    
+    // 根据权重分配扇区角度
+    const sliceAngle = (weight / totalWeight) * 2 * Math.PI;
+    // 节点放置在扇区的中间角度
+    const centerAngle = currentAngle + sliceAngle / 2;
+    
+    const x = cx + conceptRadius * Math.cos(centerAngle);
+    const y = cy + conceptRadius * Math.sin(centerAngle);
 
-    const count = conceptCounts[concept.id];
+    // 节点大小动态计算：基础大小 40，每增加一篇扩大 6，最大 110
+    const nodeSize = Math.min(40 + count * 6, 110);
+
+    conceptPositions[concept.id] = { x, y, color: concept.color, angle: centerAngle, sliceAngle, size: nodeSize };
 
     nodes.push({
       id: concept.id,
       type: 'circle',
-      size: 56,
-      data: {
-        label: concept.label,
-        color: concept.color,
-        count,
-        type: 'concept',
-        x,
-        y
-      }
+      size: nodeSize,
+      data: { ...concept, type: 'concept', count, x, y, size: nodeSize }
     });
+
+    currentAngle += sliceAngle;
   });
 
   const comboCounts = {};
+
+  const singleDegreeItemsCount = {};
+  premiumItems.forEach((item) => {
+    const itemConceptIds = SOURCE_CONCEPT_MAP[item.id] || [];
+    const activeItemConcepts = itemConceptIds.filter(cid => conceptPositions[cid]);
+    if (activeItemConcepts.length === 1) {
+      const cid = activeItemConcepts[0];
+      singleDegreeItemsCount[cid] = (singleDegreeItemsCount[cid] || 0) + 1;
+    }
+  });
+  const singleDegreeCount = {};
 
   // Add Source Nodes
   premiumItems.forEach((item) => {
     const itemConceptIds = SOURCE_CONCEPT_MAP[item.id] || [];
     const activeItemConcepts = itemConceptIds.filter(cid => conceptPositions[cid]);
 
-    if (activeItemConcepts.length === 0) return;
+    let sx = 0;
+    let sy = 0;
 
     const comboKey = activeItemConcepts.slice().sort().join(',');
     comboCounts[comboKey] = (comboCounts[comboKey] || 0) + 1;
     const localIndex = comboCounts[comboKey];
 
-    let x = 0;
-    let y = 0;
-    const primaryColor = conceptPositions[activeItemConcepts[0]].color;
+    const primaryColor = activeItemConcepts.length > 0 ? conceptPositions[activeItemConcepts[0]].color : '#999';
     const secondaryColor = activeItemConcepts.length > 1 ? conceptPositions[activeItemConcepts[1]].color : null;
 
-    if (activeItemConcepts.length === 1) {
+    if (activeItemConcepts.length === 0) {
+      // 无标签的放中间
+      sx = cx + Math.random() * 100 - 50;
+      sy = cy + Math.random() * 100 - 50;
+    } else if (activeItemConcepts.length === 1) {
+      // 单节点：均匀分布在圆环外侧的弧线上
       const cid = activeItemConcepts[0];
       const pos = conceptPositions[cid];
-      const innerRadius = 75 + localIndex * 8;
-      const angle = localIndex * 2.39996; // Golden ratio spread
-      x = pos.x + innerRadius * Math.cos(angle);
-      y = pos.y + innerRadius * Math.sin(angle);
+      
+      const totalSingles = singleDegreeItemsCount[cid] || 1;
+      singleDegreeCount[cid] = (singleDegreeCount[cid] || 0);
+      const localIndex = singleDegreeCount[cid]++;
+
+      // 每圈最多排 4 个节点
+      const orbit = Math.floor(localIndex / 4);
+      const indexInOrbit = localIndex % 4;
+      const itemsInThisOrbit = Math.min(4, totalSingles - orbit * 4);
+
+      // 半径向外扩散
+      const r = (pos.size / 2) + 35 + orbit * 40;
+
+      // 在所属切片内均匀分布
+      // 为了不越界，留出 10% 的安全边距
+      const safeSlice = pos.sliceAngle * 0.8; 
+      let a = pos.angle;
+      if (itemsInThisOrbit > 1) {
+        const step = safeSlice / (itemsInThisOrbit - 1);
+        a = pos.angle - (safeSlice / 2) + step * indexInOrbit;
+      }
+      
+      sx = pos.x + Math.cos(a) * r;
+      sy = pos.y + Math.sin(a) * r;
     } else {
       activeItemConcepts.forEach(cid => {
-        x += conceptPositions[cid].x;
-        y += conceptPositions[cid].y;
+        sx += conceptPositions[cid].x;
+        sy += conceptPositions[cid].y;
       });
-      x /= activeItemConcepts.length;
-      y /= activeItemConcepts.length;
+      sx /= activeItemConcepts.length;
+      sy /= activeItemConcepts.length;
 
       const jitterRadius = 12 + localIndex * 15;
       const angle = localIndex * 2.39996;
-      x += jitterRadius * Math.cos(angle);
-      y += jitterRadius * Math.sin(angle);
+      sx += jitterRadius * Math.cos(angle);
+      sy += jitterRadius * Math.sin(angle);
     }
 
     const weight = getNodeWeight(item);
 
+    const size = 20 + weight * 2;
     nodes.push({
       id: `source-${item.id}`,
       type: 'circle',
-      size: 20 + weight * 2,
+      size: size,
       data: {
         ...item,
         type: 'source',
@@ -135,8 +195,9 @@ function buildGraphData(premiumItems, visibleConcepts) {
         secondaryColor,
         weight,
         conceptIds: activeItemConcepts,
-        x,
-        y
+        x: sx,
+        y: sy,
+        size: size
       }
     });
 
@@ -200,12 +261,7 @@ export function KnowledgeGraph() {
   };
 
   const toggleAll = () => {
-    setVisibleConcepts(prev => {
-      if (prev.size === CONCEPT_NODES.length) {
-        return new Set([CONCEPT_NODES[0].id]);
-      }
-      return new Set(CONCEPT_NODES.map(c => c.id));
-    });
+    setVisibleConcepts(new Set(CONCEPT_NODES.map(c => c.id)));
   };
 
   const exportImage = () => {
@@ -284,61 +340,29 @@ export function KnowledgeGraph() {
       animation: false,
       behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element'],
       node: {
-        size: (model) => model.size || 24,
-        style: (model) => {
-          const type = model.data?.type;
-          const color = type === 'concept' ? model.data.color : (model.data?.primaryColor || '#0EA5E9');
-          const isConcept = type === 'concept';
-          const x = model.data?.x;
-          const y = model.data?.y;
-
-          if (isConcept) {
-            return {
-              x,
-              y,
-              fill: hexToRgba(color, 0.3),
-              stroke: color,
-              lineWidth: 2.5,
-              shadowColor: color,
-              shadowBlur: 32,
-              cursor: 'pointer',
-              labelText: model.data.label,
-              labelFill: '#2a2a2a',
-              labelFontSize: 12,
-              labelFontWeight: 700,
-              labelPlacement: 'center',
-              labelBackgroundFill: 'rgba(255,255,255,0.85)',
-              labelBackgroundRadius: 4,
-              labelPadding: [4, 8],
-            };
-          }
-
-          // Source Node Style
-          const weight = model.data?.weight || 0;
-          const hasSecondary = !!model.data?.secondaryColor;
-
-          return {
-            x,
-            y,
-            fill: hexToRgba(color, 0.22 + weight * 0.05),
-            stroke: color,
-            lineWidth: 1.5,
-            shadowColor: color,
-            shadowBlur: 12,
-            lineDash: hasSecondary ? [4, 4] : undefined,
-            cursor: 'pointer',
-            labelText: model.id
-              ? truncateLabel(model.data?.sourceTitle || model.id, MAX_LABEL_LENGTH)
-              : '',
-            labelFill: '#2a2a2a',
-            labelFontSize: 10,
-            labelFontWeight: 600,
-            labelPlacement: 'bottom',
-            labelOffsetY: 8,
-            labelBackgroundFill: 'rgba(255,255,255,0.78)',
-            labelBackgroundRadius: 4,
-            labelPadding: [3, 7],
-          };
+        style: {
+          x: (model) => model.data?.x,
+          y: (model) => model.data?.y,
+          size: (model) => model.data?.size || 24,
+          r: (model) => (model.data?.size || 24) / 2,
+          fill: (model) => model.data?.type === 'concept' ? hexToRgba(model.data.color, 0.15) : 'rgba(255, 255, 255, 0.25)',
+          stroke: (model) => model.data?.type === 'concept' ? model.data.color : 'rgba(255, 255, 255, 0.8)',
+          lineWidth: (model) => model.data?.type === 'concept' ? 2.5 : 1.5,
+          shadowColor: (model) => model.data?.type === 'concept' ? model.data.color : 'rgba(255, 255, 255, 0.6)',
+          shadowBlur: (model) => model.data?.type === 'concept' ? 32 : 16,
+          cursor: 'pointer',
+          labelText: (model) => {
+            if (model.data?.type === 'concept') return model.data.label;
+            return model.id ? truncateLabel(model.data?.sourceTitle || model.id, MAX_LABEL_LENGTH) : '';
+          },
+          labelFill: '#2a2a2a',
+          labelFontSize: (model) => model.data?.type === 'concept' ? 12 : 10,
+          labelFontWeight: (model) => model.data?.type === 'concept' ? 700 : 600,
+          labelPlacement: (model) => model.data?.type === 'concept' ? 'center' : 'bottom',
+          labelOffsetY: (model) => model.data?.type === 'concept' ? 0 : 8,
+          labelBackgroundFill: (model) => model.data?.type === 'concept' ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.78)',
+          labelBackgroundRadius: 4,
+          labelPadding: (model) => model.data?.type === 'concept' ? [4, 8] : [3, 7],
         },
         state: {
           highlight: {
@@ -349,9 +373,18 @@ export function KnowledgeGraph() {
             labelFillOpacity: 1,
             zIndex: 10,
           },
+          authorHighlight: {
+            fill: 'rgba(251, 191, 36, 0.4)',
+            stroke: '#FBBF24',
+            lineWidth: 3,
+            shadowColor: '#FBBF24',
+            shadowBlur: 30,
+            labelFillOpacity: 1,
+            zIndex: 15,
+          },
           dim: {
-            fillOpacity: 0.18,
-            strokeOpacity: 0.15,
+            fillOpacity: 0.1,
+            strokeOpacity: 0.1,
             shadowBlur: 0,
             labelFillOpacity: 0.1,
             zIndex: 0,
@@ -359,7 +392,7 @@ export function KnowledgeGraph() {
           focused: {
             lineWidth: 4,
             shadowBlur: 56,
-            stroke: '#FBBF24',
+            stroke: '#FFFFFF',
             labelFillOpacity: 1,
             zIndex: 20,
           },
@@ -391,7 +424,7 @@ export function KnowledgeGraph() {
       },
       edge: {
         style: (model) => {
-          const color = model.data?.color || '#999';
+          const color = model.data?.color || 'rgba(156, 163, 175, 0.5)';
           return {
             stroke: color,
             strokeOpacity: 0.35,
@@ -400,12 +433,15 @@ export function KnowledgeGraph() {
         },
         state: {
           highlight: {
-            strokeOpacity: 0.7,
-            lineWidth: 1.5,
+            stroke: '#FBBF24',
+            strokeOpacity: 1,
+            lineWidth: 3,
+            shadowColor: '#FBBF24',
+            shadowBlur: 12,
             zIndex: 5,
           },
           dim: {
-            strokeOpacity: 0.04,
+            strokeOpacity: 0.1,
             zIndex: 0,
           },
         },
@@ -417,6 +453,68 @@ export function KnowledgeGraph() {
     graphRef.current = graph;
 
     // --- Event Handlers ---
+    const updateHighlightState = (targetNodeId) => {
+      const g = graphRef.current;
+      if (!g) return;
+      const allNodes = g.getNodeData();
+      const allEdges = g.getEdgeData();
+
+      if (!targetNodeId) {
+        const stateMap = {};
+        allNodes.forEach(node => { stateMap[node.id] = []; });
+        allEdges.forEach(edge => { stateMap[edge.id] = []; });
+        try { g.setElementState(stateMap); } catch {}
+        return;
+      }
+
+      const item = g.getNodeData(targetNodeId);
+      const isConcept = item.data?.type === 'concept';
+
+      const highlights = new Set([targetNodeId]);
+      const authorHighlights = new Set();
+      const connectedEdges = new Set();
+
+      if (isConcept) {
+        allEdges.forEach(edge => {
+          if (edge.target === targetNodeId) {
+            highlights.add(edge.source);
+            connectedEdges.add(edge.id);
+          }
+        });
+      } else {
+        const author = item.data?.author;
+        allEdges.forEach(edge => {
+          if (edge.source === targetNodeId) {
+            highlights.add(edge.target);
+            connectedEdges.add(edge.id);
+          }
+        });
+
+        if (author) {
+          allNodes.forEach(node => {
+            if (node.data?.type === 'source' && node.data?.author === author && node.id !== targetNodeId) {
+              authorHighlights.add(node.id);
+            }
+          });
+        }
+      }
+
+      const stateMap = {};
+      allNodes.forEach(node => {
+        if (node.id === targetNodeId) stateMap[node.id] = 'focused';
+        else if (authorHighlights.has(node.id)) stateMap[node.id] = 'authorHighlight';
+        else if (highlights.has(node.id)) stateMap[node.id] = 'highlight';
+        else stateMap[node.id] = 'dim';
+      });
+      allEdges.forEach(edge => {
+        stateMap[edge.id] = connectedEdges.has(edge.id) ? 'highlight' : 'dim';
+      });
+
+      try {
+        g.setElementState(stateMap);
+      } catch {}
+    };
+
     const handleClick = (e) => {
       const g = graphRef.current;
       if (!g) return;
@@ -436,62 +534,32 @@ export function KnowledgeGraph() {
         });
       }
       setFocusedNode(nodeId);
+      updateHighlightState(nodeId);
+    };
 
-      const allNodes = g.getNodeData();
-      const allEdges = g.getEdgeData();
-
-      const highlights = new Set([nodeId]);
-      const connectedEdges = new Set();
-
-      if (isConcept) {
-        // Clicked Concept: Highlight concept + its sources
-        allEdges.forEach(edge => {
-          if (edge.target === nodeId) {
-            highlights.add(edge.source);
-            connectedEdges.add(edge.id);
-          }
-        });
-      } else {
-        // Clicked Source: Highlight source + its concepts + same-author nodes
-        const author = item.data?.author;
-
-        allEdges.forEach(edge => {
-          if (edge.source === nodeId) {
-            highlights.add(edge.target);
-            connectedEdges.add(edge.id);
-          }
-        });
-
-        if (author) {
-          allNodes.forEach(node => {
-            if (node.data?.type === 'source' && node.data?.author === author) {
-              highlights.add(node.id);
-            }
-          });
-        }
+    const handleMouseEnter = (e) => {
+      const nodeId = e.target?.id;
+      if (!nodeId) return;
+      // If a node is already clicked and focused, don't override with hover
+      if (!focusedNodeRef.current) {
+        updateHighlightState(nodeId);
       }
+    };
 
-      const stateMap = {};
-      allNodes.forEach(node => {
-        if (node.id === nodeId) stateMap[node.id] = 'focused';
-        else if (highlights.has(node.id)) stateMap[node.id] = 'highlight';
-        else stateMap[node.id] = 'dim';
-      });
-      allEdges.forEach(edge => {
-        stateMap[edge.id] = connectedEdges.has(edge.id) ? 'highlight' : 'dim';
-      });
-
-      try {
-        g.setElementState(stateMap);
-      } catch {}
+    const handleMouseLeave = () => {
+      // Revert to clicked node's highlight state, or clear if none
+      updateHighlightState(focusedNodeRef.current);
     };
 
     const handleCanvasClick = () => {
       setSelectedNode(null);
-      clearFocus();
+      setFocusedNode(null);
+      updateHighlightState(null);
     };
 
     graph.on('node:click', handleClick);
+    graph.on('node:mouseenter', handleMouseEnter);
+    graph.on('node:mouseleave', handleMouseLeave);
     graph.on('canvas:click', handleCanvasClick);
 
     const handleResize = () => {
@@ -507,6 +575,8 @@ export function KnowledgeGraph() {
     return () => {
       window.removeEventListener('resize', handleResize);
       graph.off('node:click', handleClick);
+      graph.off('node:mouseenter', handleMouseEnter);
+      graph.off('node:mouseleave', handleMouseLeave);
       graph.off('canvas:click', handleCanvasClick);
       if (graphRef.current) {
         graphRef.current.destroy();
@@ -525,7 +595,7 @@ export function KnowledgeGraph() {
     return CONCEPT_NODES.filter(c => counts[c.id] > 0);
   }, [items]);
 
-  const allVisible = visibleConcepts.size === CONCEPT_NODES.length;
+  const allVisible = validConcepts.every(c => visibleConcepts.has(c.id));
 
   return (
     <div className="knowledge-graph-page">
@@ -546,9 +616,14 @@ export function KnowledgeGraph() {
               </button>
             ))}
           </div>
-          <button className="kg-legend-toggle-all" onClick={toggleAll}>
-            {allVisible ? <EyeOff size={12} /> : <Eye size={12} />}
-            <span>{allVisible ? '仅首个' : '全显示'}</span>
+          <button 
+            className={`kg-legend-toggle-all ${allVisible ? 'disabled' : ''}`}
+            onClick={toggleAll}
+            disabled={allVisible}
+            style={{ opacity: allVisible ? 0.5 : 1, cursor: allVisible ? 'default' : 'pointer' }}
+          >
+            <Eye size={12} />
+            <span>全显示</span>
           </button>
         </div>
       </div>
