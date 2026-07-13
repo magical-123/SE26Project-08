@@ -1,0 +1,237 @@
+.root-layout {
+  display: flex;
+  height: 100vh;
+  padding: 40px;
+  gap: 40px;
+  overflow: hidden;
+  position: relative;
+}
+
+.decor-vertical-line {
+  position: absolute;
+  left: 360px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--text-main);
+  opacity: 0.1;
+  z-index: 0;
+}
+
+.bg-decor-text {
+  position: absolute;
+  bottom: 20px;
+  left: 40px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--text-main);
+  opacity: 0.8;
+  z-index: 0;
+}
+
+.cascade-nav-container {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  position: relative;
+}
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 60px;
+}
+
+.logo-box {
+  width: 48px;
+  height: 48px;
+  background: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-mark {
+  color: #fff;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -1px;
+}
+
+.brand-titles h1 {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+/* ====================
+   Plain Vertical Nav
+   ==================== */
+.nav-container-inner {
+  flex: 1;
+  display: flex;
+  align-items: flex-start; /* Move to top instead of center */
+  padding-top: 40px; /* Distance from the brand logo */
+}
+
+.plain-nav-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.nav-item {
+  position: relative;
+  width: 260px;
+  height: 64px;
+  
+  background: var(--bg-glass);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid var(--border-glass);
+  
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s, background 0.3s;
+  cursor: pointer;
+  
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+/* Base item structure to look like a folder tab */
+.nav-item::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  background: var(--text-main);
+  opacity: 0;
+  transition: opacity 0.3s;
+  border-radius: 2px;
+}
+
+/* Hovering on a specific folder (pulling it out like a drawer to the right) */
+.plain-nav-stack .nav-item:hover {
+  background: rgba(255, 255, 255, 0.9);
+  /* Translate it purely rightwards */
+  transform: translateX(20px);
+  box-shadow: 10px 10px 20px rgba(0,0,0,0.08);
+}
+
+/* Active State - visually highlighted */
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.nav-item.active::before {
+  opacity: 1; /* Show the black tab indicator */
+}
+
+.nav-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-icon {
+  color: var(--text-main);
+  opacity: 0.8;
+}
+
+.nav-label {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-main);
+}
+
+/* 导航红点指示器 */
+.nav-red-dot {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  background: #EF4444;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.9); }
+}
+
+.user-module {
+  position: absolute;
+  top: 0;
+  right: -24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  background: var(--text-main);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.user-name {
+  font-size: 12px;
+  font-weight: 800;
+}
+.user-hint {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.main-glass-board {
+  flex: 1;
+  /* Extreme transparent glass to show the hexagon background */
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.0) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  
+  /* Crisp glassy edges */
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 
+    0 20px 40px rgba(0,0,0,0.02),
+    inset 1px 1px 0px rgba(255,255,255,0.6),
+    inset -1px -1px 0px rgba(255,255,255,0.1);
+    
+  border-radius: 8px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 10;
+  padding: 8px;
+}
