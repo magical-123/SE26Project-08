@@ -10,7 +10,9 @@ function loadInitialItems() {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+      const localMap = new Map(parsed.map(item => [item.id, item]));
+      const merged = inboxItems.map(item => localMap.has(item.id) ? { ...item, ...localMap.get(item.id) } : item);
+      return merged;
     }
   } catch {
     // ignore parse/storage errors
