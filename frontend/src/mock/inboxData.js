@@ -9,4 +9,14 @@ export const inboxItems = [
   { id: 8, title: '深度解读：大模型的推理成本', platform: 'Podcast', author: 'Tech Talk', duration: '40 分钟', category: '行业资讯', color: '#F59E0B', date: '4天前', isFavorite: true, isLiked: false, hasNote: true, opened: true },
   { id: 9, title: '幽默科普：黑洞是什么', platform: 'Bilibili', author: '科普君', duration: '8 分钟', category: '娱乐科普', color: '#F43F5E', date: '5天前', isFavorite: false, isLiked: false, hasNote: false },
   { id: 10, title: 'TypeScript 高级类型体操', platform: 'Zhihu', author: '前端小智', duration: '18 分钟', category: '深度知识', color: '#10B981', date: '5天前', isFavorite: true, isLiked: true, hasNote: true, opened: true },
+  { id: 11, title: '2026 AI Agent 爆发与前端机会', platform: 'Bilibili', author: '技术圆桌', duration: '35 分钟', category: '深度知识', color: '#10B981', date: '6小时前', isFavorite: true, isLiked: true, hasNote: true, opened: true },
+  { id: 12, title: 'Rust 在前端工具链的全面胜利', platform: 'Bilibili', author: '技术圆桌', duration: '40 分钟', category: '深度知识', color: '#10B981', date: '1天前', isFavorite: true, isLiked: false, hasNote: true, opened: true },
+  { id: 13, title: '独立开发者：用 AI 一人打造千万级产品', platform: 'Podcast', author: 'Tech Talk', duration: '55 分钟', category: '行业资讯', color: '#F59E0B', date: '2天前', isFavorite: true, isLiked: true, hasNote: true, opened: true },
+  { id: 14, title: 'GPT-5 核心架构解析', platform: 'Podcast', author: 'Tech Talk', duration: '60 分钟', category: '行业资讯', color: '#F59E0B', date: '3天前', isFavorite: true, isLiked: false, hasNote: true, opened: true },
+  { id: 15, title: '从零实现个人 AI 助手', platform: 'Bilibili', author: '技术圆桌', duration: '45 分钟', category: '深度知识', color: '#10B981', date: '4天前', isFavorite: true, isLiked: true, hasNote: true, opened: true },
+  { id: 16, title: '未来五年的科技趋势总结', platform: 'Podcast', author: 'Tech Talk', duration: '50 分钟', category: '行业资讯', color: '#F59E0B', date: '5天前', isFavorite: true, isLiked: true, hasNote: true, opened: true },
+  { id: 17, title: 'AI 时代我们需要什么认知？', platform: 'Zhihu', author: '认知突破', duration: '15 分钟', category: '效率与认知', color: '#EC4899', date: '6天前', isFavorite: true, isLiked: true, hasNote: true, opened: true },
+  { id: 18, title: '如何高效获取优质信息源', platform: 'Zhihu', author: '认知突破', duration: '20 分钟', category: '效率与认知', color: '#EC4899', date: '1周前', isFavorite: true, isLiked: false, hasNote: true, opened: true },
+  { id: 19, title: '微前端架构在大型项目中的应用', platform: 'Bilibili', author: '技术圆桌', duration: '40 分钟', category: '深度知识', color: '#10B981', date: '1周前', isFavorite: false, isLiked: true, hasNote: true, opened: true },
+  { id: 20, title: 'AIGC 如何重塑设计流程', platform: 'Zhihu', author: '设计达人', duration: '25 分钟', category: '实用技巧', color: '#0EA5E9', date: '2周前', isFavorite: true, isLiked: true, hasNote: true, opened: true }
 ];
