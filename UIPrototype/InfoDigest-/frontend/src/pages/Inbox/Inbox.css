@@ -1,0 +1,111 @@
+.inbox {
+  padding: 32px;
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.inbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  flex-shrink: 0;
+}
+
+.inbox-header h1 {
+  font-size: 28px;
+  letter-spacing: -0.5px;
+  font-weight: 800;
+}
+
+.inbox-filters {
+  display: flex;
+  gap: 8px;
+  background: rgba(0,0,0,0.02);
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border-glass);
+}
+
+.filter-btn {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  color: var(--text-main);
+}
+
+.filter-btn.active {
+  background: #fff;
+  color: var(--text-main);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.inbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+}
+
+/* 防止水平滚动 */
+html, body, #root {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+.sidebar-content {
+  position: absolute;
+  right: 12px;
+  top: 0;
+  bottom: 0;
+  width: 260px;
+  background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px 0 0 16px;
+  box-shadow: -8px 0 32px rgba(0,0,0,0.08);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.inbox-sidebar.visible .sidebar-content {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar-content h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.sidebar-content p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* 防止水平滚动 */
+html, body, #root {
+  height: 100%;
+  overflow-x: hidden;
+}
