@@ -72,7 +72,13 @@ export function InfoSourceCard({ data, onClick, onTogglePremium, isPremium, prem
           >
             <Star size={14} fill={data.isLiked ? '#F59E0B' : 'none'} />
           </button>
-          <button className="isc-extract-btn" onClick={(e) => e.stopPropagation()}>
+          <button 
+            className="isc-extract-btn" 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              onClick(data); 
+            }}
+          >
             <span>提取知识</span>
             <ArrowUpRight size={14} />
           </button>
