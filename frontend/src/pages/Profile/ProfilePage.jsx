@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
-import { User, Mail, LogOut, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { User, Mail, LogOut, Loader2, CheckCircle, AlertCircle, Camera } from 'lucide-react';
 import './ProfilePage.css';
 
 const API_BASE = 'http://localhost:8080';
 
 export function ProfilePage() {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
 
@@ -31,7 +34,9 @@ export function ProfilePage() {
       if (!res.ok) throw new Error('Failed to load profile');
       const data = await res.json();
       setUser(data);
+      setUsername(data.username || '');
       setEmail(data.email || '');
+      if (data.avatarUrl) localStorage.setItem('avatarUrl', data.avatarUrl);
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -46,7 +51,7 @@ export function ProfilePage() {
       const res = await fetch(`${API_BASE}/api/user/profile`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ username, email })
       });
       if (!res.ok) {
         const err = await res.text();
@@ -54,6 +59,7 @@ export function ProfilePage() {
       }
       const data = await res.json();
       setUser(data);
+      localStorage.setItem('username', data.username);
       setMessage({ type: 'success', text: 'Profile updated successfully' });
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
@@ -66,6 +72,62 @@ export function ProfilePage() {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
     navigate('/login');
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setMessage({ type: 'error', text: 'Please select an image file' });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Image size must be less than 2MB' });
+      return;
+    }
+
+    setUploading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      // Read file as base64 data URL
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Url = event.target.result;
+
+        const res = await fetch(`${API_BASE}/api/user/avatar`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ avatarUrl: base64Url })
+        });
+
+        if (!res.ok) {
+          const err = await res.text();
+          throw new Error(err);
+        }
+
+        const data = await res.json();
+        setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+        localStorage.setItem('avatarUrl', data.avatarUrl);
+        setMessage({ type: 'success', text: 'Avatar updated!' });
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (loading) {
@@ -88,9 +150,25 @@ export function ProfilePage() {
       <div className="profile-content">
         {/* Avatar & Username Section */}
         <GlassCard className="profile-avatar-section">
-          <div className="profile-avatar">
-            {user?.username?.charAt(0).toUpperCase() || 'U'}
+          <div className="profile-avatar-wrap" onClick={handleAvatarClick}>
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt="avatar" className="profile-avatar-img" />
+            ) : (
+              <div className="profile-avatar-letter">
+                {user?.username?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            )}
+            <div className="profile-avatar-overlay">
+              {uploading ? <Loader2 className="spinner" size={20} /> : <Camera size={20} />}
+            </div>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            style={{ display: 'none' }}
+          />
           <div className="profile-username">{user?.username || 'User'}</div>
           <div className="profile-joined">
             Joined {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
@@ -113,8 +191,12 @@ export function ProfilePage() {
               <User size={16} />
               <span>Username</span>
             </label>
-            <input type="text" value={user?.username || ''} disabled />
-            <span className="field-hint">Username cannot be changed</span>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your username"
+            />
           </div>
 
           <div className="profile-field">
