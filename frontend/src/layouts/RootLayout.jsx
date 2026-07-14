@@ -42,6 +42,13 @@ export function RootLayout({ children }) {
             <h1>InfoDigest</h1>
             <span className="subtitle">SYNTHESIZE INFORMATION OS</span>
           </div>
+          <div className="brand-avatar" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
+            {(() => {
+              const av = localStorage.getItem('avatarUrl');
+              const un = localStorage.getItem('username') || 'User';
+              return av ? <img src={av} alt="" className="user-avatar-img" /> : un.charAt(0).toUpperCase();
+            })()}
+          </div>
         </div>
 
         <div className="nav-container-inner">
@@ -64,14 +71,6 @@ export function RootLayout({ children }) {
           </nav>
         </div>
 
-        {/* User Profile */}
-        <div className="user-module" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
-          <div className="user-avatar">{localStorage.getItem('username')?.charAt(0).toUpperCase() || 'U'}</div>
-          <div className="user-details">
-            <span className="user-name">{localStorage.getItem('username') || 'User'}</span>
-            <span className="user-hint">SYSTEM ACTIVE</span>
-          </div>
-        </div>
       </aside>
 
       {/* Main Content Glass Board */}
