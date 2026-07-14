@@ -7,6 +7,7 @@ import { KnowledgeGraph } from './pages/KnowledgeGraph/KnowledgeGraph';
 import { Report } from './pages/Report/Report';
 import { Social } from './pages/Social/Social';
 import { Settings } from './pages/Settings/Settings';
+import { ProfilePage } from './pages/Profile/ProfilePage';
 import { AuthPage } from './pages/Auth/AuthPage';
 
 // ProtectedRoute component checks if the user is authenticated
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/report" element={<Report />} />
                 <Route path="/social" element={<Social />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Routes>
             </RootLayout>
           </ProtectedRoute>

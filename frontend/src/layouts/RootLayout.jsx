@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { Compass, BookOpen, Search, PieChart, User, Settings } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Compass, BookOpen, Search, PieChart, User, Settings, UserCircle } from 'lucide-react';
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { useInboxItems } from '../hooks/useInboxItems';
 import './RootLayout.css';
 
 export function RootLayout({ children }) {
+  const navigate = useNavigate();
   const navItems = [
     { path: "/", icon: Compass, label: "DASHBOARD" },
     { path: "/inbox", icon: BookOpen, label: "INBOX" },
@@ -13,6 +14,7 @@ export function RootLayout({ children }) {
     { path: "/report", icon: PieChart, label: "REPORT" },
     { path: "/social", icon: User, label: "SOCIAL" },
     { path: "/settings", icon: Settings, label: "SETTINGS" },
+    { path: "/profile", icon: UserCircle, label: "PROFILE" },
   ];
 
   // 计算是否有未读/待处理项：收藏或点赞但未打开看过
@@ -63,10 +65,10 @@ export function RootLayout({ children }) {
         </div>
 
         {/* User Profile */}
-        <div className="user-module">
-          <div className="user-avatar">U</div>
+        <div className="user-module" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
+          <div className="user-avatar">{localStorage.getItem('username')?.charAt(0).toUpperCase() || 'U'}</div>
           <div className="user-details">
-            <span className="user-name">User</span>
+            <span className="user-name">{localStorage.getItem('username') || 'User'}</span>
             <span className="user-hint">SYSTEM ACTIVE</span>
           </div>
         </div>
