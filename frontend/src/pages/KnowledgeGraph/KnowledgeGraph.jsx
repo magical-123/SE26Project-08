@@ -249,6 +249,7 @@ export function KnowledgeGraph() {
   const graphRef = useRef(null);
   const focusedNodeRef = useRef(null);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [focusedNode, setFocusedNode] = useState(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const { items } = useInboxItems();
@@ -303,9 +304,7 @@ export function KnowledgeGraph() {
   };
 
   const handleDrawerClose = () => {
-    setSelectedNode(null);
-    clearFocus();
-    setVisibleConcepts(new Set(CONCEPT_NODES.map(c => c.id)));
+    setIsDrawerOpen(false);
   };
 
   const graphData = useMemo(() => {
@@ -335,6 +334,7 @@ export function KnowledgeGraph() {
       if (focusedNodeRef.current) {
         clearFocus();
         setSelectedNode(null);
+        setIsDrawerOpen(false);
       }
       return; // Don't recreate graph
     }
@@ -541,11 +541,13 @@ export function KnowledgeGraph() {
 
       if (isConcept) {
         setSelectedNode(null);
+        setIsDrawerOpen(false);
       } else {
         setSelectedNode({
           title: item.data?.sourceTitle || item.id,
           ...item,
         });
+        setIsDrawerOpen(true);
       }
       setFocusedNode(nodeId);
       updateHighlightState(nodeId);
@@ -569,6 +571,7 @@ export function KnowledgeGraph() {
       setSelectedNode(null);
       setFocusedNode(null);
       updateHighlightState(null);
+      setIsDrawerOpen(false);
     };
 
     graph.on('node:click', handleClick);
@@ -675,7 +678,7 @@ export function KnowledgeGraph() {
       </div>
 
       <DetailDrawer
-        isOpen={!!selectedNode}
+        isOpen={isDrawerOpen}
         onClose={handleDrawerClose}
         data={selectedNode}
         sourceTitle={selectedNode?.title}
