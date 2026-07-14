@@ -2,9 +2,9 @@ spring:
   application:
     name: infodigest-backend
   datasource:
-    url: jdbc:mysql://localhost:3306/info_digest?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://127.0.0.1:3306/info_digest?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
     username: root
-    password: root
+    password: REPLACE_ME
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -17,3 +17,8 @@ spring:
 
 server:
   port: 8080
+
+logging:
+  level:
+    com.infodigest: INFO
+    org.springframework.security: INFO
