@@ -5,8 +5,7 @@ import './InfoSourceCard.css';
 
 const platformIcon = {
   Bilibili: <PlayCircle size={14} />,
-  Zhihu: <FileText size={14} />,
-  Podcast: <Mic size={14} />
+  Zhihu: <FileText size={14} />
 };
 
 // 判断是否显示红点：点赞或收藏了，但还没打开看过

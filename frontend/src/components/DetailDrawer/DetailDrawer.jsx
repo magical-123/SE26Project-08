@@ -15,7 +15,6 @@ const CATEGORY_COLORS = {
 const platformIcon = {
   Bilibili: <PlayCircle size={14} />,
   Zhihu: <FileText size={14} />,
-  Podcast: <Mic size={14} />,
 };
 
 function getTagColor(tag) {
