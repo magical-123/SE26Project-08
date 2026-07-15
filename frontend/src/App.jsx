@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { RootLayout } from './layouts/RootLayout';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { Inbox } from './pages/Inbox/Inbox';
@@ -20,9 +20,25 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// AuthRedirectListener: listens for auth:expired events from api.js and navigates
+function AuthRedirectListener() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handler = () => {
+      navigate('/login', { replace: true });
+    };
+    window.addEventListener('auth:expired', handler);
+    return () => window.removeEventListener('auth:expired', handler);
+  }, [navigate]);
+
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <AuthRedirectListener />
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/*" element={
