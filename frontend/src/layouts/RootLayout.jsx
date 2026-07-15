@@ -17,6 +17,22 @@ export function RootLayout({ children }) {
     { path: "/profile", icon: UserCircle, label: "PROFILE" },
   ];
 
+  const [avatar, setAvatar] = useState(() => localStorage.getItem('avatarUrl'));
+  const [username, setUsername] = useState(() => localStorage.getItem('username') || 'User');
+
+  useEffect(() => {
+    const handleAvatarChange = () => {
+      setAvatar(localStorage.getItem('avatarUrl'));
+      setUsername(localStorage.getItem('username') || 'User');
+    };
+    window.addEventListener('avatarChanged', handleAvatarChange);
+    window.addEventListener('storage', handleAvatarChange);
+    return () => {
+      window.removeEventListener('avatarChanged', handleAvatarChange);
+      window.removeEventListener('storage', handleAvatarChange);
+    };
+  }, []);
+
   // 计算是否有未读/待处理项：收藏或点赞但未打开看过
   const { items } = useInboxItems();
   const hasInboxRedDot = items.some(item => (item.isFavorite || item.isLiked) && !item.opened);
@@ -43,11 +59,7 @@ export function RootLayout({ children }) {
             <span className="subtitle">SYNTHESIZE INFORMATION OS</span>
           </div>
           <div className="brand-avatar" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
-            {(() => {
-              const av = localStorage.getItem('avatarUrl');
-              const un = localStorage.getItem('username') || 'User';
-              return av ? <img src={av} alt="" className="user-avatar-img" /> : un.charAt(0).toUpperCase();
-            })()}
+            {avatar ? <img src={avatar} alt="" className="user-avatar-img" /> : username.charAt(0).toUpperCase()}
           </div>
         </div>
 
