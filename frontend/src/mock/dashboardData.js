@@ -137,19 +137,21 @@ export const sourceMapping = {
   ]
 };
 
-// 饼图数据
+// 饼图数据 (带具体小时数)
 export const weeklyPieData = [
-  { value: 35, name: '深度知识', itemStyle: { color: '#0EA5E9' } },
-  { value: 45, name: '娱乐短剧', itemStyle: { color: '#F43F5E' } },
-  { value: 15, name: '行业资讯', itemStyle: { color: '#F59E0B' } },
-  { value: 5, name: '创意灵感', itemStyle: { color: '#10B981' } }
+  { value: 35, hours: 8.5, name: '蛋白质', subName: '深度知识', itemStyle: { color: '#0EA5E9' } },
+  { value: 25, hours: 6.0, name: '碳水化合物', subName: '实用资讯', itemStyle: { color: '#F59E0B' } },
+  { value: 5, hours: 1.2, name: '膳食纤维', subName: '哲思冥想', itemStyle: { color: '#10B981' } },
+  { value: 5, hours: 1.2, name: '维生素', subName: '创意灵感', itemStyle: { color: '#8B5CF6' } },
+  { value: 30, hours: 7.2, name: '脂肪与糖分', subName: '娱乐短剧', itemStyle: { color: '#F43F5E' } }
 ];
 
 export const dailyPieData = [
-  { value: 60, name: '深度知识', itemStyle: { color: '#0EA5E9' } },
-  { value: 10, name: '娱乐短剧', itemStyle: { color: '#F43F5E' } },
-  { value: 20, name: '行业资讯', itemStyle: { color: '#F59E0B' } },
-  { value: 10, name: '创意灵感', itemStyle: { color: '#10B981' } }
+  { value: 40, hours: 1.5, name: '蛋白质', subName: '深度知识', itemStyle: { color: '#0EA5E9' } },
+  { value: 30, hours: 1.1, name: '碳水化合物', subName: '实用资讯', itemStyle: { color: '#F59E0B' } },
+  { value: 5, hours: 0.2, name: '膳食纤维', subName: '哲思冥想', itemStyle: { color: '#10B981' } },
+  { value: 5, hours: 0.2, name: '维生素', subName: '创意灵感', itemStyle: { color: '#8B5CF6' } },
+  { value: 20, hours: 0.8, name: '脂肪与糖分', subName: '娱乐短剧', itemStyle: { color: '#F43F5E' } }
 ];
 
 // AI 联合语境洞察数据

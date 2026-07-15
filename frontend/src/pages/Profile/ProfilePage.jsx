@@ -36,7 +36,12 @@ export function ProfilePage() {
       setUser(data);
       setUsername(data.username || '');
       setEmail(data.email || '');
-      if (data.avatarUrl) localStorage.setItem('avatarUrl', data.avatarUrl);
+      if (data.avatarUrl) {
+        localStorage.setItem('avatarUrl', data.avatarUrl);
+      } else {
+        localStorage.removeItem('avatarUrl');
+      }
+      window.dispatchEvent(new Event('avatarChanged'));
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -71,6 +76,8 @@ export function ProfilePage() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
+    localStorage.removeItem('avatarUrl');
+    window.dispatchEvent(new Event('avatarChanged'));
     navigate('/login');
   };
 
@@ -120,6 +127,7 @@ export function ProfilePage() {
         const data = await res.json();
         setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
         localStorage.setItem('avatarUrl', data.avatarUrl);
+        window.dispatchEvent(new Event('avatarChanged'));
         setMessage({ type: 'success', text: 'Avatar updated!' });
       };
       reader.readAsDataURL(file);
