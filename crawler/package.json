@@ -1,0 +1,16 @@
+{
+  "name": "infodigest-crawler",
+  "version": "1.0.0",
+  "description": "InfoDigest 多平台爬虫——B站/知乎/小红书/GitHub 数据抓取",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": ["crawler", "bilibili", "zhihu", "xiaohongshu", "github", "infodigest"],
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.0",
+    "playwright": "^1.61.1"
+  }
+}
