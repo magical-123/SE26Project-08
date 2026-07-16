@@ -8,11 +8,11 @@ InfoDigest 是一款面向碎片化信息时代的信息管理工具，通过收
 
 在短视频、播客、文章、资讯充斥的日常中，用户每天摄入大量信息却难以沉淀。InfoDigest 提供了一整套信息处理工作流：
 
-- **信息收集**：把来自不同平台（B站、播客、文章等）的信息片段统一汇入 Inbox。
-- **智能分类**：自动/手动对信息打标签、分类，区分深度知识、行业资讯、实用技巧、娱乐科普等。
-- **数字饮食报告**：统计每日/每周信息摄入结构，帮助用户了解自己的「信息饮食结构」。
-- **知识图谱**：把已整理的信息可视化为动态知识星系，直观呈现知识之间的关联。
-- **复习机制**：基于记忆曲线提醒用户复习核心知识点。
+- **信息收集**：通过多平台爬虫自动抓取 B站、知乎、GitHub、小红书的内容，统一汇入 Inbox
+- **智能分类**：自动/手动对信息打标签、分类，区分深度知识、行业资讯、实用技巧、娱乐科普等
+- **数字饮食报告**：统计每日/每周信息摄入结构，帮助用户了解自己的「信息饮食结构」
+- **知识图谱**：把已整理的信息可视化为动态知识星系，直观呈现知识之间的关联
+- **复习机制**：基于记忆曲线提醒用户复习核心知识点
 
 ## 技术栈
 
@@ -41,6 +41,15 @@ InfoDigest 是一款面向碎片化信息时代的信息管理工具，通过收
 | Framer Motion | 12.42.2 | 动画与交互 |
 | Lucide React | 1.23.0 | 图标库 |
 
+### 爬虫
+
+| 技术 | 说明 |
+|------|------|
+| Node.js | 爬虫运行环境 |
+| Playwright | 浏览器自动化（知乎、小红书） |
+| axios | HTTP 请求（B站、GitHub） |
+| 插件架构 | 各平台独立模块，统一调度 |
+
 ## 项目结构
 
 ```
@@ -49,8 +58,10 @@ InfoDigest-
 │   ├── src/main/java/com/infodigest/
 │   │   ├── config/            # 安全配置、跨域配置
 │   │   ├── controller/        # RESTful API 接口
-│   │   ├── model/             # 数据实体
+│   │   ├── dto/               # 数据传输对象
+│   │   ├── entity/            # 数据实体
 │   │   ├── repository/        # JPA 数据访问层
+│   │   ├── scheduler/         # 定时任务（爬虫自动调度）
 │   │   ├── security/          # JWT 认证过滤器
 │   │   └── service/           # 业务逻辑与用户服务
 │   └── src/main/resources/
@@ -58,20 +69,33 @@ InfoDigest-
 ├── frontend/                  # React + Vite 前端
 │   ├── src/
 │   │   ├── components/        # 通用组件（GlassCard、CommandPalette 等）
-│   │   ├── pages/             # 页面（Dashboard、Inbox、KnowledgeGraph 等）
+│   │   ├── pages/             # 页面（Dashboard、Inbox、Settings 等）
 │   │   ├── hooks/             # 自定义 React Hooks
-│   │   └── mock/              # 前端 Mock 数据
+│   │   ├── layouts/           # 布局组件
+│   │   ├── mock/              # 前端 Mock 数据
+│   │   └── utils/             # 工具函数（API 封装等）
 │   └── package.json
-├── UIPrototype/               # 早期 UI 原型文件
+├── crawler/                   # 多平台爬虫模块
+│   ├── lib/
+│   │   ├── antiCrawl.js       # 反爬策略（随机延迟、重试）
+│   │   ├── bilibili.js        # B站爬虫
+│   │   ├── dataWriter.js      # 数据写入后端
+│   │   ├── github.js          # GitHub爬虫
+│   │   ├── xiaohongshu.js     # 小红书爬虫
+│   │   └── zhihu.js           # 知乎爬虫
+│   ├── index.js               # 爬虫主入口
+│   ├── config.js              # 配置文件
+│   └── package.json
 └── 远程数据库连接指南.md       # 团队共享数据库配置说明
 ```
 
 ## 环境要求
 
 - **JDK 17**（系统若已安装 JDK 25 等不兼容版本，需单独安装 JDK 17）
-- **Node.js 18+**（用于运行前端）
+- **Node.js 18+**（用于运行前端和爬虫）
 - **MySQL 8.x**（本地或远程服务器）
 - **Maven**（可使用项目内 `mvnw`）
+- **Playwright Chromium**（知乎和小红书爬虫需要，通过 `npx playwright install chromium` 安装）
 
 ## 数据库配置
 
@@ -97,30 +121,42 @@ url: jdbc:mysql://localhost:3306/info_digest?useUnicode=true&characterEncoding=u
 
 ## 快速启动
 
-### 方式一：分别启动前后端
+### 1. 启动后端
 
-1. 启动后端：
-   ```bash
-   cd backend
-   mvnw.cmd spring-boot:run   # Windows
-   ./mvnw spring-boot:run     # Linux / macOS
-   ```
+```bash
+cd backend
+mvnw.cmd spring-boot:run   # Windows
+./mvnw spring-boot:run     # Linux / macOS
+```
 
-2. 启动前端：
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+### 2. 启动前端
 
-3. 打开浏览器访问：http://localhost:5173
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-### 方式二：一键启动脚本（项目根目录）
+### 3. 打开浏览器访问
 
-在 `d:\123pan\软工原\` 目录下提供了 Windows 一键脚本：
+http://localhost:5173
 
-- `start-dev.bat`：同时启动前后端
-- `stop-dev.bat`：停止前后端进程
+### 4. 安装爬虫依赖（必须）
+
+后端启动后，**定时爬虫调度器会每 30 秒自动触发全平台抓取**，但需要先安装爬虫运行环境和浏览器：
+
+```bash
+cd crawler
+npm install
+npx playwright install chromium
+```
+
+> 爬虫需要在前端 Settings 页面完成平台授权（保存 Cookie/Token）后才能抓取个人数据。小红书无需登录即可抓取公开内容。
+>
+> 如需手动触发单平台抓取：
+> ```bash
+> node index.js --platform=bilibili
+> ```
 
 ## API 认证
 
@@ -141,10 +177,25 @@ Authorization: Bearer <Your-JWT-Token>
 | 页面 | 路径 | 说明 |
 |------|------|------|
 | 仪表盘 | `/` | 今日浏览量、优质信息源、数字饮食概览 |
-| 信息收件箱 | `/inbox` | 信息收集、分类、状态管理 |
+| 信息收件箱 | `/inbox` | 信息收集、分类、按平台筛选、状态管理；每 30 秒自动刷新，保留最新 30 条 |
 | 知识图谱 | `/graph` | 可视化信息关联网络 |
 | 数字饮食报告 | `/report` | 周报/日报、词云、溯源 |
-| 设置 | `/settings` | 用户偏好，如「隐藏娱乐类信息」 |
+| 社交 | `/social` | 用户互动、好友系统 |
+| 个人资料 | `/profile` | 用户信息编辑、头像上传 |
+| 设置 | `/settings` | 平台授权、凭证管理、用户偏好 |
+
+## 爬虫平台支持
+
+后端内置 **CrawlScheduler 定时调度器**，每 30 秒自动为已授权平台触发抓取，数据实时同步到 Inbox。
+
+| 平台 | 抓取数据 | 认证方式 | 调度 |
+|------|---------|---------|:--:|
+| B站 | 观看历史 + CC字幕 | Cookie | 自动 |
+| 知乎 | 推荐流 + 收藏夹 | Cookie | 自动 |
+| GitHub | Star/仓库/Events/README | Token | 自动 |
+| 小红书 | 公开发现页推荐 | 无需登录 | 自动 |
+
+详细技术实现和已知限制请参考 [爬虫情况.md](爬虫情况.md)。
 
 ## 团队协作
 
@@ -160,6 +211,7 @@ Authorization: Bearer <Your-JWT-Token>
 ## 相关文档
 
 - [远程数据库连接指南.md](远程数据库连接指南.md) - 团队共享数据库配置与排错
+- [爬虫情况.md](爬虫情况.md) - 各平台爬虫数据、技术实现和已知限制
 - [frontend/README.md](frontend/README.md) - 前端详细说明
 - [backend/README.md](backend/README.md) - 后端详细说明
 
