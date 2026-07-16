@@ -7,44 +7,11 @@ import './KnowledgeGraph.css';
 
 const MAX_LABEL_LENGTH = 5;
 
-const CONCEPT_NODES = [
-  { id: 'concept-frontend-arch', label: '前端架构演进', color: '#0EA5E9' }, // Sky
-  { id: 'concept-ai-trend', label: 'AI 行业动态', color: '#8B5CF6' },      // Violet
-  { id: 'concept-design-system', label: '设计系统', color: '#F43F5E' },    // Rose
-  { id: 'concept-animation', label: '动效与交互', color: '#F59E0B' },      // Amber
-  { id: 'concept-science-pop', label: '科学科普', color: '#10B981' },      // Emerald
-  { id: 'concept-productivity', label: '效率与认知', color: '#3B82F6' },   // Blue
-];
-
-// 每个 sourceId 可属于多个 conceptId
-const SOURCE_CONCEPT_MAP = {
-  1: ['concept-frontend-arch', 'concept-ai-trend'], // AI时代的前端架构演进
-  2: ['concept-animation', 'concept-frontend-arch'], // 如何用 React 实现丝滑的弹簧动画
-  3: ['concept-ai-trend', 'concept-productivity'], // 硅谷创业播客
-  4: ['concept-science-pop'], // 三分钟看懂量子力学
-  5: ['concept-frontend-arch', 'concept-animation'], // Framer Motion
-  6: ['concept-design-system', 'concept-productivity'], // 设计系统搭建
-  7: ['concept-frontend-arch', 'concept-ai-trend'], // 2026 前端技术趋势展望
-  8: ['concept-ai-trend'], // 大模型推理成本
-  9: ['concept-science-pop'], // 幽默科普：黑洞是什么
-  10: ['concept-frontend-arch', 'concept-design-system'], // TypeScript高级类型体操
-  11: ['concept-ai-trend', 'concept-frontend-arch'], // AI Agent 爆发与前端机会
-  12: ['concept-frontend-arch'], // Rust 工具链
-  13: ['concept-ai-trend', 'concept-productivity'], // 独立开发者 AI
-  14: ['concept-ai-trend'], // GPT-5 解析
-  15: ['concept-ai-trend', 'concept-frontend-arch', 'concept-productivity'], // 个人 AI 助手
-  16: ['concept-ai-trend', 'concept-science-pop'], // 未来科技趋势
-  17: ['concept-productivity', 'concept-ai-trend'], // AI时代认知
-  18: ['concept-productivity'], // 获取信息源
-  19: ['concept-frontend-arch'], // 微前端
-  20: ['concept-design-system', 'concept-ai-trend'], // AIGC 重塑设计
-};
-
 function getNodeWeight(item) {
   return item.hasNote ? 3 : 0;
 }
 
-function buildGraphData(premiumItems, visibleConcepts) {
+function buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap) {
   if (premiumItems.length === 0) return { nodes: [], edges: [] };
 
   const nodes = [];
@@ -52,17 +19,17 @@ function buildGraphData(premiumItems, visibleConcepts) {
 
   // Calculate counts for each concept based on premium items
   const conceptCounts = {};
-  CONCEPT_NODES.forEach(c => conceptCounts[c.id] = 0);
+  conceptNodes.forEach(c => conceptCounts[c.id] = 0);
 
   premiumItems.forEach(item => {
-    const itemConceptIds = SOURCE_CONCEPT_MAP[item.id] || [];
+    const itemConceptIds = sourceConceptMap[item.id] || [];
     itemConceptIds.forEach(cid => {
       if (conceptCounts[cid] !== undefined) conceptCounts[cid]++;
     });
   });
 
   // Only keep concepts that actually have premium items AND are visible
-  const validConcepts = CONCEPT_NODES.filter(c => conceptCounts[c.id] > 0);
+  const validConcepts = conceptNodes.filter(c => conceptCounts[c.id] > 0);
   const activeConcepts = validConcepts.filter(c => !visibleConcepts || visibleConcepts.has(c.id));
   
   const width = window.innerWidth || 800;
@@ -72,9 +39,9 @@ function buildGraphData(premiumItems, visibleConcepts) {
   
   // G6 v5 的画布原点 (0,0) 就是视口正中心
   const cx = 0;
-  const cy = 0; // 由于我们已经用 CSS 压缩了画布，这里不需要再便宜，保持绝对中心
+  const cy = 0;
 
-  // 计算总权重以分配角度 (每个 concept 至少拥有基础权重，避免重叠)
+  // 计算总权重以分配角度
   const getWeight = (c) => Math.max(conceptCounts[c.id] || 0, 1);
   const totalWeight = activeConcepts.reduce((sum, c) => sum + getWeight(c), 0);
   let currentAngle = 0;
@@ -83,22 +50,30 @@ function buildGraphData(premiumItems, visibleConcepts) {
     const count = conceptCounts[concept.id] || 0;
     const weight = getWeight(concept);
     
-    // 根据权重分配扇区角度
-    const sliceAngle = (weight / totalWeight) * 2 * Math.PI;
-    // 节点放置在扇区的中间角度
-    const centerAngle = currentAngle + sliceAngle / 2;
-    
-    const x = cx + conceptRadius * Math.cos(centerAngle);
-    const y = cy + conceptRadius * Math.sin(centerAngle);
+    // 如果有保存的位置，直接使用；否则按圆形排列计算
+    const saved = savedPositions[concept.id];
+    let x, y;
+    if (saved) {
+      x = saved.x;
+      y = saved.y;
+    } else {
+      const sliceAngle = (weight / totalWeight) * 2 * Math.PI;
+      const centerAngle = currentAngle + sliceAngle / 2;
+      x = cx + conceptRadius * Math.cos(centerAngle);
+      y = cy + conceptRadius * Math.sin(centerAngle);
+      currentAngle += sliceAngle;
+    }
 
-    // 节点大小动态计算：基础大小 40，每增加一篇扩大 6，最大 110
     const nodeSize = Math.min(40 + count * 6, 110);
+    const sliceAngle = saved ? 0 : (weight / totalWeight) * 2 * Math.PI;
 
-    conceptPositions[concept.id] = { x, y, color: concept.color, angle: centerAngle, sliceAngle, size: nodeSize };
+    conceptPositions[concept.id] = { x, y, color: concept.color, angle: 0, sliceAngle, size: nodeSize };
 
     nodes.push({
       id: concept.id,
       type: 'circle',
+      x,
+      y,
       size: nodeSize,
       data: { ...concept, type: 'concept', count, x, y, size: nodeSize }
     });
@@ -110,7 +85,7 @@ function buildGraphData(premiumItems, visibleConcepts) {
 
   const singleDegreeItemsCount = {};
   premiumItems.forEach((item) => {
-    const itemConceptIds = SOURCE_CONCEPT_MAP[item.id] || [];
+    const itemConceptIds = sourceConceptMap[item.id] || [];
     const activeItemConcepts = itemConceptIds.filter(cid => conceptPositions[cid]);
     if (activeItemConcepts.length === 1) {
       const cid = activeItemConcepts[0];
@@ -121,62 +96,70 @@ function buildGraphData(premiumItems, visibleConcepts) {
 
   // Add Source Nodes
   premiumItems.forEach((item) => {
-    const itemConceptIds = SOURCE_CONCEPT_MAP[item.id] || [];
+    const itemConceptIds = sourceConceptMap[item.id] || [];
     const activeItemConcepts = itemConceptIds.filter(cid => conceptPositions[cid]);
 
     if (activeItemConcepts.length === 0) return;
 
-    let sx = 0;
-    let sy = 0;
-
-    const comboKey = activeItemConcepts.slice().sort().join(',');
-    comboCounts[comboKey] = (comboCounts[comboKey] || 0) + 1;
-    const localIndex = comboCounts[comboKey];
+    const sourceNodeId = `source-${item.id}`;
+    const saved = savedPositions[sourceNodeId];
 
     const activeColors = activeItemConcepts.map(cid => conceptPositions[cid].color);
     const primaryColor = blendColors(activeColors);
     const secondaryColor = activeItemConcepts.length > 1 ? conceptPositions[activeItemConcepts[1]].color : null;
 
-    if (activeItemConcepts.length === 1) {
-      // 单节点：均匀分布在圆环外侧的弧线上
-      const cid = activeItemConcepts[0];
-      const pos = conceptPositions[cid];
-      
-      const totalSingles = singleDegreeItemsCount[cid] || 1;
-      singleDegreeCount[cid] = (singleDegreeCount[cid] || 0);
-      const localIndex = singleDegreeCount[cid]++;
-
-      // 每圈最多排 4 个节点
-      const orbit = Math.floor(localIndex / 4);
-      const indexInOrbit = localIndex % 4;
-      const itemsInThisOrbit = Math.min(4, totalSingles - orbit * 4);
-
-      // 半径向外扩散
-      const r = (pos.size / 2) + 35 + orbit * 40;
-
-      // 在所属切片内均匀分布
-      // 为了不越界，留出 10% 的安全边距
-      const safeSlice = pos.sliceAngle * 0.8; 
-      let a = pos.angle;
-      if (itemsInThisOrbit > 1) {
-        const step = safeSlice / (itemsInThisOrbit - 1);
-        a = pos.angle - (safeSlice / 2) + step * indexInOrbit;
-      }
-      
-      sx = pos.x + Math.cos(a) * r;
-      sy = pos.y + Math.sin(a) * r;
+    let sx, sy;
+    if (saved) {
+      sx = saved.x;
+      sy = saved.y;
     } else {
-      activeItemConcepts.forEach(cid => {
-        sx += conceptPositions[cid].x;
-        sy += conceptPositions[cid].y;
-      });
-      sx /= activeItemConcepts.length;
-      sy /= activeItemConcepts.length;
+      sx = 0;
+      sy = 0;
 
-      const jitterRadius = 12 + localIndex * 15;
-      const angle = localIndex * 2.39996;
-      sx += jitterRadius * Math.cos(angle);
-      sy += jitterRadius * Math.sin(angle);
+      const comboKey = activeItemConcepts.slice().sort().join(',');
+      comboCounts[comboKey] = (comboCounts[comboKey] || 0) + 1;
+      const localIndex = comboCounts[comboKey];
+
+      if (activeItemConcepts.length === 1) {
+        // 单节点：均匀分布在圆环外侧的弧线上
+        const cid = activeItemConcepts[0];
+        const pos = conceptPositions[cid];
+        
+        const totalSingles = singleDegreeItemsCount[cid] || 1;
+        singleDegreeCount[cid] = (singleDegreeCount[cid] || 0);
+        const localIndex = singleDegreeCount[cid]++;
+
+        // 每圈最多排 4 个节点
+        const orbit = Math.floor(localIndex / 4);
+        const indexInOrbit = localIndex % 4;
+        const itemsInThisOrbit = Math.min(4, totalSingles - orbit * 4);
+
+        // 半径向外扩散
+        const r = (pos.size / 2) + 35 + orbit * 40;
+
+        // 在所属切片内均匀分布，留出 10% 的安全边距
+        const safeSlice = pos.sliceAngle * 0.8; 
+        let a = pos.angle;
+        if (itemsInThisOrbit > 1) {
+          const step = safeSlice / (itemsInThisOrbit - 1);
+          a = pos.angle - (safeSlice / 2) + step * indexInOrbit;
+        }
+        
+        sx = pos.x + Math.cos(a) * r;
+        sy = pos.y + Math.sin(a) * r;
+      } else {
+        activeItemConcepts.forEach(cid => {
+          sx += conceptPositions[cid].x;
+          sy += conceptPositions[cid].y;
+        });
+        sx /= activeItemConcepts.length;
+        sy /= activeItemConcepts.length;
+
+        const jitterRadius = 12 + localIndex * 15;
+        const angle = localIndex * 2.39996;
+        sx += jitterRadius * Math.cos(angle);
+        sy += jitterRadius * Math.sin(angle);
+      }
     }
 
     const weight = getNodeWeight(item);
@@ -185,6 +168,8 @@ function buildGraphData(premiumItems, visibleConcepts) {
     nodes.push({
       id: `source-${item.id}`,
       type: 'circle',
+      x: sx,
+      y: sy,
       size: size,
       data: {
         ...item,
@@ -252,16 +237,66 @@ export function KnowledgeGraph() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [focusedNode, setFocusedNode] = useState(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [savedPositions, setSavedPositions] = useState({});
+  const [conceptNodes, setConceptNodes] = useState([]);
+  const [sourceConceptMap, setSourceConceptMap] = useState({});
+  const [dataLoading, setDataLoading] = useState(true);
   const { items } = useInboxItems();
+
+  // 从后端获取概念数据、映射关系和概念位置
+  const API_BASE = 'http://localhost:8080';
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('token')}`
+  });
+
+  // Fetch graph data and positions from API
+  useEffect(() => {
+    const headers = getAuthHeaders();
+    Promise.all([
+      fetch(`${API_BASE}/api/graph/data`, { headers }).then(res => res.ok ? res.json() : null),
+      fetch(`${API_BASE}/api/graph/positions`, { headers }).then(res => res.ok ? res.json() : null),
+    ])
+      .then(([graphData, positionsData]) => {
+        if (positionsData) {
+          const posObj = typeof positionsData === 'object' && !Array.isArray(positionsData) ? positionsData : {};
+          setSavedPositions(posObj);
+        }
+        if (graphData) {
+          const nodes = (graphData.concepts || []).map(c => ({ ...c, id: `concept-${c.id}` }));
+          setConceptNodes(nodes);
+
+          const mapping = {};
+          Object.entries(graphData.itemToConcepts || {}).forEach(([itemId, conceptIds]) => {
+            mapping[Number(itemId)] = conceptIds.map(cid => `concept-${cid}`);
+          });
+          setSourceConceptMap(mapping);
+
+          setVisibleConcepts(new Set(nodes.map(n => n.id)));
+        }
+        setDataLoading(false);
+      })
+      .catch(() => {
+        setDataLoading(false);
+      });
+  }, []);
+
+  const savePositions = async (positions) => {
+    try {
+      await fetch(`${API_BASE}/api/graph/positions`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(positions)
+      });
+    } catch {}
+  };
 
   // Keep ref in sync with state so event handlers read latest value
   useEffect(() => {
     focusedNodeRef.current = focusedNode;
   }, [focusedNode]);
 
-  const [visibleConcepts, setVisibleConcepts] = useState(() => {
-    return new Set(CONCEPT_NODES.map(c => c.id));
-  });
+  const [visibleConcepts, setVisibleConcepts] = useState(new Set());
 
   const toggleConcept = (conceptId) => {
     setVisibleConcepts(prev => {
@@ -276,7 +311,7 @@ export function KnowledgeGraph() {
   };
 
   const toggleAll = () => {
-    setVisibleConcepts(new Set(CONCEPT_NODES.map(c => c.id)));
+    setVisibleConcepts(new Set(conceptNodes.map(c => c.id)));
   };
 
   const exportImage = () => {
@@ -309,8 +344,8 @@ export function KnowledgeGraph() {
 
   const graphData = useMemo(() => {
     const premiumItems = (items || []).filter(item => item.hasNote);
-    return buildGraphData(premiumItems, visibleConcepts);
-  }, [items, visibleConcepts]);
+    return buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap);
+  }, [items, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap]);
 
   // Unified effect: create graph on first valid data, update on subsequent changes
   useEffect(() => {
@@ -348,9 +383,6 @@ export function KnowledgeGraph() {
       width,
       height,
       data: { nodes, edges },
-      layout: {
-        type: 'preset',
-      },
       animation: false,
       behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element'],
       node: {
@@ -460,10 +492,11 @@ export function KnowledgeGraph() {
           },
         },
       },
-      autoFit: 'view',
+      zoomable: 'view',
     });
 
     graph.render();
+    graph.fitView();
     graphRef.current = graph;
 
     // --- Event Handlers ---
@@ -579,6 +612,30 @@ export function KnowledgeGraph() {
     graph.on('node:mouseleave', handleMouseLeave);
     graph.on('canvas:click', handleCanvasClick);
 
+    // 拖拽结束后保存所有节点位置
+    const handleDragEnd = (e) => {
+      if (!graphRef.current) return;
+
+      const allNodes = graphRef.current.getNodeData();
+      const positions = [];
+      const posMap = {};
+
+      allNodes.forEach(node => {
+        // drag-element 更新了顶层 x/y，同步到 data.x/y 以便 style 函数读取
+        if (node.x != null) {
+          node.data = node.data || {};
+          node.data.x = node.x;
+          node.data.y = node.y;
+          positions.push({ nodeId: node.id, posX: node.x, posY: node.y });
+          posMap[node.id] = { x: node.x, y: node.y };
+        }
+      });
+
+      setSavedPositions(prev => ({ ...prev, ...posMap }));
+      savePositions(positions);
+    };
+    graph.on('node:dragend', handleDragEnd);
+
     const handleResize = () => {
       if (containerRef.current && graphRef.current) {
         graphRef.current.setSize(
@@ -595,6 +652,7 @@ export function KnowledgeGraph() {
       graph.off('node:mouseenter', handleMouseEnter);
       graph.off('node:mouseleave', handleMouseLeave);
       graph.off('canvas:click', handleCanvasClick);
+      graph.off('node:dragend', handleDragEnd);
       if (graphRef.current) {
         graphRef.current.destroy();
         graphRef.current = null;
@@ -604,15 +662,15 @@ export function KnowledgeGraph() {
 
   const validConcepts = useMemo(() => {
     const counts = {};
-    CONCEPT_NODES.forEach(c => counts[c.id] = 0);
+    conceptNodes.forEach(c => counts[c.id] = 0);
     (items || []).filter(item => item.hasNote).forEach(item => {
-      const cids = SOURCE_CONCEPT_MAP[item.id] || [];
+      const cids = sourceConceptMap[item.id] || [];
       cids.forEach(cid => { if (counts[cid] !== undefined) counts[cid]++; });
     });
-    return CONCEPT_NODES.filter(c => counts[c.id] > 0);
-  }, [items]);
+    return conceptNodes.filter(c => counts[c.id] > 0);
+  }, [items, conceptNodes, sourceConceptMap]);
 
-  const allVisible = validConcepts.every(c => visibleConcepts.has(c.id));
+  const allVisible = conceptNodes.length > 0 && validConcepts.every(c => visibleConcepts.has(c.id));
 
   return (
     <div className="knowledge-graph-page">
@@ -620,7 +678,7 @@ export function KnowledgeGraph() {
       <div className="kg-legend-bar">
         <div className="kg-legend-bar-inner">
           <div className="kg-legend-items">
-            {validConcepts.map(concept => (
+            {conceptNodes.map(concept => (
               <button
                 key={concept.id}
                 className={`kg-legend-item ${visibleConcepts.has(concept.id) ? 'active' : 'hidden'}`}
@@ -645,7 +703,14 @@ export function KnowledgeGraph() {
         </div>
       </div>
 
-      <div className="kg-container" ref={containerRef}></div>
+      <div className="kg-container" ref={containerRef}>
+        {conceptNodes.length === 0 && (
+          <div className="kg-empty-state">
+            <Sparkles size={32} />
+            <span>暂无数据</span>
+          </div>
+        )}
+      </div>
 
       {/* Floating control cube panel */}
       <div className={`kg-control-cube ${isPanelOpen ? 'open' : ''}`}>
