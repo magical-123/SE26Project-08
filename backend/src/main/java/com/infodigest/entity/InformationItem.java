@@ -50,4 +50,9 @@ public class InformationItem {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime crawledAt = LocalDateTime.now();
+
+    // hasNote: 前端用于判断是否已处理/标记优质，数据库无独立字段，通过 processStatus 推断
+    public Boolean getHasNote() {
+        return "PROCESSED".equals(this.processStatus);
+    }
 }

@@ -6,7 +6,7 @@ BASE = "http://localhost:8080"
 
 # ── 1. Login ──
 print(">>> Logging in...")
-r = requests.post(f"{BASE}/api/auth/login", json={"username": "1", "password": "1"})
+r = requests.post(f"{BASE}/api/auth/login", json={"username": "test_user", "password": "1"})
 r.raise_for_status()
 token = r.json()["token"]
 headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}

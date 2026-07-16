@@ -355,3 +355,24 @@
     display: none;
   }
 }
+
+/* ---- React Flow overrides ---- */
+.kg-container .react-flow__node {
+  cursor: pointer;
+}
+.kg-container .react-flow__node.selected {
+  outline: none;
+  box-shadow: none;
+}
+.kg-container .react-flow__edge-path {
+  transition: all 0.3s ease;
+}
+
+/* React Flow full-height fix */
+.kg-container .react-flow {
+  width: 100%;
+  height: 100%;
+}
+.kg-container .react-flow__viewport {
+  transform-origin: center center;
+}
