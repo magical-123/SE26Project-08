@@ -143,4 +143,83 @@ public class AnalysisController {
             ));
         }
     }
+
+    /**
+     * 获取用户的营养维度统计（用于饼状图）
+     * 算法：所有已分析视频的五维度简单加和平均
+     */
+    @GetMapping("/nutrition-stats/{userId}")
+    public ResponseEntity<?> getNutritionStats(@PathVariable Long userId) {
+        try {
+            // 获取该用户所有已分析的视频
+            var processedItems = itemRepository.findByUserIdAndProcessStatus(userId, "PROCESSED");
+
+            if (processedItems.isEmpty()) {
+                // 如果没有已分析的视频，返回默认值
+                Map<String, Object> emptyStats = new HashMap<>();
+                emptyStats.put("count", 0);
+                emptyStats.put("nutrition", Map.of(
+                    "protein", 0,
+                    "carbs", 0,
+                    "vitamins", 0,
+                    "fats", 0,
+                    "fiber", 0
+                ));
+                emptyStats.put("message", "暂无已分析的视频");
+                return ResponseEntity.ok(emptyStats);
+            }
+
+            // 计算五维度总和
+            long proteinSum = 0;
+            long carbsSum = 0;
+            long vitaminsSum = 0;
+            long fatsSum = 0;
+            long fiberSum = 0;
+
+            for (InformationItem item : processedItems) {
+                if (item.getNutritionProtein() != null) proteinSum += item.getNutritionProtein();
+                if (item.getNutritionCarbs() != null) carbsSum += item.getNutritionCarbs();
+                if (item.getNutritionVitamins() != null) vitaminsSum += item.getNutritionVitamins();
+                if (item.getNutritionFats() != null) fatsSum += item.getNutritionFats();
+                if (item.getNutritionFiber() != null) fiberSum += item.getNutritionFiber();
+            }
+
+            int count = processedItems.size();
+
+            // 计算平均值（简单加和后平均）
+            int avgProtein = (int) (proteinSum / count);
+            int avgCarbs = (int) (carbsSum / count);
+            int avgVitamins = (int) (vitaminsSum / count);
+            int avgFats = (int) (fatsSum / count);
+            int avgFiber = (int) (fiberSum / count);
+
+            // 归一化到 100%（因为每个视频的五维度总和是100，平均后也应该是100）
+            int total = avgProtein + avgCarbs + avgVitamins + avgFats + avgFiber;
+            if (total > 0) {
+                avgProtein = (int) Math.round(avgProtein * 100.0 / total);
+                avgCarbs = (int) Math.round(avgCarbs * 100.0 / total);
+                avgVitamins = (int) Math.round(avgVitamins * 100.0 / total);
+                avgFats = (int) Math.round(avgFats * 100.0 / total);
+                avgFiber = 100 - avgProtein - avgCarbs - avgVitamins - avgFats; // 确保总和为100
+            }
+
+            Map<String, Object> nutritionStats = new HashMap<>();
+            nutritionStats.put("count", count);
+            nutritionStats.put("nutrition", Map.of(
+                "protein", avgProtein,
+                "carbs", avgCarbs,
+                "vitamins", avgVitamins,
+                "fats", avgFats,
+                "fiber", avgFiber
+            ));
+
+            return ResponseEntity.ok(nutritionStats);
+
+        } catch (Exception e) {
+            log.error("Failed to get nutrition stats for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "获取营养统计失败: " + e.getMessage()
+            ));
+        }
+    }
 }

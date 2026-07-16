@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import './Settings.css';
 
@@ -10,9 +10,55 @@ export function Settings() {
     apiKey: '',
     maxTokens: ''
   });
+  const [saveStatus, setSaveStatus] = useState(''); // 'success' | 'error' | ''
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 页面加载时获取已保存的配置
+  useEffect(() => {
+    loadAIConfig();
+  }, []);
+
+  const loadAIConfig = async () => {
+    try {
+      // TODO: 从 localStorage 或 context 获取真实的 userId
+      const userId = 1; // 临时硬编码，实际应从登录状态获取
+
+      const response = await fetch(`http://localhost:8080/api/ai-config/${userId}`);
+
+      if (response.ok) {
+        const config = await response.json();
+
+        // 映射 modelType 到下拉选项
+        const modelTypeMap = {
+          'GPT_4': 'gpt-4',
+          'GPT_4_TURBO': 'gpt-4-turbo',
+          'GPT_3_5_TURBO': 'gpt-3.5-turbo',
+          'CLAUDE_3_OPUS': 'claude-3-opus',
+          'CLAUDE_3_SONNET': 'claude-3-sonnet',
+          'CLAUDE_3_HAIKU': 'claude-3-haiku',
+          'GEMINI_PRO': 'gemini-pro',
+          'CUSTOM': 'custom'
+        };
+
+        setSelectedModel(modelTypeMap[config.modelType] || 'gpt-4');
+
+        if (config.modelType === 'CUSTOM') {
+          setCustomConfig({
+            modelName: config.customModelName || '',
+            apiEndpoint: config.apiEndpoint || '',
+            apiKey: '', // 出于安全考虑，不回显 API Key
+            maxTokens: config.maxTokens || ''
+          });
+        }
+      }
+    } catch (error) {
+      console.error('加载 AI 配置失败:', error);
+    }
+  };
 
   const handleModelChange = (e) => {
     setSelectedModel(e.target.value);
+    setSaveStatus(''); // 清除之前的状态提示
   };
 
   const handleCustomConfigChange = (field, value) => {
@@ -20,6 +66,62 @@ export function Settings() {
       ...prev,
       [field]: value
     }));
+    setSaveStatus('');
+  };
+
+  const handleSaveConfig = async () => {
+    setIsLoading(true);
+    setSaveStatus('');
+
+    try {
+      // TODO: 从 localStorage 或 context 获取真实的 userId
+      const userId = 1; // 临时硬编码
+
+      // 映射前端选项到后端枚举
+      const modelTypeMap = {
+        'gpt-4': 'GPT_4',
+        'gpt-4-turbo': 'GPT_4_TURBO',
+        'gpt-3.5-turbo': 'GPT_3_5_TURBO',
+        'claude-3-opus': 'CLAUDE_3_OPUS',
+        'claude-3-sonnet': 'CLAUDE_3_SONNET',
+        'claude-3-haiku': 'CLAUDE_3_HAIKU',
+        'gemini-pro': 'GEMINI_PRO',
+        'custom': 'CUSTOM'
+      };
+
+      const requestBody = {
+        userId: userId,
+        modelType: modelTypeMap[selectedModel],
+        apiKey: selectedModel === 'custom' ? customConfig.apiKey : null,
+        apiEndpoint: selectedModel === 'custom' ? customConfig.apiEndpoint : null,
+        maxTokens: selectedModel === 'custom' && customConfig.maxTokens
+          ? parseInt(customConfig.maxTokens)
+          : null,
+        customModelName: selectedModel === 'custom' ? customConfig.modelName : null
+      };
+
+      const response = await fetch('http://localhost:8080/api/ai-config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (response.ok) {
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus(''), 3000); // 3秒后清除提示
+      } else {
+        const errorText = await response.text();
+        console.error('保存失败:', errorText);
+        setSaveStatus('error');
+      }
+    } catch (error) {
+      console.error('保存 AI 配置失败:', error);
+      setSaveStatus('error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -165,6 +267,23 @@ export function Settings() {
 
             <div className="ai-info-box">
               <p>💡 所选模型将用于内容摘要生成、知识图谱构建和智能推荐</p>
+            </div>
+
+            <div className="ai-actions">
+              <button
+                className="save-config-btn"
+                onClick={handleSaveConfig}
+                disabled={isLoading}
+              >
+                {isLoading ? '保存中...' : '保存配置'}
+              </button>
+
+              {saveStatus === 'success' && (
+                <span className="save-status success">✓ 保存成功</span>
+              )}
+              {saveStatus === 'error' && (
+                <span className="save-status error">✗ 保存失败，请重试</span>
+              )}
             </div>
           </div>
         </GlassCard>
