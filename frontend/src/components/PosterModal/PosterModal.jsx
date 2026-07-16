@@ -9,12 +9,20 @@ export function PosterModal({ onClose, pieOption, insight, activeTab }) {
   const posterRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // 提供默认值，防止 insight 为 null 时报错
+  const safeInsight = insight || {
+    insightTitle: '暂无洞察',
+    insightSummary: '还未生成本期洞察报告',
+    title: '暂无洞察', // 兼容旧字段
+    summary: '还未生成本期洞察报告' // 兼容旧字段
+  };
+
   const handleDownload = async () => {
     if (!posterRef.current) return;
     setIsGenerating(true);
     try {
-      const canvas = await html2canvas(posterRef.current, { 
-        scale: 2, 
+      const canvas = await html2canvas(posterRef.current, {
+        scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff'
       });
@@ -29,9 +37,10 @@ export function PosterModal({ onClose, pieOption, insight, activeTab }) {
       setIsGenerating(false);
     }
   };
-  
+
   const renderSummary = (text) => {
-    return text.split(/\*\*(.*?)\*\*/g).map((part, i) => 
+    if (!text) return '';
+    return text.split(/\*\*(.*?)\*\*/g).map((part, i) =>
       i % 2 === 1 ? <strong key={i}>{part}</strong> : part
     );
   };
@@ -39,11 +48,19 @@ export function PosterModal({ onClose, pieOption, insight, activeTab }) {
   const posterPieOption = {
     ...pieOption,
     animation: false,
+    legend: {
+      ...pieOption.legend,
+      orient: 'horizontal',
+      bottom: '0',
+      left: 'center',
+      right: undefined,
+      top: undefined
+    },
     series: [
       {
         ...pieOption.series[0],
-        radius: ['40%', '55%'], // Shrink radius to give labels more room
-        center: ['50%', '50%']
+        radius: ['40%', '55%'],
+        center: ['50%', '45%']
       }
     ]
   };
@@ -70,8 +87,8 @@ export function PosterModal({ onClose, pieOption, insight, activeTab }) {
             </div>
             
             <div className="poster-insight">
-              <h3 className="pi-title">💡 {insight.title}</h3>
-              <p className="pi-content">{renderSummary(insight.summary)}</p>
+              <h3 className="pi-title">💡 {safeInsight.insightTitle || safeInsight.title}</h3>
+              <p className="pi-content">{renderSummary(safeInsight.insightSummary || safeInsight.summary)}</p>
             </div>
             
             <div className="poster-footer">

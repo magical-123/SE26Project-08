@@ -138,13 +138,76 @@ public class InboxController {
     public ResponseEntity<Void> deleteInboxItem(@PathVariable Long id) {
         Long userId = getCurrentUserId();
         Optional<InformationItem> item = informationItemRepository.findByIdAndUserId(id, userId);
-        
+
         if (item.isPresent()) {
             informationItemRepository.deleteById(id);
             return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    // 测试接口：无需认证直接插入（仅用于开发测试）
+    @PostMapping("/test/items")
+    public ResponseEntity<?> createTestItem(@RequestBody TestItemRequest request) {
+        try {
+            InformationItem item = new InformationItem();
+            item.setUserId(request.getUserId());
+            item.setTitle(request.getTitle());
+            item.setUrl(request.getUrl());
+            item.setPlatform(request.getPlatform());
+            item.setCategory(request.getCategory());
+            item.setDurationMinutes(request.getDurationMinutes());
+            item.setContentRaw(request.getContentRaw());
+            item.setProcessStatus("UNPROCESSED");
+
+            InformationItem savedItem = informationItemRepository.save(item);
+
+            return ResponseEntity.ok(java.util.Map.of(
+                "success", true,
+                "message", "视频插入成功",
+                "itemId", savedItem.getId(),
+                "title", savedItem.getTitle()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                "success", false,
+                "message", "插入失败: " + e.getMessage()
+            ));
+        }
+    }
+
+    // DTO for test request
+    public static class TestItemRequest {
+        private Long userId;
+        private String title;
+        private String url;
+        private String platform;
+        private String category;
+        private Integer durationMinutes;
+        private String contentRaw;
+
+        // Getters and Setters
+        public Long getUserId() { return userId; }
+        public void setUserId(Long userId) { this.userId = userId; }
+
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+
+        public String getUrl() { return url; }
+        public void setUrl(String url) { this.url = url; }
+
+        public String getPlatform() { return platform; }
+        public void setPlatform(String platform) { this.platform = platform; }
+
+        public String getCategory() { return category; }
+        public void setCategory(String category) { this.category = category; }
+
+        public Integer getDurationMinutes() { return durationMinutes; }
+        public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+
+        public String getContentRaw() { return contentRaw; }
+        public void setContentRaw(String contentRaw) { this.contentRaw = contentRaw; }
     }
 
     // 获取当前登录用户的ID
