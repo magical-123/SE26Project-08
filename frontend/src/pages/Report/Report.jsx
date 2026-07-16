@@ -152,9 +152,9 @@ export function Report() {
       formatter: '{b}: {d}%'
     },
     legend: {
-      orient: 'vertical',
-      right: '10',
-      top: 'center',
+      orient: 'horizontal',
+      bottom: '0',
+      left: 'center',
       textStyle: {
         color: '#333',
         fontSize: 12
@@ -165,6 +165,7 @@ export function Report() {
         name: '营养成分',
         type: 'pie',
         radius: ['50%', '70%'],
+        center: ['50%', '45%'],
         avoidLabelOverlap: false,
         label: {
           show: true,
@@ -177,27 +178,27 @@ export function Report() {
         data: [
           {
             value: nutritionData.protein,
-            name: '🥩 蛋白质',
+            name: '蛋白质',
             itemStyle: { color: 'rgba(14, 165, 233, 0.8)' }
           },
           {
             value: nutritionData.carbs,
-            name: '🍚 碳水',
+            name: '碳水',
             itemStyle: { color: 'rgba(16, 185, 129, 0.8)' }
           },
           {
             value: nutritionData.vitamins,
-            name: '🍊 维生素',
+            name: '维生素',
             itemStyle: { color: 'rgba(245, 158, 11, 0.8)' }
           },
           {
             value: nutritionData.fats,
-            name: '🍭 脂肪',
+            name: '脂肪',
             itemStyle: { color: 'rgba(244, 63, 94, 0.8)' }
           },
           {
             value: nutritionData.fiber,
-            name: '🥗 纤维',
+            name: '纤维',
             itemStyle: { color: 'rgba(139, 92, 246, 0.8)' }
           }
         ]
