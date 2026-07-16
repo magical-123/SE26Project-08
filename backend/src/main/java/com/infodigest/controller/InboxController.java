@@ -37,15 +37,25 @@ public class InboxController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "4") int xiaohongshuLimit,
             @RequestParam(defaultValue = "30") int maxTotal) {
+        // 获取当前用户
         Long userId = getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
         // 取最近 200 条做平台限流，避免小红书刷屏把 GitHub/B 站数据挤出首页
         PageRequest recentRequest = PageRequest.of(0, 200, Sort.by(Sort.Direction.DESC, "crawledAt"));
         List<InformationItem> recentItems = informationItemRepository.findByUserId(userId, recentRequest).getContent();
 
+        // 检查用户是否启用了"娱乐信息隐藏"
+        boolean hideEntertainment = isEntertainmentHidden(user);
+
         List<InformationItem> filteredItems = new ArrayList<>();
         int xhsCount = 0;
         for (InformationItem item : recentItems) {
+            // 跳过被隐藏的娱乐短剧类信息
+            if (hideEntertainment && "娱乐短剧".equals(item.getCategory())) {
+                continue;
+            }
             if ("XIAOHONGSHU".equalsIgnoreCase(item.getPlatform())) {
                 if (xhsCount < xiaohongshuLimit) {
                     filteredItems.add(item);
@@ -144,5 +154,21 @@ public class InboxController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return user.getId();
+    }
+
+    // 检查用户是否启用了"娱乐信息隐藏"
+    private boolean isEntertainmentHidden(User user) {
+        if (user.getHiddenPlatforms() == null) return false;
+        try {
+            // hiddenPlatforms 是 JSON 数组，例如 ["ENTERTAINMENT"]
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String[] hidden = mapper.readValue(user.getHiddenPlatforms(), String[].class);
+            for (String h : hidden) {
+                if ("ENTERTAINMENT".equalsIgnoreCase(h)) return true;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
     }
 }
