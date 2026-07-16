@@ -181,7 +181,7 @@ export function useInboxItems() {
     }
   }, [loadInitial, refetching, initialized]);
 
-  // 实时更新：每 30 秒静默拉取新数据，合并到现有列表，不重置已加载内容
+  // 实时更新：每 30 秒静默拉取最新 30 条数据，替换当前列表
   useEffect(() => {
     if (!initialized) return;
     const timer = setInterval(async () => {
@@ -189,12 +189,10 @@ export function useInboxItems() {
         const data = await inboxApi.getItems(0, pageSize);
         if (data.items && data.items.length > 0) {
           const formatted = (data.items || []).map(formatItem);
-          setItems((prev) => {
-            const existingIds = new Set(prev.map(i => i.id));
-            const newItems = formatted.filter(i => !existingIds.has(i.id));
-            return [...newItems, ...prev];
-          });
+          // 直接替换为最新 30 条数据
+          setItems(formatted);
           setHasMore(data.hasMore ?? false);
+          // 更新缓存
           try {
             window.localStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
           } catch {}
