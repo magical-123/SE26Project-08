@@ -20,21 +20,96 @@ export function Report() {
   const [selectedWord, setSelectedWord] = useState(null);
   const [timeIndex, setTimeIndex] = useState(historicalWordCloudData.length - 1);
   const [showPoster, setShowPoster] = useState(false);
+  const [nutritionData, setNutritionData] = useState({
+    protein: 0,
+    carbs: 0,
+    vitamins: 0,
+    fats: 0,
+    fiber: 0
+  });
+
+  // 加载营养统计数据
+  React.useEffect(() => {
+    fetchNutritionStats();
+  }, []);
+
+  const fetchNutritionStats = async () => {
+    try {
+      // TODO: 从 localStorage 或 context 获取真实的 userId
+      const userId = 1;
+
+      const response = await fetch(`http://localhost:8080/api/analysis/nutrition-stats/${userId}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.nutrition) {
+          setNutritionData(data.nutrition);
+        }
+      }
+    } catch (error) {
+      console.error('获取营养统计出错:', error);
+    }
+  };
 
   const pieOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'item' },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {d}%'
+    },
+    legend: {
+      orient: 'vertical',
+      right: '10',
+      top: 'center',
+      textStyle: {
+        color: '#333',
+        fontSize: 12
+      }
+    },
     series: [
       {
+        name: '营养成分',
         type: 'pie',
         radius: ['50%', '70%'],
         avoidLabelOverlap: false,
-        label: { show: true, position: 'outside', color: '#444', fontWeight: 'bold' },
+        label: {
+          show: true,
+          position: 'outside',
+          color: '#444',
+          fontWeight: 'bold',
+          formatter: '{d}%'
+        },
         labelLine: { show: true, lineStyle: { color: '#888' } },
-        data: activeTab === 'weekly' ? weeklyPieData : dailyPieData
+        data: [
+          {
+            value: nutritionData.protein,
+            name: '🥩 蛋白质',
+            itemStyle: { color: 'rgba(14, 165, 233, 0.8)' }
+          },
+          {
+            value: nutritionData.carbs,
+            name: '🍚 碳水',
+            itemStyle: { color: 'rgba(16, 185, 129, 0.8)' }
+          },
+          {
+            value: nutritionData.vitamins,
+            name: '🍊 维生素',
+            itemStyle: { color: 'rgba(245, 158, 11, 0.8)' }
+          },
+          {
+            value: nutritionData.fats,
+            name: '🍭 脂肪',
+            itemStyle: { color: 'rgba(244, 63, 94, 0.8)' }
+          },
+          {
+            value: nutritionData.fiber,
+            name: '🥗 纤维',
+            itemStyle: { color: 'rgba(139, 92, 246, 0.8)' }
+          }
+        ]
       }
     ]
-  }), [activeTab]);
+  }), [nutritionData]);
 
   const wordCloudOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
@@ -108,7 +183,7 @@ export function Report() {
 
       <div className="report-grid">
         <GlassCard className="report-card pie-card">
-          <h3>营养分类占比</h3>
+          <h3>五维度营养分布</h3>
           <div className="chart-box">
             <ReactECharts option={pieOption} style={{ height: '100%', width: '100%' }} />
           </div>

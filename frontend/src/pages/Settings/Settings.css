@@ -251,3 +251,69 @@ input:checked + .slider:before {
   color: var(--text-secondary);
   margin: 0;
 }
+
+/* AI Actions */
+.ai-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.save-config-btn {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-config-btn:hover {
+  background: #0c8fc7;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(14,165,233,0.3);
+}
+
+.save-config-btn:active {
+  transform: translateY(0);
+}
+
+.save-config-btn:disabled {
+  background: rgba(0,0,0,0.1);
+  color: rgba(0,0,0,0.4);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.save-status {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 4px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.save-status.success {
+  color: #059669;
+  background: rgba(5,150,105,0.1);
+}
+
+.save-status.error {
+  color: #dc2626;
+  background: rgba(220,38,38,0.1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
