@@ -37,6 +37,17 @@ public class InformationItem {
     @Column(nullable = false)
     private String processStatus = "UNPROCESSED"; // UNPROCESSED, PROCESSED, FAILED
 
+    // AI 分析相关字段
+    private Integer knowledgeScore; // 知识含量评分(0-100)
+
+    @Column(length = 500)
+    private String scoreReasoning; // 评分理由
+
+    @Column(columnDefinition = "text")
+    private String aiSummary; // AI生成的内容摘要
+
+    private LocalDateTime analyzedAt; // 分析完成时间
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime crawledAt = LocalDateTime.now();
 

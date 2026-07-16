@@ -5,12 +5,19 @@ import com.infodigest.entity.User;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -23,12 +30,66 @@ public class InboxController {
     @Autowired
     private UserRepository userRepository;
 
-    // 获取当前登录用户的所有信息项
+    // 获取当前登录用户的信息项（支持分页 + 小红书限流，总上限 30 条）
     @GetMapping("/items")
-    public ResponseEntity<List<InformationItem>> getInboxItems() {
+    public ResponseEntity<Map<String, Object>> getInboxItems(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "4") int xiaohongshuLimit,
+            @RequestParam(defaultValue = "30") int maxTotal) {
+        // 获取当前用户
         Long userId = getCurrentUserId();
-        List<InformationItem> items = informationItemRepository.findByUserId(userId);
-        return ResponseEntity.ok(items);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // 取最近 200 条做平台限流，避免小红书刷屏把 GitHub/B 站数据挤出首页
+        PageRequest recentRequest = PageRequest.of(0, 200, Sort.by(Sort.Direction.DESC, "crawledAt"));
+        List<InformationItem> recentItems = informationItemRepository.findByUserId(userId, recentRequest).getContent();
+
+        // 检查用户是否启用了"娱乐信息隐藏"
+        boolean hideEntertainment = isEntertainmentHidden(user);
+
+        List<InformationItem> filteredItems = new ArrayList<>();
+        int xhsCount = 0;
+        for (InformationItem item : recentItems) {
+            // 跳过被隐藏的娱乐类信息（娱乐短剧 + 娱乐科普）
+            if (hideEntertainment && ("娱乐短剧".equals(item.getCategory()) || "娱乐科普".equals(item.getCategory()))) {
+                continue;
+            }
+            if ("XIAOHONGSHU".equalsIgnoreCase(item.getPlatform())) {
+                if (xhsCount < xiaohongshuLimit) {
+                    filteredItems.add(item);
+                    xhsCount++;
+                }
+            } else {
+                filteredItems.add(item);
+            }
+        }
+
+        // 对合并后的结果再次按 crawledAt 降序排列
+        filteredItems.sort((a, b) -> b.getCrawledAt().compareTo(a.getCrawledAt()));
+
+        // 截取最新 maxTotal 条
+        if (filteredItems.size() > maxTotal) {
+            filteredItems = new ArrayList<>(filteredItems.subList(0, maxTotal));
+        }
+
+        // 手动分页
+        int fromIndex = page * size;
+        int total = filteredItems.size();
+        int toIndex = Math.min(fromIndex + size, total);
+        List<InformationItem> pageContent = fromIndex < total
+                ? filteredItems.subList(fromIndex, toIndex)
+                : Collections.emptyList();
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("items", pageContent);
+        response.put("totalItems", (long) total);
+        response.put("totalPages", (int) Math.ceil((double) total / size));
+        response.put("currentPage", page);
+        response.put("hasMore", toIndex < total);
+
+        return ResponseEntity.ok(response);
     }
 
     // 获取单个信息项
@@ -49,7 +110,7 @@ public class InboxController {
         return ResponseEntity.ok(savedItem);
     }
 
-    // 更新信息项
+    // 更新信息项（PATCH 语义：只更新非 null 字段，兼容部分更新）
     @PutMapping("/items/{id}")
     public ResponseEntity<InformationItem> updateInboxItem(@PathVariable Long id, @RequestBody InformationItem itemDetails) {
         Long userId = getCurrentUserId();
@@ -57,13 +118,14 @@ public class InboxController {
         
         if (existingItem.isPresent()) {
             InformationItem item = existingItem.get();
-            item.setTitle(itemDetails.getTitle());
-            item.setUrl(itemDetails.getUrl());
-            item.setPlatform(itemDetails.getPlatform());
-            item.setCategory(itemDetails.getCategory());
-            item.setDurationMinutes(itemDetails.getDurationMinutes());
-            item.setContentRaw(itemDetails.getContentRaw());
-            item.setProcessStatus(itemDetails.getProcessStatus());
+            // 只覆盖非 null 字段，避免全量覆盖导致 title 等必填字段被清空
+            if (itemDetails.getTitle() != null) item.setTitle(itemDetails.getTitle());
+            if (itemDetails.getUrl() != null) item.setUrl(itemDetails.getUrl());
+            if (itemDetails.getPlatform() != null) item.setPlatform(itemDetails.getPlatform());
+            if (itemDetails.getCategory() != null) item.setCategory(itemDetails.getCategory());
+            if (itemDetails.getDurationMinutes() != null) item.setDurationMinutes(itemDetails.getDurationMinutes());
+            if (itemDetails.getContentRaw() != null) item.setContentRaw(itemDetails.getContentRaw());
+            if (itemDetails.getProcessStatus() != null) item.setProcessStatus(itemDetails.getProcessStatus());
             InformationItem updatedItem = informationItemRepository.save(item);
             return ResponseEntity.ok(updatedItem);
         } else {
@@ -155,5 +217,21 @@ public class InboxController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return user.getId();
+    }
+
+    // 检查用户是否启用了"娱乐信息隐藏"
+    private boolean isEntertainmentHidden(User user) {
+        if (user.getHiddenPlatforms() == null) return false;
+        try {
+            // hiddenPlatforms 是 JSON 数组，例如 ["ENTERTAINMENT"]
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String[] hidden = mapper.readValue(user.getHiddenPlatforms(), String[].class);
+            for (String h : hidden) {
+                if ("ENTERTAINMENT".equalsIgnoreCase(h)) return true;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
     }
 }

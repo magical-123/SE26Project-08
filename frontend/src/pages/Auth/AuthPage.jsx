@@ -52,6 +52,8 @@ export function AuthPage() {
       // Store token
       localStorage.setItem('token', data.token);
       localStorage.setItem('username', data.username);
+      localStorage.removeItem('avatarUrl');
+      window.dispatchEvent(new Event('avatarChanged'));
       
       // Navigate to dashboard
       navigate('/');

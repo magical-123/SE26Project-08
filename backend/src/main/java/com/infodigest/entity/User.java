@@ -33,6 +33,9 @@ public class User {
     @Column(columnDefinition = "json")
     private String hiddenPlatforms;
 
+    @Column(columnDefinition = "longtext")
+    private String avatarUrl;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }
