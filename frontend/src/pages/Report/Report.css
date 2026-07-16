@@ -368,3 +368,241 @@
   background: var(--primary);
   transform: translateY(-2px);
 }
+
+/* 洞察卡片新增样式 */
+.insight-content.empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+.insight-content h4 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-main);
+}
+
+.insight-content p {
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.insight-details {
+  margin-top: 16px;
+  cursor: pointer;
+}
+
+.insight-details summary {
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.insight-details summary:hover {
+  text-decoration: underline;
+}
+
+.insight-full-text {
+  margin-top: 12px;
+  padding: 16px;
+  background: rgba(0,0,0,0.02);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.insight-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.generate-insight-btn,
+.regenerate-insight-btn,
+.view-history-btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.generate-insight-btn {
+  background: var(--primary);
+  color: #fff;
+  flex: 1;
+}
+
+.generate-insight-btn:hover {
+  background: #0c8fc7;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(14,165,233,0.3);
+}
+
+.regenerate-insight-btn {
+  background: rgba(14,165,233,0.1);
+  color: var(--primary);
+  flex: 1;
+}
+
+.regenerate-insight-btn:hover {
+  background: rgba(14,165,233,0.2);
+}
+
+.view-history-btn {
+  background: rgba(0,0,0,0.05);
+  color: var(--text-secondary);
+}
+
+.view-history-btn:hover {
+  background: rgba(0,0,0,0.1);
+}
+
+/* 历史洞察模态框 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  max-width: 800px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.close-btn {
+  font-size: 28px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(0,0,0,0.05);
+  color: var(--text-main);
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.empty-message {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 40px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.history-item {
+  padding: 20px;
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.01);
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.history-item-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  flex: 1;
+}
+
+.history-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+  margin-left: 16px;
+}
+
+.history-summary {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.history-details {
+  margin-top: 12px;
+}
+
+.history-details summary {
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.history-details summary:hover {
+  text-decoration: underline;
+}
+
+.history-full-text {
+  margin-top: 12px;
+  padding: 16px;
+  background: rgba(0,0,0,0.02);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}

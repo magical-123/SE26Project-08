@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infodigest.dto.AnalysisResultDTO;
 import com.infodigest.entity.AIConfig;
+import com.infodigest.repository.AIConfigRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -20,11 +22,183 @@ public class AIService {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
+    @Autowired
+    private AIConfigRepository aiConfigRepository;
+
     public AIService() {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30))
                 .build();
         this.objectMapper = new ObjectMapper();
+    }
+
+    /**
+     * 生成洞察（返回纯文本，由调用方解析）
+     */
+    public String generateInsight(String prompt, Long userId) throws Exception {
+        // 获取用户的 AI 配置
+        AIConfig config = aiConfigRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("用户未配置 AI 模型"));
+
+        String modelType = config.getModelType();
+
+        if (modelType.startsWith("GPT")) {
+            return callOpenAIForInsight(config, prompt);
+        } else if (modelType.startsWith("CLAUDE")) {
+            return callClaudeForInsight(config, prompt);
+        } else if (modelType.startsWith("GEMINI")) {
+            return callGeminiForInsight(config, prompt);
+        } else if (modelType.equals("CUSTOM")) {
+            return callCustomModelForInsight(config, prompt);
+        } else {
+            throw new IllegalArgumentException("Unsupported model type: " + modelType);
+        }
+    }
+
+    private String callOpenAIForInsight(AIConfig config, String prompt) throws Exception {
+        String endpoint = config.getApiEndpoint() != null ? config.getApiEndpoint() : "https://api.openai.com/v1/chat/completions";
+
+        String requestBody = String.format("""
+            {
+              "model": "%s",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": %s
+                }
+              ],
+              "response_format": { "type": "json_object" },
+              "temperature": 0.7
+            }
+            """,
+            getOpenAIModelName(config.getModelType()),
+            objectMapper.writeValueAsString(prompt)
+        );
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + config.getApiKey())
+                .timeout(Duration.ofSeconds(60))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            log.error("OpenAI API error: {}", response.body());
+            throw new RuntimeException("OpenAI API call failed: " + response.statusCode());
+        }
+
+        JsonNode responseJson = objectMapper.readTree(response.body());
+        return responseJson.get("choices").get(0).get("message").get("content").asText();
+    }
+
+    private String callClaudeForInsight(AIConfig config, String prompt) throws Exception {
+        String endpoint = config.getApiEndpoint() != null ? config.getApiEndpoint() : "https://api.anthropic.com/v1/messages";
+
+        String requestBody = String.format("""
+            {
+              "model": "%s",
+              "max_tokens": 2048,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": %s
+                }
+              ]
+            }
+            """,
+            getClaudeModelName(config.getModelType()),
+            objectMapper.writeValueAsString(prompt)
+        );
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .header("Content-Type", "application/json")
+                .header("x-api-key", config.getApiKey())
+                .header("anthropic-version", "2023-06-01")
+                .timeout(Duration.ofSeconds(60))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            log.error("Claude API error: {}", response.body());
+            throw new RuntimeException("Claude API call failed: " + response.statusCode());
+        }
+
+        JsonNode responseJson = objectMapper.readTree(response.body());
+        return responseJson.get("content").get(0).get("text").asText();
+    }
+
+    private String callGeminiForInsight(AIConfig config, String prompt) throws Exception {
+        String endpoint = config.getApiEndpoint() != null ? config.getApiEndpoint() : "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+
+        String requestBody = String.format("""
+            {
+              "contents": [{
+                "parts": [{
+                  "text": %s
+                }]
+              }]
+            }
+            """,
+            objectMapper.writeValueAsString(prompt)
+        );
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint + "?key=" + config.getApiKey()))
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(60))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            log.error("Gemini API error: {}", response.body());
+            throw new RuntimeException("Gemini API call failed: " + response.statusCode());
+        }
+
+        JsonNode responseJson = objectMapper.readTree(response.body());
+        return responseJson.get("candidates").get(0).get("content").get("parts").get(0).get("text").asText();
+    }
+
+    private String callCustomModelForInsight(AIConfig config, String prompt) throws Exception {
+        String requestBody = String.format("""
+            {
+              "model": "%s",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": %s
+                }
+              ]
+            }
+            """,
+            config.getCustomModelName(),
+            objectMapper.writeValueAsString(prompt)
+        );
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(config.getApiEndpoint()))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + config.getApiKey())
+                .timeout(Duration.ofSeconds(60))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            log.error("Custom model API error: {}", response.body());
+            throw new RuntimeException("Custom model API call failed: " + response.statusCode());
+        }
+
+        JsonNode responseJson = objectMapper.readTree(response.body());
+        return responseJson.get("choices").get(0).get("message").get("content").asText();
     }
 
     public AnalysisResultDTO analyze(AIConfig config, String systemPrompt, String userContent) throws Exception {
