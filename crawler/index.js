@@ -55,20 +55,56 @@ const forcePlatform = platformArg ? platformArg.split('=')[1].toLowerCase() : nu
 /** 根据关键词判断内容分类 */
 function classifyByText(title, excerpt) {
   const text = (title + ' ' + (excerpt || '')).toLowerCase();
-  const deepKeywords = ['架构', '算法', '源码', '原理', '设计模式', '编译', '系统', '网络协议', '数据库', '分布式', '机器学习', '深度学习', '数学', '量子', '论文', 'rust', 'typescript', '编译原理', '操作系统', '内核'];
-  const industryKeywords = ['趋势', '2026', '报告', '融资', '上市', '裁员', '招聘', '行业', '市场', '政策', 'ai', 'openai', '大模型', '估值'];
-  const creativeKeywords = ['设计', 'ui', 'ux', '动画', '字体', '配色', '插画', '摄影', '音乐创作', '写作', '创意'];
 
+  // 1. 娱乐科普：科学、自然、动物、冷知识、科普视频
+  const entertainmentScience = ['科普', '科学', '自然', '动物', '物理', '化学', '生物', '天文', '宇宙', '冷知识', '实验', '纪录片'];
+  for (const kw of entertainmentScience) {
+    if (text.includes(kw)) return '娱乐科普';
+  }
+
+  // 2. 深度知识：硬核技术、学术、专业领域
+  const deepKeywords = ['架构', '算法', '源码', '原理', '设计模式', '编译', '系统', '网络协议', '数据库', '分布式', '机器学习', '深度学习', '数学', '量子', '论文', 'rust', 'typescript', '编译原理', '操作系统', '内核', '微服务', '云原生', 'kubernetes', 'docker', '源码分析', '技术原理', '编程'];
   for (const kw of deepKeywords) {
     if (text.includes(kw)) return '深度知识';
   }
+
+  // 3. 行业资讯：新闻、市场、趋势、商业
+  const industryKeywords = ['趋势', '2026', '报告', '融资', '上市', '裁员', '招聘', '行业', '市场', '政策', 'ai', 'openai', '大模型', '估值', '新闻', '时政', '经济', '财经', 'GDP', '增长', '发布会', '新品'];
   for (const kw of industryKeywords) {
     if (text.includes(kw)) return '行业资讯';
   }
+
+  // 4. 创意灵感：设计、艺术、摄影、音乐
+  const creativeKeywords = ['设计', 'ui', 'ux', '动画', '字体', '配色', '插画', '摄影', '音乐创作', '写作', '创意', '艺术', '画作', '展览', '色彩', '视觉'];
   for (const kw of creativeKeywords) {
     if (text.includes(kw)) return '创意灵感';
   }
-  return '深度知识'; // 默认归类为深度知识
+
+  // 5. 实用技巧：教程、工具、效率、经验分享
+  const practicalKeywords = ['教程', '技巧', '工具', '效率', '经验', '方法', '指南', '实操', '手把手', '入门', '进阶', '实用', 'workflow', '插件', 'vim', 'git', 'linux命令'];
+  for (const kw of practicalKeywords) {
+    if (text.includes(kw)) return '实用技巧';
+  }
+
+  // 6. 娱乐短剧：游戏、影视、综艺、八卦、搞笑
+  const entertainmentKeywords = ['游戏', '影视', '电影', '电视剧', '综艺', '搞笑', '八卦', '明星', '综艺节目', 'vlog', '吃播', '开箱', '测评', '手游', '电竞', '主播', '鬼畜'];
+  for (const kw of entertainmentKeywords) {
+    if (text.includes(kw)) return '娱乐短剧';
+  }
+
+  // 7. 生活/美食/旅游：不归为娱乐短剧，单独区分
+  const lifestyleKeywords = ['美食', '餐厅', '探店', '烹饪', '食谱', '旅游', '旅行', '酒店', '民宿', '穿搭', '护肤', '健身', '运动', '生活', '日常', '好物', '种草'];
+  for (const kw of lifestyleKeywords) {
+    if (text.includes(kw)) return '娱乐短剧';
+  }
+
+  // 兜底： neutrally categorize by length and content type hints
+  // 含"知乎"链接且标题较短，大概率是问答/讨论
+  if (text.includes('知乎') || text.includes('回答') || text.includes('提问')) {
+    return '深度知识';
+  }
+
+  return '娱乐科普'; // 默认归类为娱乐科普，避免全塞深度知识
 }
 
 /** B 站分类映射 */
