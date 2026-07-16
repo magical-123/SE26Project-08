@@ -96,25 +96,26 @@ public class SettingsController {
         // B 站
         boolean biliConnected = platformMap.containsKey("BILIBILI");
         long biliCount = informationItemRepository.countByUserIdAndPlatform(userId, "BILIBILI");
-        platforms.add(buildPlatform("bilibili", "Bilibili", biliConnected || biliCount > 0,
-                biliConnected ? "已通过 Cookie 授权" : (biliCount > 0 ? "已通过 Cookie 授权" : "未授权")));
+        String biliDesc = biliConnected ? "已通过 Cookie 授权" + (biliCount > 0 ? "（" + biliCount + "条数据）" : "") : "未授权";
+        platforms.add(buildPlatform("bilibili", "Bilibili", biliConnected, biliDesc));
 
         // 知乎
         boolean zhihuConnected = platformMap.containsKey("ZHIHU");
         long zhihuCount = informationItemRepository.countByUserIdAndPlatform(userId, "ZHIHU");
-        platforms.add(buildPlatform("zhihu", "Zhihu", zhihuConnected || zhihuCount > 0,
-                zhihuConnected ? "已通过 Cookie 授权" : (zhihuCount > 0 ? "已通过 Cookie 授权" : "未授权")));
+        String zhihuDesc = zhihuConnected ? "已通过 Cookie 授权" + (zhihuCount > 0 ? "（" + zhihuCount + "条数据）" : "") : "未授权";
+        platforms.add(buildPlatform("zhihu", "Zhihu", zhihuConnected, zhihuDesc));
 
         // 小红书
         boolean xhsConnected = platformMap.containsKey("XIAOHONGSHU");
         long xhsCount = informationItemRepository.countByUserIdAndPlatform(userId, "XIAOHONGSHU");
-        platforms.add(buildPlatform("xiaohongshu", "小红书", xhsConnected || xhsCount > 0,
-                xhsConnected ? "已连接" : (xhsCount > 0 ? "已连接" : "未授权")));
+        String xhsDesc = xhsConnected ? "已连接" + (xhsCount > 0 ? "（" + xhsCount + "条数据）" : "") : "未授权";
+        platforms.add(buildPlatform("xiaohongshu", "小红书", xhsConnected, xhsDesc));
 
         // GitHub
         boolean githubConnected = platformMap.containsKey("GITHUB");
-        platforms.add(buildPlatform("github", "GitHub", githubConnected,
-                githubConnected ? "已通过 Token 授权" : "未授权"));
+        long githubCount = informationItemRepository.countByUserIdAndPlatform(userId, "GITHUB");
+        String githubDesc = githubConnected ? "已通过 Token 授权" + (githubCount > 0 ? "（" + githubCount + "条数据）" : "") : "未授权";
+        platforms.add(buildPlatform("github", "GitHub", githubConnected, githubDesc));
 
         result.put("platforms", platforms);
         return ResponseEntity.ok(result);
