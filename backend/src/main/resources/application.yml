@@ -22,3 +22,14 @@ logging:
   level:
     com.infodigest: INFO
     org.springframework.security: INFO
+
+# AI 摘要配置
+ai:
+  deepseek:
+    api-url: https://api.deepseek.com/v1/chat/completions
+    api-key: ${DEEPSEEK_API_KEY:sk-your-api-key}
+    model: deepseek-chat
+    # 每轮处理的条数
+    batch-size: 5
+    # 两次轮询间隔（毫秒，默认2分钟）
+    poll-interval-ms: 120000

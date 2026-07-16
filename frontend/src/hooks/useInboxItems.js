@@ -37,6 +37,8 @@ function formatItem(item) {
     processStatus: item.processStatus,
     url: item.url,
     contentRaw: item.contentRaw,
+    aiSummary: item.aiSummary || null,
+    knowledgeScore: item.knowledgeScore || null,
   };
 }
 
