@@ -52,8 +52,8 @@ public class InboxController {
         List<InformationItem> filteredItems = new ArrayList<>();
         int xhsCount = 0;
         for (InformationItem item : recentItems) {
-            // 跳过被隐藏的娱乐短剧类信息
-            if (hideEntertainment && "娱乐短剧".equals(item.getCategory())) {
+            // 跳过被隐藏的娱乐类信息（娱乐短剧 + 娱乐科普）
+            if (hideEntertainment && ("娱乐短剧".equals(item.getCategory()) || "娱乐科普".equals(item.getCategory()))) {
                 continue;
             }
             if ("XIAOHONGSHU".equalsIgnoreCase(item.getPlatform())) {
