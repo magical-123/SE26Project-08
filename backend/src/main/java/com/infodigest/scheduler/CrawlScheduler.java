@@ -68,13 +68,9 @@ public class CrawlScheduler {
                 List<UserPlatform> platforms = userPlatformRepository.findByUserId(user.getId());
                 Set<String> connectedPlatforms = ConcurrentHashMap.newKeySet();
                 for (UserPlatform up : platforms) {
-                    if (up.getCredential() != null && !up.getCredential().isBlank()) {
-                        connectedPlatforms.add(up.getPlatform().toLowerCase());
-                    }
+                    // 只要有平台记录就视为已连接（含空凭证的小红书等）
+                    connectedPlatforms.add(up.getPlatform().toLowerCase());
                 }
-
-                // 小红书不需要凭证，始终抓取
-                connectedPlatforms.add("xiaohongshu");
 
                 for (String platform : PLATFORMS) {
                     if (!connectedPlatforms.contains(platform)) {
