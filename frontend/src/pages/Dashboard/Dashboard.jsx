@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
@@ -9,14 +9,66 @@ import { AIQuoteCard } from '../../components/AIQuoteCard/AIQuoteCard';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { BookOpen, Zap, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { nutritionData, wordCloudData, aiQuotes, reviewCards } from '../../mock/dashboardData';
 import './Dashboard.css';
+
+const API_BASE = 'http://localhost:8080';
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+}
 
 export function Dashboard() {
   const navigate = useNavigate();
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [nutritionData, setNutritionData] = useState([]);
+  const [wordCloudData, setWordCloudData] = useState([]);
+  const [aiQuotes, setAiQuotes] = useState([]);
+  const [reviewCards, setReviewCards] = useState([]);
+  const [summary, setSummary] = useState({ todayViews: 0, premiumCount: 0, immersionHours: 0 });
 
-  const wordCloudOption = React.useMemo(() => ({
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = getAuthHeaders();
+        const [nutritionRes, wordcloudRes, insightsRes, reviewsRes, summaryRes] = await Promise.all([
+          fetch(`${API_BASE}/api/dashboard/nutrition`, { headers }),
+          fetch(`${API_BASE}/api/dashboard/wordcloud`, { headers }),
+          fetch(`${API_BASE}/api/dashboard/insights`, { headers }),
+          fetch(`${API_BASE}/api/dashboard/reviews/today`, { headers }),
+          fetch(`${API_BASE}/api/dashboard/summary`, { headers }),
+        ]);
+
+        if (!nutritionRes.ok || !wordcloudRes.ok || !insightsRes.ok || !reviewsRes.ok || !summaryRes.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+
+        const nutrition = await nutritionRes.json();
+        const wordcloud = await wordcloudRes.json();
+        const insights = await insightsRes.json();
+        const reviews = await reviewsRes.json();
+        const summaryData = await summaryRes.json();
+
+        setNutritionData(nutrition);
+        setWordCloudData(wordcloud);
+        setAiQuotes(insights);
+        setReviewCards(reviews);
+        setSummary(summaryData);
+      } catch (error) {
+        console.error('Dashboard data fetch error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const wordCloudOption = useMemo(() => ({
     backgroundColor: 'transparent',
     tooltip: { show: true },
     series: [{
@@ -52,7 +104,29 @@ export function Dashboard() {
       },
       data: wordCloudData
     }]
-  }), []);
+  }), [wordCloudData]);
+
+  // Transform nutrition API data: {value, name, itemStyle:{color}} → {name, value, color}
+  const transformedNutritionData = useMemo(() => {
+    return nutritionData.map(item => ({
+      name: item.name,
+      value: item.value,
+      color: item.itemStyle?.color,
+    }));
+  }, [nutritionData]);
+
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <header className="dashboard-header">
+          <h1>仪表盘 (Dashboard)</h1>
+        </header>
+        <div className="dashboard-loading">
+          <p>加载中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard">
@@ -61,14 +135,14 @@ export function Dashboard() {
       </header>
 
       <div className="stats-row">
-        <StatBadge icon={<BookOpen />} label="今日浏览总量" value="12" onClick={() => navigate('/inbox')} />
-        <StatBadge icon={<Zap />} label="优质信息源" value="4" onClick={() => navigate('/graph')} />
-        <StatBadge icon={<Clock />} label="今日沉浸时长" value="2.5" unit="h" onClick={() => navigate('/report')} />
+        <StatBadge icon={<BookOpen />} label="今日浏览总量" value={summary.todayViews} onClick={() => navigate('/inbox')} />
+        <StatBadge icon={<Zap />} label="优质信息源" value={summary.premiumCount} onClick={() => navigate('/graph')} />
+        <StatBadge icon={<Clock />} label="今日沉浸时长" value={summary.immersionHours} unit="h" onClick={() => navigate('/report')} />
       </div>
 
       <div className="bento-grid">
         <div className="bento-nutrition" onClick={() => navigate('/report')} style={{ cursor: 'pointer' }}>
-          <NutritionLabel data={nutritionData} />
+          <NutritionLabel data={transformedNutritionData} />
         </div>
         
         <GlassCard className="bento-trend" onClick={() => navigate('/report')} style={{ cursor: 'pointer' }}>
@@ -79,7 +153,7 @@ export function Dashboard() {
         </GlassCard>
 
         <div className="bento-quote">
-          <AIQuoteCard quote={aiQuotes[0]} />
+          {aiQuotes.length > 0 && <AIQuoteCard quote={aiQuotes[0]} />}
         </div>
 
         <motion.div whileHover={{ y: -4 }} className="bento-review" onClick={() => setIsReviewOpen(true)}>
@@ -88,9 +162,13 @@ export function Dashboard() {
               <h3>待复习卡片</h3>
               <span className="rc-badge">记忆曲线</span>
             </div>
-            <h4>{reviewCards[0].title}</h4>
-            <p>{reviewCards[0].content}</p>
-            <div className="rc-footer">{reviewCards[0].source}</div>
+            {reviewCards.length > 0 && (
+              <>
+                <h4>{reviewCards[0].title}</h4>
+                <p>{reviewCards[0].content}</p>
+                <div className="rc-footer">{reviewCards[0].source}</div>
+              </>
+            )}
           </GlassCard>
         </motion.div>
       </div>

@@ -1,5 +1,15 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { Graph } from '@antv/g6';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+  useNodesState,
+  useEdgesState,
+  Handle,
+  Position,
+  Background,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
 import { ZoomIn, ZoomOut, Maximize, Eye, EyeOff, Camera, Sparkles, SlidersHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
@@ -37,7 +47,6 @@ function buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNo
   const conceptRadius = Math.min(width, height) * 0.28 || 240; 
   const conceptPositions = {};
   
-  // G6 v5 的画布原点 (0,0) 就是视口正中心
   const cx = 0;
   const cy = 0;
 
@@ -71,11 +80,9 @@ function buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNo
 
     nodes.push({
       id: concept.id,
-      type: 'circle',
-      x,
-      y,
-      size: nodeSize,
-      data: { ...concept, type: 'concept', count, x, y, size: nodeSize }
+      type: 'concept',
+      position: { x, y },
+      data: { ...concept, type: 'concept', count, size: nodeSize }
     });
 
     currentAngle += sliceAngle;
@@ -167,10 +174,8 @@ function buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNo
     const size = 20 + weight * 2;
     nodes.push({
       id: `source-${item.id}`,
-      type: 'circle',
-      x: sx,
-      y: sy,
-      size: size,
+      type: 'source',
+      position: { x: sx, y: sy },
       data: {
         ...item,
         type: 'source',
@@ -179,9 +184,7 @@ function buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNo
         secondaryColor,
         weight,
         conceptIds: activeItemConcepts,
-        x: sx,
-        y: sy,
-        size: size
+        size
       }
     });
 
@@ -225,30 +228,209 @@ function blendColors(hexArray) {
 
 function truncateLabel(text, len) {
   if (!text) return '';
-  return text.length > len ? text.slice(0, len) + '…' : text;
+  return text.length > len ? text.slice(0, len) + '\u2026' : text;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Custom Node: ConceptNode                                           */
+/* ------------------------------------------------------------------ */
+function ConceptNode({ data }) {
+  const size = data.size || 60;
+  const color = data.color || '#888';
+  const dimmed = data.dimmed;
+  const highlighted = data.highlighted;
+  const authorHighlight = data.authorHighlight;
+  const isFocused = data.isFocused;
 
-export function KnowledgeGraph() {
+  const bgColor = hexToRgba(color, 0.15);
+  let borderColor = color;
+  let borderWidth = 2.5;
+  let shadowColor = color;
+  let shadowBlur = 32;
+
+  if (isFocused) {
+    borderColor = '#FFFFFF';
+    borderWidth = 4;
+    shadowBlur = 56;
+  } else if (authorHighlight) {
+    borderColor = '#FBBF24';
+    borderWidth = 3;
+    shadowColor = '#FBBF24';
+    shadowBlur = 30;
+  } else if (highlighted) {
+    borderWidth = 3.5;
+    shadowBlur = 42;
+  }
+
+  const opacity = dimmed ? 0.1 : 1;
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: bgColor,
+        border: `${borderWidth}px solid ${borderColor}`,
+        boxShadow: `0 0 ${shadowBlur}px ${shadowColor}`,
+        opacity,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+      }}
+    >
+      <span
+        style={{
+          background: 'rgba(255,255,255,0.85)',
+          padding: '4px 8px',
+          borderRadius: 4,
+          fontSize: 12,
+          fontWeight: 700,
+          color: '#2a2a2a',
+          maxWidth: size - 16,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          lineHeight: 1.3,
+        }}
+      >
+        {data.label || ''}
+      </span>
+      <Handle
+        type="source"
+        position={Position.Top}
+        style={{ opacity: 0, pointerEvents: 'none', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'transparent', border: 'none' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        style={{ opacity: 0, pointerEvents: 'none', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'transparent', border: 'none' }}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Custom Node: SourceNode                                            */
+/* ------------------------------------------------------------------ */
+function SourceNode({ data }) {
+  const size = data.size || 24;
+  const primaryColor = data.primaryColor || '#ffffff';
+  const dimmed = data.dimmed;
+  const highlighted = data.highlighted;
+  const authorHighlight = data.authorHighlight;
+  const isFocused = data.isFocused;
+  const label = truncateLabel(data.sourceTitle || '', MAX_LABEL_LENGTH);
+
+  let bgColor = hexToRgba(primaryColor, 0.25);
+  let borderColor = primaryColor;
+  let borderWidth = 1.5;
+  let shadowColor = primaryColor ? hexToRgba(primaryColor, 0.6) : 'rgba(255, 255, 255, 0.6)';
+  let shadowBlur = 16;
+
+  if (isFocused) {
+    borderColor = '#FFFFFF';
+    borderWidth = 4;
+    shadowBlur = 56;
+  } else if (authorHighlight) {
+    bgColor = 'rgba(251, 191, 36, 0.4)';
+    borderColor = '#FBBF24';
+    borderWidth = 3;
+    shadowColor = '#FBBF24';
+    shadowBlur = 30;
+  } else if (highlighted) {
+    borderColor = '#FFFFFF';
+    borderWidth = 3.5;
+    shadowBlur = 42;
+  }
+
+  const opacity = dimmed ? 0.1 : 1;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        opacity,
+        transition: 'all 0.3s ease',
+      }}
+    >
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: bgColor,
+          border: `${borderWidth}px solid ${borderColor}`,
+          boxShadow: `0 0 ${shadowBlur}px ${shadowColor}`,
+          cursor: 'pointer',
+        }}
+      />
+      {label && (
+        <span
+          style={{
+            background: 'rgba(255,255,255,0.78)',
+            padding: '3px 7px',
+            borderRadius: 4,
+            fontSize: 10,
+            fontWeight: 600,
+            color: '#2a2a2a',
+            marginTop: 4,
+            whiteSpace: 'nowrap',
+            lineHeight: 1.3,
+          }}
+        >
+          {label}
+        </span>
+      )}
+      <Handle
+        type="source"
+        position={Position.Top}
+        style={{ opacity: 0, pointerEvents: 'none', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'transparent', border: 'none' }}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Inner component (all logic lives here)                             */
+/* ------------------------------------------------------------------ */
+function KnowledgeGraphInner() {
   const containerRef = useRef(null);
-  const graphRef = useRef(null);
-  const focusedNodeRef = useRef(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [focusedNode, setFocusedNode] = useState(null);
+  const [focusedNodeId, setFocusedNodeId] = useState(null);
+  const focusedNodeIdRef = useRef(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [savedPositions, setSavedPositions] = useState({});
   const [conceptNodes, setConceptNodes] = useState([]);
   const [sourceConceptMap, setSourceConceptMap] = useState({});
   const [dataLoading, setDataLoading] = useState(true);
   const { items } = useInboxItems();
+  const reactFlowInstance = useReactFlow();
+  const isDraggingRef = useRef(false);
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
 
-  // 从后端获取概念数据、映射关系和概念位置
+  // Read saved viewport from localStorage (used as defaultViewport for ReactFlow)
+  const [savedViewport] = useState(() => {
+    try {
+      const raw = localStorage.getItem('kg_viewport');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return undefined;
+  });
+
   const API_BASE = 'http://localhost:8080';
   const getAuthHeaders = () => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${localStorage.getItem('token')}`
   });
+
+  const [visibleConcepts, setVisibleConcepts] = useState(new Set());
 
   // Fetch graph data and positions from API
   useEffect(() => {
@@ -293,10 +475,8 @@ export function KnowledgeGraph() {
 
   // Keep ref in sync with state so event handlers read latest value
   useEffect(() => {
-    focusedNodeRef.current = focusedNode;
-  }, [focusedNode]);
-
-  const [visibleConcepts, setVisibleConcepts] = useState(new Set());
+    focusedNodeIdRef.current = focusedNodeId;
+  }, [focusedNodeId]);
 
   const toggleConcept = (conceptId) => {
     setVisibleConcepts(prev => {
@@ -314,29 +494,29 @@ export function KnowledgeGraph() {
     setVisibleConcepts(new Set(conceptNodes.map(c => c.id)));
   };
 
-  const exportImage = () => {
-    if (!graphRef.current) return;
-    const canvas = containerRef.current?.querySelector('canvas');
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.download = 'knowledge-graph.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  };
-
-  const clearFocus = () => {
-    setFocusedNode(null);
-    const g = graphRef.current;
-    if (!g) return;
+  const exportImage = useCallback(async () => {
+    if (!reactFlowInstance) return;
     try {
-      const allNodes = g.getNodeData();
-      const allEdges = g.getEdgeData();
-      const stateMap = {};
-      allNodes.forEach(node => { stateMap[node.id] = []; });
-      allEdges.forEach(edge => { stateMap[edge.id] = []; });
-      g.setElementState(stateMap);
-    } catch {}
-  };
+      const dataUrl = await reactFlowInstance.toImage();
+      const link = document.createElement('a');
+      link.download = 'knowledge-graph.png';
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      // Fallback: serialize the SVG viewport
+      const svgEl = document.querySelector('.react-flow__renderer svg');
+      if (svgEl) {
+        const clone = svgEl.cloneNode(true);
+        const serializer = new XMLSerializer();
+        const svgStr = serializer.serializeToString(clone);
+        const dataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+        const link = document.createElement('a');
+        link.download = 'knowledge-graph.png';
+        link.href = dataUrl;
+        link.click();
+      }
+    }
+  }, [reactFlowInstance]);
 
   const handleDrawerClose = () => {
     setIsDrawerOpen(false);
@@ -347,318 +527,184 @@ export function KnowledgeGraph() {
     return buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap);
   }, [items, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap]);
 
-  // Unified effect: create graph on first valid data, update on subsequent changes
-  useEffect(() => {
-    if (!containerRef.current) return;
-
+  // Compute highlight / dim state
+  const { enhancedNodes, enhancedEdges } = useMemo(() => {
     const { nodes, edges } = graphData;
-    if (nodes.length === 0) return;
 
-    // If graph already exists, just update data
-    if (graphRef.current) {
-      const g = graphRef.current;
-      if (g.destroyed || g.isDestroyed?.()) return;
-
-      g.setData({ nodes, edges });
-      try {
-        g.render();
-      } catch (err) {
-        console.warn('Graph update failed:', err);
-      }
-
-      if (focusedNodeRef.current) {
-        clearFocus();
-        setSelectedNode(null);
-        setIsDrawerOpen(false);
-      }
-      return; // Don't recreate graph
+    if (!focusedNodeId || nodes.length === 0) {
+      // No focus — everything normal
+      const cleanNodes = nodes.map(n => ({
+        ...n,
+        data: { ...n.data, dimmed: false, highlighted: false, authorHighlight: false, isFocused: false }
+      }));
+      const cleanEdges = edges.map(e => ({
+        ...e,
+        data: { ...e.data, dimmed: false, highlighted: false },
+        style: {
+          stroke: e.data?.color || 'rgba(156, 163, 175, 0.5)',
+          strokeOpacity: 0.35,
+          strokeWidth: 1,
+        }
+      }));
+      return { enhancedNodes: cleanNodes, enhancedEdges: cleanEdges };
     }
 
-    // First time: create the graph
-    const width = containerRef.current.clientWidth || 800;
-    const height = containerRef.current.clientHeight || 600;
+    const highlightNodes = new Set([focusedNodeId]);
+    const authorHighlightSet = new Set();
+    const connectedEdgeIds = new Set();
 
-    const graph = new Graph({
-      container: containerRef.current,
-      width,
-      height,
-      data: { nodes, edges },
-      animation: false,
-      behaviors: ['drag-canvas', 'zoom-canvas', 'drag-element'],
-      node: {
-        style: {
-          x: (model) => model.data?.x,
-          y: (model) => model.data?.y,
-          size: (model) => model.data?.size || 24,
-          r: (model) => (model.data?.size || 24) / 2,
-          fill: (model) => model.data?.type === 'concept' ? hexToRgba(model.data.color, 0.15) : hexToRgba(model.data.primaryColor || '#ffffff', 0.25),
-          stroke: (model) => model.data?.type === 'concept' ? model.data.color : (model.data.primaryColor || 'rgba(255, 255, 255, 0.8)'),
-          lineWidth: (model) => model.data?.type === 'concept' ? 2.5 : 1.5,
-          shadowColor: (model) => model.data?.type === 'concept' ? model.data.color : (model.data.primaryColor ? hexToRgba(model.data.primaryColor, 0.6) : 'rgba(255, 255, 255, 0.6)'),
-          shadowBlur: (model) => model.data?.type === 'concept' ? 32 : 16,
-          cursor: 'pointer',
-          labelText: (model) => {
-            if (model.data?.type === 'concept') return model.data.label;
-            return model.id ? truncateLabel(model.data?.sourceTitle || model.id, MAX_LABEL_LENGTH) : '';
-          },
-          labelFill: '#2a2a2a',
-          labelFontSize: (model) => model.data?.type === 'concept' ? 12 : 10,
-          labelFontWeight: (model) => model.data?.type === 'concept' ? 700 : 600,
-          labelPlacement: (model) => model.data?.type === 'concept' ? 'center' : 'bottom',
-          labelOffsetY: (model) => model.data?.type === 'concept' ? 0 : 8,
-          labelBackgroundFill: (model) => model.data?.type === 'concept' ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.78)',
-          labelBackgroundRadius: 4,
-          labelPadding: (model) => model.data?.type === 'concept' ? [4, 8] : [3, 7],
-        },
-        state: {
-          highlight: {
-            fillOpacity: 1,
-            strokeOpacity: 1,
-            lineWidth: 3.5,
-            shadowBlur: 42,
-            labelFillOpacity: 1,
-            zIndex: 10,
-          },
-          authorHighlight: {
-            fill: 'rgba(251, 191, 36, 0.4)',
-            stroke: '#FBBF24',
-            lineWidth: 3,
-            shadowColor: '#FBBF24',
-            shadowBlur: 30,
-            labelFillOpacity: 1,
-            zIndex: 15,
-          },
-          dim: {
-            fillOpacity: 0.1,
-            strokeOpacity: 0.1,
-            shadowBlur: 0,
-            labelFillOpacity: 0.1,
-            zIndex: 0,
-          },
-          focused: {
-            lineWidth: 4,
-            shadowBlur: 56,
-            stroke: '#FFFFFF',
-            labelFillOpacity: 1,
-            zIndex: 20,
-          },
-        },
-        tooltip: (model) => {
-          const d = model.data || {};
-          if (d.type === 'concept') {
-            return {
-              title: d.label,
-              content: `包含 ${d.count} 个优质信息源`
-            };
+    const focusedItem = nodes.find(n => n.id === focusedNodeId);
+    const isConcept = focusedItem?.data?.type === 'concept';
+
+    if (isConcept) {
+      edges.forEach(edge => {
+        if (edge.target === focusedNodeId) {
+          highlightNodes.add(edge.source);
+          connectedEdgeIds.add(edge.id);
+        }
+      });
+    } else {
+      const author = focusedItem?.data?.author;
+      edges.forEach(edge => {
+        if (edge.source === focusedNodeId) {
+          highlightNodes.add(edge.target);
+          connectedEdgeIds.add(edge.id);
+        }
+      });
+      if (author) {
+        nodes.forEach(node => {
+          if (node.data?.type === 'source' && node.data?.author === author && node.id !== focusedNodeId) {
+            authorHighlightSet.add(node.id);
           }
+        });
+      }
+    }
 
-          const badges = [];
-          if (d.hasNote) badges.push('📝 已记录');
-          if (d.aiPremium) badges.push('✨ AI推荐');
-          if (d.userPremium) badges.push('⭐ 用户标记');
-          return {
-            title: d.sourceTitle || model.id,
-            content: [
-              `分类: ${d.category || '-'}`,
-              `平台: ${d.platform || '-'}`,
-              `作者: ${d.author || '-'}`,
-              badges.length ? `标识: ${badges.join(' · ')}` : '',
-              d.note ? `笔记: ${d.note.slice(0, 60)}${d.note.length > 60 ? '…' : ''}` : '',
-            ].filter(Boolean).join('\n'),
-          };
-        },
-      },
-      edge: {
-        style: (model) => {
-          const color = model.data?.color || 'rgba(156, 163, 175, 0.5)';
-          return {
-            stroke: color,
-            strokeOpacity: 0.35,
-            lineWidth: 1,
-          };
-        },
-        state: {
-          highlight: {
-            stroke: '#FBBF24',
-            strokeOpacity: 1,
-            lineWidth: 3,
-            shadowColor: '#FBBF24',
-            shadowBlur: 12,
-            zIndex: 5,
-          },
-          dim: {
-            strokeOpacity: 0.1,
-            zIndex: 0,
-          },
-        },
-      },
-      zoomable: 'view',
+    const enhancedNodes = nodes.map(node => {
+      const isFocused = node.id === focusedNodeId;
+      const isHighlighted = highlightNodes.has(node.id) && !isFocused;
+      const isAuthorHL = authorHighlightSet.has(node.id);
+      const isDimmed = !isFocused && !isHighlighted && !isAuthorHL;
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          dimmed: isDimmed,
+          highlighted: isHighlighted,
+          authorHighlight: isAuthorHL,
+          isFocused,
+        }
+      };
     });
 
-    graph.render();
-    graph.fitView();
-    graphRef.current = graph;
-
-    // --- Event Handlers ---
-    const updateHighlightState = (targetNodeId) => {
-      const g = graphRef.current;
-      if (!g) return;
-      const allNodes = g.getNodeData();
-      const allEdges = g.getEdgeData();
-
-      if (!targetNodeId) {
-        const stateMap = {};
-        allNodes.forEach(node => { stateMap[node.id] = []; });
-        allEdges.forEach(edge => { stateMap[edge.id] = []; });
-        try { g.setElementState(stateMap); } catch {}
-        return;
-      }
-
-      const item = g.getNodeData(targetNodeId);
-      const isConcept = item.data?.type === 'concept';
-
-      const highlights = new Set([targetNodeId]);
-      const authorHighlights = new Set();
-      const connectedEdges = new Set();
-
-      if (isConcept) {
-        allEdges.forEach(edge => {
-          if (edge.target === targetNodeId) {
-            highlights.add(edge.source);
-            connectedEdges.add(edge.id);
-          }
-        });
-      } else {
-        const author = item.data?.author;
-        allEdges.forEach(edge => {
-          if (edge.source === targetNodeId) {
-            highlights.add(edge.target);
-            connectedEdges.add(edge.id);
-          }
-        });
-
-        if (author) {
-          allNodes.forEach(node => {
-            if (node.data?.type === 'source' && node.data?.author === author && node.id !== targetNodeId) {
-              authorHighlights.add(node.id);
-            }
-          });
+    const enhancedEdges = edges.map(edge => {
+      const isConnected = connectedEdgeIds.has(edge.id);
+      const color = edge.data?.color || 'rgba(156, 163, 175, 0.5)';
+      return {
+        ...edge,
+        data: {
+          ...edge.data,
+          dimmed: !isConnected,
+          highlighted: isConnected,
+        },
+        style: {
+          stroke: color,
+          strokeOpacity: isConnected ? 1.0 : 0.1,
+          strokeWidth: isConnected ? 3 : 1,
         }
-      }
+      };
+    });
 
-      const stateMap = {};
-      allNodes.forEach(node => {
-        if (node.id === targetNodeId) stateMap[node.id] = 'focused';
-        else if (authorHighlights.has(node.id)) stateMap[node.id] = 'authorHighlight';
-        else if (highlights.has(node.id)) stateMap[node.id] = 'highlight';
-        else stateMap[node.id] = 'dim';
-      });
-      allEdges.forEach(edge => {
-        stateMap[edge.id] = connectedEdges.has(edge.id) ? 'highlight' : 'dim';
-      });
+    return { enhancedNodes, enhancedEdges };
+  }, [graphData, focusedNodeId]);
 
-      try {
-        g.setElementState(stateMap);
-      } catch {}
-    };
+  // Sync enhancedNodes into rfNodes, but NOT during drag
+  useEffect(() => {
+    if (isDraggingRef.current) return;
+    setRfNodes(enhancedNodes);
+  }, [enhancedNodes, setRfNodes]);
 
-    const handleClick = (e) => {
-      const g = graphRef.current;
-      if (!g) return;
+  // Sync enhancedEdges into rfEdges always (edges paths auto-update from node positions)
+  useEffect(() => {
+    setRfEdges(enhancedEdges);
+  }, [enhancedEdges, setRfEdges]);
 
-      const nodeId = e.target?.id;
-      if (!nodeId) return;
+  // Restore saved viewport or fitView once on initial data load
+  useEffect(() => {
+    if (enhancedNodes.length === 0 || !reactFlowInstance) return;
+    if (savedViewport) return; // defaultViewport handles this
 
-      const item = g.getNodeData(nodeId);
-      const isConcept = item.data?.type === 'concept';
+    // No saved viewport → fitView once
+    requestAnimationFrame(() => {
+      reactFlowInstance.fitView({ padding: 0.2, duration: 0 });
+    });
+  }, [enhancedNodes, reactFlowInstance, savedViewport]);
 
-      if (isConcept) {
-        setSelectedNode(null);
-        setIsDrawerOpen(false);
-      } else {
-        setSelectedNode({
-          title: item.data?.sourceTitle || item.id,
-          ...item,
-        });
-        setIsDrawerOpen(true);
-      }
-      setFocusedNode(nodeId);
-      updateHighlightState(nodeId);
-    };
+  // ----- Event handlers -----
+  const onNodeClick = useCallback((_event, node) => {
+    const nodeData = node.data;
+    const isConcept = nodeData?.type === 'concept';
 
-    const handleMouseEnter = (e) => {
-      const nodeId = e.target?.id;
-      if (!nodeId) return;
-      // If a node is already clicked and focused, don't override with hover
-      if (!focusedNodeRef.current) {
-        updateHighlightState(nodeId);
-      }
-    };
-
-    const handleMouseLeave = () => {
-      // Revert to clicked node's highlight state, or clear if none
-      updateHighlightState(focusedNodeRef.current);
-    };
-
-    const handleCanvasClick = () => {
+    // Clicking the same node again → un-focus
+    if (node.id === focusedNodeId) {
+      setFocusedNodeId(null);
       setSelectedNode(null);
-      setFocusedNode(null);
-      updateHighlightState(null);
       setIsDrawerOpen(false);
-    };
+      return;
+    }
 
-    graph.on('node:click', handleClick);
-    graph.on('node:mouseenter', handleMouseEnter);
-    graph.on('node:mouseleave', handleMouseLeave);
-    graph.on('canvas:click', handleCanvasClick);
-
-    // 拖拽结束后保存所有节点位置
-    const handleDragEnd = (e) => {
-      if (!graphRef.current) return;
-
-      const allNodes = graphRef.current.getNodeData();
-      const positions = [];
-      const posMap = {};
-
-      allNodes.forEach(node => {
-        // drag-element 更新了顶层 x/y，同步到 data.x/y 以便 style 函数读取
-        if (node.x != null) {
-          node.data = node.data || {};
-          node.data.x = node.x;
-          node.data.y = node.y;
-          positions.push({ nodeId: node.id, posX: node.x, posY: node.y });
-          posMap[node.id] = { x: node.x, y: node.y };
-        }
+    if (isConcept) {
+      setSelectedNode(null);
+      setIsDrawerOpen(false);
+    } else {
+      setSelectedNode({
+        title: nodeData?.sourceTitle || node.id,
+        id: node.id,
+        data: nodeData,
+        position: node.position,
       });
+      setIsDrawerOpen(true);
+    }
+    setFocusedNodeId(node.id);
+  }, [focusedNodeId]);
 
-      setSavedPositions(prev => ({ ...prev, ...posMap }));
-      savePositions(positions);
-    };
-    graph.on('node:dragend', handleDragEnd);
 
-    const handleResize = () => {
-      if (containerRef.current && graphRef.current) {
-        graphRef.current.setSize(
-          containerRef.current.clientWidth || 800,
-          containerRef.current.clientHeight || 600
-        );
-      }
-    };
-    window.addEventListener('resize', handleResize);
 
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      graph.off('node:click', handleClick);
-      graph.off('node:mouseenter', handleMouseEnter);
-      graph.off('node:mouseleave', handleMouseLeave);
-      graph.off('canvas:click', handleCanvasClick);
-      graph.off('node:dragend', handleDragEnd);
-      if (graphRef.current) {
-        graphRef.current.destroy();
-        graphRef.current = null;
-      }
-    };
-  }, [graphData]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+    setFocusedNodeId(null);
+    setIsDrawerOpen(false);
+  }, []);
+
+  const onMoveEnd = useCallback((_event, viewport) => {
+    try {
+      localStorage.setItem('kg_viewport', JSON.stringify(viewport));
+    } catch {}
+  }, []);
+
+  const onNodeDragStart = useCallback(() => {
+    isDraggingRef.current = true;
+    setRfEdges(prev => prev.map(e => ({
+      ...e,
+      style: { ...e.style, strokeOpacity: 0 }
+    })));
+  }, [setRfEdges]);
+
+  const onNodeDragStop = useCallback((_event, node) => {
+    isDraggingRef.current = false;
+    const { id, position } = node;
+    const positions = [{ nodeId: id, posX: position.x, posY: position.y }];
+    savePositions(positions);
+    setSavedPositions(prev => ({
+      ...prev,
+      [id]: { x: position.x, y: position.y }
+    }));
+  }, [savePositions]);
+
+  const nodeTypes = useMemo(() => ({
+    concept: ConceptNode,
+    source: SourceNode,
+  }), []);
 
   const validConcepts = useMemo(() => {
     const counts = {};
@@ -670,7 +716,7 @@ export function KnowledgeGraph() {
     return conceptNodes.filter(c => counts[c.id] > 0);
   }, [items, conceptNodes, sourceConceptMap]);
 
-  const allVisible = conceptNodes.length > 0 && validConcepts.every(c => visibleConcepts.has(c.id));
+  const allVisible = validConcepts.length > 0 && validConcepts.every(c => visibleConcepts.has(c.id));
 
   return (
     <div className="knowledge-graph-page">
@@ -678,7 +724,7 @@ export function KnowledgeGraph() {
       <div className="kg-legend-bar">
         <div className="kg-legend-bar-inner">
           <div className="kg-legend-items">
-            {conceptNodes.map(concept => (
+            {validConcepts.map(concept => (
               <button
                 key={concept.id}
                 className={`kg-legend-item ${visibleConcepts.has(concept.id) ? 'active' : 'hidden'}`}
@@ -704,11 +750,36 @@ export function KnowledgeGraph() {
       </div>
 
       <div className="kg-container" ref={containerRef}>
-        {conceptNodes.length === 0 && (
+        {enhancedNodes.length === 0 && (
           <div className="kg-empty-state">
             <Sparkles size={32} />
             <span>暂无数据</span>
           </div>
+        )}
+        {enhancedNodes.length > 0 && (
+          <ReactFlow
+            nodes={rfNodes}
+            edges={rfEdges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
+            onNodeDragStart={onNodeDragStart}
+            onNodeDragStop={onNodeDragStop}
+            onMoveEnd={onMoveEnd}
+            defaultViewport={savedViewport}
+            fitView={false}
+            panOnDrag={true}
+            zoomOnScroll={true}
+            selectNodesOnDrag={false}
+            nodesDraggable={true}
+            minZoom={0.1}
+            maxZoom={4}
+            style={{ width: '100%', height: '100%' }}
+          >
+            <Background color="#e0e0e0" gap={20} size={1} />
+          </ReactFlow>
         )}
       </div>
 
@@ -724,13 +795,12 @@ export function KnowledgeGraph() {
         </button>
 
         <div className="kg-cube-body">
-          {/* Controls */}
           <div className="kg-cube-section">
             <div className="kg-cube-section-title">视图</div>
             <div className="kg-cube-controls">
-              <button onClick={() => graphRef.current?.zoomBy(1.2)} title="放大"><ZoomIn size={16} /></button>
-              <button onClick={() => graphRef.current?.zoomBy(0.8)} title="缩小"><ZoomOut size={16} /></button>
-              <button onClick={() => graphRef.current?.fitView()} title="适应画布"><Maximize size={16} /></button>
+              <button onClick={() => reactFlowInstance?.zoomIn()} title="放大"><ZoomIn size={16} /></button>
+              <button onClick={() => reactFlowInstance?.zoomOut()} title="缩小"><ZoomOut size={16} /></button>
+              <button onClick={() => reactFlowInstance?.fitView({ padding: 0.2, duration: 0 })} title="适应画布"><Maximize size={16} /></button>
               <button onClick={exportImage} title="导出图片"><Camera size={16} /></button>
             </div>
           </div>
@@ -749,5 +819,16 @@ export function KnowledgeGraph() {
         sourceTitle={selectedNode?.title}
       />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Exported wrapper — provides ReactFlowProvider context              */
+/* ------------------------------------------------------------------ */
+export function KnowledgeGraph() {
+  return (
+    <ReactFlowProvider>
+      <KnowledgeGraphInner />
+    </ReactFlowProvider>
   );
 }

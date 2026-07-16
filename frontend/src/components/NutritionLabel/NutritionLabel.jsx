@@ -2,8 +2,14 @@ import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import './NutritionLabel.css';
 
-export function NutritionLabel() {
+export function NutritionLabel({ data }) {
   const chartOption = useMemo(() => {
+    const chartData = (data || []).map(item => ({
+      value: item.value,
+      name: item.name,
+      itemStyle: item.color ? { color: item.color } : undefined,
+    }));
+
     return {
       tooltip: {
         trigger: 'item',
@@ -54,32 +60,11 @@ export function NutritionLabel() {
           labelLine: {
             show: false
           },
-          data: [
-            { 
-              value: 35, 
-              name: '深度知识',
-              itemStyle: { color: 'rgba(14, 165, 233, 0.8)' } // Technology Blue
-            },
-            { 
-              value: 45, 
-              name: '娱乐短剧',
-              itemStyle: { color: 'rgba(244, 63, 94, 0.8)' } // Rose / Accent
-            },
-            { 
-              value: 15, 
-              name: '行业资讯',
-              itemStyle: { color: 'rgba(245, 158, 11, 0.8)' } // Amber
-            },
-            { 
-              value: 5, 
-              name: '创意灵感',
-              itemStyle: { color: 'rgba(16, 185, 129, 0.8)' } // Emerald
-            }
-          ]
+          data: chartData
         }
       ]
     };
-  }, []);
+  }, [data]);
 
   return (
     <div className="nutrition-label glass-panel">
