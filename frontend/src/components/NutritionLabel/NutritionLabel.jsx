@@ -48,9 +48,9 @@ export function NutritionLabel() {
         formatter: '{b}: {d}%'
       },
       legend: {
-        orient: 'vertical',
-        right: '5%',
-        top: 'center',
+        orient: 'horizontal',
+        bottom: '0',
+        left: 'center',
         itemGap: 20,
         textStyle: {
           color: '#111',
@@ -64,7 +64,7 @@ export function NutritionLabel() {
           name: '营养成分',
           type: 'pie',
           radius: ['45%', '75%'],
-          center: ['35%', '50%'],
+          center: ['50%', '40%'],
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 10,
@@ -92,27 +92,27 @@ export function NutritionLabel() {
           data: [
             {
               value: nutritionData.protein,
-              name: '🥩 蛋白质（深度认知）',
+              name: '蛋白质（深度认知）',
               itemStyle: { color: 'rgba(14, 165, 233, 0.8)' }
             },
             {
               value: nutritionData.carbs,
-              name: '🍚 碳水（实用技能）',
+              name: '碳水（实用技能）',
               itemStyle: { color: 'rgba(16, 185, 129, 0.8)' }
             },
             {
               value: nutritionData.vitamins,
-              name: '🍊 维生素（创意灵感）',
+              name: '维生素（创意灵感）',
               itemStyle: { color: 'rgba(245, 158, 11, 0.8)' }
             },
             {
               value: nutritionData.fats,
-              name: '🍭 脂肪（纯娱乐）',
+              name: '脂肪（纯娱乐）',
               itemStyle: { color: 'rgba(244, 63, 94, 0.8)' }
             },
             {
               value: nutritionData.fiber,
-              name: '🥗 纤维（哲思）',
+              name: '纤维（哲思）',
               itemStyle: { color: 'rgba(139, 92, 246, 0.8)' }
             }
           ]
