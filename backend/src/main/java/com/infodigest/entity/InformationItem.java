@@ -60,9 +60,4 @@ public class InformationItem {
 
     @Column(length = 1000)
     private String nutritionReasoning;     // 营养成分分析理由
-
-    @Column(columnDefinition = "text")
-    private String aiSummary;
-
-    private LocalDateTime analyzedAt;
 }

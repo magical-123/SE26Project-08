@@ -42,6 +42,17 @@ export function Settings() {
   const [hideEntertainment, setHideEntertainment] = useState(false);
   const [togglingHide, setTogglingHide] = useState(false);
 
+  // AI 配置状态
+  const [selectedModel, setSelectedModel] = useState('gpt-4');
+  const [customConfig, setCustomConfig] = useState({
+    modelName: '',
+    apiEndpoint: '',
+    apiKey: '',
+    maxTokens: ''
+  });
+  const [saveStatus, setSaveStatus] = useState(''); // 'success' | 'error' | ''
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
   // 页面加载时从后端获取真实平台连接状态
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +79,11 @@ export function Settings() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
+  }, []);
+
+  // 加载 AI 配置
+  useEffect(() => {
+    loadAIConfig();
   }, []);
 
   // 组件卸载时清理轮询定时器
@@ -110,6 +126,106 @@ export function Settings() {
       console.warn('切换娱乐信息隐藏失败:', err.message);
     } finally {
       setTogglingHide(false);
+    }
+  };
+
+  // AI 配置相关函数
+  const loadAIConfig = async () => {
+    try {
+      const userId = 1; // TODO: 从登录状态获取真实 userId
+      const response = await fetch(`http://localhost:8080/api/ai-config/${userId}`);
+
+      if (response.ok) {
+        const config = await response.json();
+        const modelTypeMap = {
+          'GPT_4': 'gpt-4',
+          'GPT_4_TURBO': 'gpt-4-turbo',
+          'GPT_3_5_TURBO': 'gpt-3.5-turbo',
+          'CLAUDE_3_OPUS': 'claude-3-opus',
+          'CLAUDE_3_SONNET': 'claude-3-sonnet',
+          'CLAUDE_3_HAIKU': 'claude-3-haiku',
+          'GEMINI_PRO': 'gemini-pro',
+          'CUSTOM': 'custom'
+        };
+
+        setSelectedModel(modelTypeMap[config.modelType] || 'gpt-4');
+
+        if (config.modelType === 'CUSTOM') {
+          setCustomConfig({
+            modelName: config.customModelName || '',
+            apiEndpoint: config.apiEndpoint || '',
+            apiKey: '',
+            maxTokens: config.maxTokens || ''
+          });
+        }
+      }
+    } catch (error) {
+      console.error('加载 AI 配置失败:', error);
+    }
+  };
+
+  const handleModelChange = (e) => {
+    setSelectedModel(e.target.value);
+    setSaveStatus('');
+  };
+
+  const handleCustomConfigChange = (field, value) => {
+    setCustomConfig(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    setSaveStatus('');
+  };
+
+  const handleSaveConfig = async () => {
+    setIsLoadingAI(true);
+    setSaveStatus('');
+
+    try {
+      const userId = 1; // TODO: 从登录状态获取真实 userId
+      const modelTypeMap = {
+        'gpt-4': 'GPT_4',
+        'gpt-4-turbo': 'GPT_4_TURBO',
+        'gpt-3.5-turbo': 'GPT_3_5_TURBO',
+        'claude-3-opus': 'CLAUDE_3_OPUS',
+        'claude-3-sonnet': 'CLAUDE_3_SONNET',
+        'claude-3-haiku': 'CLAUDE_3_HAIKU',
+        'gemini-pro': 'GEMINI_PRO',
+        'custom': 'CUSTOM'
+      };
+
+      const requestBody = {
+        userId: userId,
+        modelType: modelTypeMap[selectedModel],
+        apiKey: selectedModel === 'custom' ? customConfig.apiKey : null,
+        apiEndpoint: selectedModel === 'custom' ? customConfig.apiEndpoint : null,
+        maxTokens: selectedModel === 'custom' && customConfig.maxTokens
+          ? parseInt(customConfig.maxTokens)
+          : null,
+        customModelName: selectedModel === 'custom' ? customConfig.modelName : null
+      };
+
+      const response = await fetch('http://localhost:8080/api/ai-config/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (response.ok) {
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus(''), 3000);
+      } else {
+        const errorText = await response.text();
+        console.error('保存失败:', errorText);
+        setSaveStatus('error');
+      }
+    } catch (error) {
+      console.error('保存 AI 配置失败:', error);
+      setSaveStatus('error');
+    } finally {
+      setIsLoadingAI(false);
     }
   };
 
@@ -440,6 +556,112 @@ export function Settings() {
               </label>
             </div>
           </div>
+        </GlassCard>
+
+        <GlassCard className="settings-section">
+          <h2>AI 模型配置</h2>
+          <p className="section-desc">选择并配置用于内容分析和摘要的 AI 模型</p>
+
+          <div className="ai-settings">
+            <div className="ai-model-selector">
+              <label htmlFor="model-select" className="ai-label">选择模型</label>
+              <select
+                id="model-select"
+                className="model-select"
+                value={selectedModel}
+                onChange={handleModelChange}
+              >
+                <option value="gpt-4">GPT-4</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                <option value="claude-3-opus">Claude 3 Opus</option>
+                <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                <option value="claude-3-haiku">Claude 3 Haiku</option>
+                <option value="gemini-pro">Gemini Pro</option>
+                <option value="custom">自定义模型</option>
+              </select>
+            </div>
+
+            {selectedModel === 'custom' && (
+              <div className="custom-model-config">
+                <div className="input-group">
+                  <label htmlFor="model-name">模型名称</label>
+                  <input
+                    id="model-name"
+                    type="text"
+                    placeholder="例如：gpt-4-custom"
+                    value={customConfig.modelName}
+                    onChange={(e) => handleCustomConfigChange('modelName', e.target.value)}
+                  />
+                </div>
+
+                <div className="input-group">
+                  <label htmlFor="api-endpoint">API 端点</label>
+                  <input
+                    id="api-endpoint"
+                    type="text"
+                    placeholder="例如：https://api.openai.com/v1/chat/completions"
+                    value={customConfig.apiEndpoint}
+                    onChange={(e) => handleCustomConfigChange('apiEndpoint', e.target.value)}
+                  />
+                </div>
+
+                <div className="input-group">
+                  <label htmlFor="api-key">API Key</label>
+                  <input
+                    id="api-key"
+                    type="password"
+                    placeholder="请输入您的 API Key"
+                    value={customConfig.apiKey}
+                    onChange={(e) => handleCustomConfigChange('apiKey', e.target.value)}
+                  />
+                  <p className="config-hint">您的 API Key 将被安全加密存储，仅用于 AI 分析</p>
+                </div>
+
+                <div className="input-group">
+                  <label htmlFor="max-tokens">最大 Token 数</label>
+                  <input
+                    id="max-tokens"
+                    type="number"
+                    placeholder="例如：2000"
+                    value={customConfig.maxTokens}
+                    onChange={(e) => handleCustomConfigChange('maxTokens', e.target.value)}
+                  />
+                </div>
+
+                <button
+                  className={`save-config-btn ${saveStatus === 'success' ? 'success' : ''}`}
+                  onClick={handleSaveConfig}
+                  disabled={isLoadingAI}
+                >
+                  {isLoadingAI ? '保存中...' : saveStatus === 'success' ? '✓ 已保存' : '保存配置'}
+                </button>
+              </div>
+            )}
+
+            {selectedModel !== 'custom' && (
+              <button
+                className={`save-config-btn ${saveStatus === 'success' ? 'success' : ''}`}
+                onClick={handleSaveConfig}
+                disabled={isLoadingAI}
+              >
+                {isLoadingAI ? '保存中...' : saveStatus === 'success' ? '✓ 已保存' : '保存配置'}
+              </button>
+            )}
+          </div>
+
+          {saveStatus === 'success' && (
+            <div className="notification success">
+              <span className="notification-icon">✓</span>
+              <span className="notification-message">配置保存成功</span>
+            </div>
+          )}
+          {saveStatus === 'error' && (
+            <div className="notification error">
+              <span className="notification-icon">✕</span>
+              <span className="notification-message">配置保存失败，请重试</span>
+            </div>
+          )}
         </GlassCard>
       </div>
 
