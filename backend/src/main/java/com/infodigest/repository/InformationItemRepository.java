@@ -16,4 +16,5 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     List<InformationItem> findByUserIdAndProcessStatus(Long userId, String processStatus);
     Optional<InformationItem> findByIdAndUserId(Long id, Long userId);
     long countByUserIdAndPlatform(Long userId, String platform);
+    List<InformationItem> findTopNByAiSummaryIsNull(Pageable pageable);
 }
