@@ -2,7 +2,10 @@ package com.infodigest.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infodigest.entity.InformationItem;
+import com.infodigest.repository.InformationItemRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -10,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +23,9 @@ import java.util.Map;
  */
 @Service
 public class AiSummaryService {
+
+    @Autowired
+    private InformationItemRepository informationItemRepository;
 
     @Value("${ai.deepseek.api-url}")
     private String apiUrl;
@@ -34,6 +41,25 @@ public class AiSummaryService {
             .build();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * 异步为非空摘要的条目生成 AI 摘要
+     */
+    @Async
+    public void generateSummaryAsync(InformationItem item) {
+        // 分隔一下异步线程的输出，避免日志混杂
+        System.out.println("[AiSummary] 异步生成摘要: " + item.getTitle());
+        boolean ok = generateSummary(item);
+        if (ok) {
+            item.setAnalyzedAt(LocalDateTime.now());
+            informationItemRepository.save(item);
+            System.out.println("[AiSummary] ✅ 完成: " + item.getTitle()
+                    + " | 评分=" + item.getKnowledgeScore()
+                    + " | 分类=" + item.getCategory());
+        } else {
+            System.out.println("[AiSummary] ❌ 失败: " + item.getTitle());
+        }
+    }
 
     /**
      * 为单条信息源生成 AI 摘要

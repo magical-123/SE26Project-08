@@ -4,6 +4,7 @@ import com.infodigest.entity.InformationItem;
 import com.infodigest.entity.User;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.UserRepository;
+import com.infodigest.service.AiSummaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +30,9 @@ public class InboxController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AiSummaryService aiSummaryService;
 
     // 获取当前登录用户的信息项（支持分页 + 小红书限流，总上限 30 条）
     @GetMapping("/items")
@@ -107,6 +111,10 @@ public class InboxController {
         Long userId = getCurrentUserId();
         item.setUserId(userId);
         InformationItem savedItem = informationItemRepository.save(item);
+
+        // 异步触发 AI 摘要生成（不阻塞响应）
+        aiSummaryService.generateSummaryAsync(savedItem);
+
         return ResponseEntity.ok(savedItem);
     }
 

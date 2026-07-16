@@ -4,6 +4,7 @@ import com.infodigest.entity.InformationItem;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,5 +17,5 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     List<InformationItem> findByUserIdAndProcessStatus(Long userId, String processStatus);
     Optional<InformationItem> findByIdAndUserId(Long id, Long userId);
     long countByUserIdAndPlatform(Long userId, String platform);
-    List<InformationItem> findTopNByAiSummaryIsNull(Pageable pageable);
+    List<InformationItem> findByAiSummaryIsNull(Pageable pageable);
 }
