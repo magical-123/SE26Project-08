@@ -160,6 +160,14 @@ export const settingsApi = {
     return res.json();
   },
 
+  /** 切换娱乐信息隐藏开关 */
+  async toggleEntertainmentHide() {
+    const res = await apiFetch('/api/settings/toggle-entertainment-hide', {
+      method: 'POST',
+    });
+    return res.json();
+  },
+
   /** 获取 B 站扫码登录二维码 */
   async getBilibiliQrcode() {
     const res = await apiFetch('/api/settings/bilibili/qrcode');

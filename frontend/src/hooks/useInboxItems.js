@@ -181,7 +181,7 @@ export function useInboxItems() {
     }
   }, [loadInitial, refetching, initialized]);
 
-  // 实时更新：每 30 秒静默拉取最新 30 条数据，替换当前列表
+  // 实时更新：每 5 分钟静默拉取最新 30 条数据，替换当前列表
   useEffect(() => {
     if (!initialized) return;
     const timer = setInterval(async () => {
@@ -198,7 +198,7 @@ export function useInboxItems() {
           } catch {}
         }
       } catch { /* silent */ }
-    }, 30000);
+    }, 300000);
     return () => clearInterval(timer);
   }, [initialized, pageSize]);
 

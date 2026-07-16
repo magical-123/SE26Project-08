@@ -38,6 +38,10 @@ export function Settings() {
   const [zhihuQrPolling, setZhihuQrPolling] = useState(false);
   const [zhihuQrLoading, setZhihuQrLoading] = useState(false);
 
+  // 娱乐信息隐藏开关
+  const [hideEntertainment, setHideEntertainment] = useState(false);
+  const [togglingHide, setTogglingHide] = useState(false);
+
   // 页面加载时从后端获取真实平台连接状态
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +55,10 @@ export function Settings() {
           if (remote) return { ...p, connected: remote.connected, desc: remote.desc };
           return p;
         }));
+        // 读取娱乐信息隐藏状态
+        if (typeof data.hideEntertainment === 'boolean') {
+          setHideEntertainment(data.hideEntertainment);
+        }
       })
       .catch((err) => {
         if (cancelled) return;
@@ -88,6 +96,20 @@ export function Settings() {
       }));
     } catch (err) {
       console.warn('刷新平台状态失败:', err.message);
+    }
+  };
+
+  const handleToggleEntertainmentHide = async () => {
+    setTogglingHide(true);
+    try {
+      const data = await settingsApi.toggleEntertainmentHide();
+      if (data.hideEntertainment !== undefined) {
+        setHideEntertainment(data.hideEntertainment);
+      }
+    } catch (err) {
+      console.warn('切换娱乐信息隐藏失败:', err.message);
+    } finally {
+      setTogglingHide(false);
     }
   };
 
@@ -408,7 +430,12 @@ export function Settings() {
                 <p>自动隐藏标签为"娱乐短剧"等低营养信息，不在趋势中展示</p>
               </div>
               <label className="switch">
-                <input type="checkbox" defaultChecked />
+                <input
+                  type="checkbox"
+                  checked={hideEntertainment}
+                  disabled={togglingHide}
+                  onChange={handleToggleEntertainmentHide}
+                />
                 <span className="slider"></span>
               </label>
             </div>

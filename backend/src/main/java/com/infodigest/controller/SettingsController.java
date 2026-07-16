@@ -118,6 +118,10 @@ public class SettingsController {
         platforms.add(buildPlatform("github", "GitHub", githubConnected, githubDesc));
 
         result.put("platforms", platforms);
+
+        // 返回娱乐信息隐藏状态
+        result.put("hideEntertainment", isEntertainmentHidden(userId));
+
         return ResponseEntity.ok(result);
     }
 
@@ -577,6 +581,45 @@ public class SettingsController {
         return ResponseEntity.status(502).body(result);
     }
 
+    /**
+     * 切换娱乐信息隐藏开关
+     */
+    @PostMapping("/toggle-entertainment-hide")
+    public ResponseEntity<Map<String, Object>> toggleEntertainmentHide() {
+        Long userId = getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean current = isEntertainmentHidden(userId);
+        String newValue = current ? "[]" : "[\"ENTERTAINMENT\"]";
+        user.setHiddenPlatforms(newValue);
+        userRepository.save(user);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("hideEntertainment", !current);
+        return ResponseEntity.ok(response);
+    }
+
+    private boolean isEntertainmentHidden(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (user.getHiddenPlatforms() == null) return false;
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String[] hidden = mapper.readValue(user.getHiddenPlatforms(), String[].class);
+            for (String h : hidden) {
+                if ("ENTERTAINMENT".equalsIgnoreCase(h)) return true;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * 从 JWT 获取当前用户 ID
+     */
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
