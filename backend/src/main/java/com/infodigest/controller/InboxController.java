@@ -30,12 +30,13 @@ public class InboxController {
     @Autowired
     private UserRepository userRepository;
 
-    // 获取当前登录用户的信息项（支持分页 + 小红书限流）
+    // 获取当前登录用户的信息项（支持分页 + 小红书限流，总上限 30 条）
     @GetMapping("/items")
     public ResponseEntity<Map<String, Object>> getInboxItems(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "4") int xiaohongshuLimit) {
+            @RequestParam(defaultValue = "4") int xiaohongshuLimit,
+            @RequestParam(defaultValue = "30") int maxTotal) {
         Long userId = getCurrentUserId();
 
         // 取最近 200 条做平台限流，避免小红书刷屏把 GitHub/B 站数据挤出首页
@@ -57,6 +58,11 @@ public class InboxController {
 
         // 对合并后的结果再次按 crawledAt 降序排列
         filteredItems.sort((a, b) -> b.getCrawledAt().compareTo(a.getCrawledAt()));
+
+        // 截取最新 maxTotal 条
+        if (filteredItems.size() > maxTotal) {
+            filteredItems = new ArrayList<>(filteredItems.subList(0, maxTotal));
+        }
 
         // 手动分页
         int fromIndex = page * size;
