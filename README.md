@@ -61,6 +61,7 @@ InfoDigest-
 │   │   ├── dto/               # 数据传输对象
 │   │   ├── entity/            # 数据实体
 │   │   ├── repository/        # JPA 数据访问层
+│   │   ├── scheduler/         # 定时任务（爬虫自动调度）
 │   │   ├── security/          # JWT 认证过滤器
 │   │   └── service/           # 业务逻辑与用户服务
 │   └── src/main/resources/
@@ -94,6 +95,7 @@ InfoDigest-
 - **Node.js 18+**（用于运行前端和爬虫）
 - **MySQL 8.x**（本地或远程服务器）
 - **Maven**（可使用项目内 `mvnw`）
+- **Playwright Chromium**（知乎和小红书爬虫需要，通过 `npx playwright install chromium` 安装）
 
 ## 数据库配置
 
@@ -139,17 +141,22 @@ npm run dev
 
 http://localhost:5173
 
-### 4. 使用爬虫（可选）
+### 4. 安装爬虫依赖（必须）
 
-爬虫需要先在前端 Settings 页面完成平台授权（保存 Cookie/Token），然后通过后端接口触发：
+后端启动后，**定时爬虫调度器会每 30 秒自动触发全平台抓取**，但需要先安装爬虫运行环境和浏览器：
 
 ```bash
-# 方式一：通过前端 Settings 页面点击「去连接」→ 自动触发
-# 方式二：手动运行
 cd crawler
 npm install
-node index.js --platform=bilibili
+npx playwright install chromium
 ```
+
+> 爬虫需要在前端 Settings 页面完成平台授权（保存 Cookie/Token）后才能抓取个人数据。小红书无需登录即可抓取公开内容。
+>
+> 如需手动触发单平台抓取：
+> ```bash
+> node index.js --platform=bilibili
+> ```
 
 ## API 认证
 
@@ -170,7 +177,7 @@ Authorization: Bearer <Your-JWT-Token>
 | 页面 | 路径 | 说明 |
 |------|------|------|
 | 仪表盘 | `/` | 今日浏览量、优质信息源、数字饮食概览 |
-| 信息收件箱 | `/inbox` | 信息收集、分类、按平台筛选、状态管理 |
+| 信息收件箱 | `/inbox` | 信息收集、分类、按平台筛选、状态管理；每 30 秒自动刷新，保留最新 30 条 |
 | 知识图谱 | `/graph` | 可视化信息关联网络 |
 | 数字饮食报告 | `/report` | 周报/日报、词云、溯源 |
 | 社交 | `/social` | 用户互动、好友系统 |
@@ -179,12 +186,14 @@ Authorization: Bearer <Your-JWT-Token>
 
 ## 爬虫平台支持
 
-| 平台 | 抓取数据 | 认证方式 | 状态 |
-|------|---------|---------|------|
-| B站 | 观看历史 + CC字幕 | Cookie | 稳定 |
-| 知乎 | 推荐流 + 收藏夹 | Cookie | 较稳定 |
-| GitHub | Star/仓库/Events/README | Token | 稳定 |
-| 小红书 | 公开发现页推荐 | 无需登录 | 稳定 |
+后端内置 **CrawlScheduler 定时调度器**，每 30 秒自动为已授权平台触发抓取，数据实时同步到 Inbox。
+
+| 平台 | 抓取数据 | 认证方式 | 调度 |
+|------|---------|---------|:--:|
+| B站 | 观看历史 + CC字幕 | Cookie | 自动 |
+| 知乎 | 推荐流 + 收藏夹 | Cookie | 自动 |
+| GitHub | Star/仓库/Events/README | Token | 自动 |
+| 小红书 | 公开发现页推荐 | 无需登录 | 自动 |
 
 详细技术实现和已知限制请参考 [爬虫情况.md](爬虫情况.md)。
 
