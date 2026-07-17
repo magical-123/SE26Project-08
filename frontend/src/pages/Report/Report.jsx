@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { reportData } from '../../mock/reportData';
-import { 
-  historicalWordCloudData, 
+import {
+  historicalWordCloudData,
   sourceMapping,
   weeklyPieData,
   dailyPieData,
@@ -13,12 +13,13 @@ import {
 } from '../../mock/dashboardData';
 import { Download, ExternalLink, ArrowRight, Sparkles } from 'lucide-react';
 import { PosterModal } from '../../components/PosterModal/PosterModal';
+import { wordCloudApi } from '../../utils/api';
 import './Report.css';
 
 export function Report() {
   const [activeTab, setActiveTab] = useState('weekly');
   const [selectedWord, setSelectedWord] = useState(null);
-  const [timeIndex, setTimeIndex] = useState(historicalWordCloudData.length - 1);
+  const [timeIndex, setTimeIndex] = useState(6); // 默认显示最后一天（今天）
   const [showPoster, setShowPoster] = useState(false);
   const [nutritionData, setNutritionData] = useState({
     protein: 0,
@@ -27,6 +28,8 @@ export function Report() {
     fats: 0,
     fiber: 0
   });
+  const [realWordCloudData, setRealWordCloudData] = useState(null);
+  const [loadingWordCloud, setLoadingWordCloud] = useState(true);
 
   // 洞察相关状态
   const [weeklyInsight, setWeeklyInsight] = useState(null);
@@ -35,6 +38,7 @@ export function Report() {
   const [isGeneratingDaily, setIsGeneratingDaily] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyType, setHistoryType] = useState(null);
+  const [showFullInsightModal, setShowFullInsightModal] = useState(false);
 
   // 加载营养统计数据和洞察
   React.useEffect(() => {
@@ -69,8 +73,10 @@ export function Report() {
       const response = await fetch(
         `http://localhost:8080/api/insights/latest?userId=${userId}&type=WEEKLY`
       );
+      console.log('周报响应状态:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('周报数据:', data);
         if (data.hasReport) {
           setWeeklyInsight(data.report);
         }
@@ -84,8 +90,10 @@ export function Report() {
       const response = await fetch(
         `http://localhost:8080/api/insights/latest?userId=${userId}&type=DAILY`
       );
+      console.log('日报响应状态:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('日报数据:', data);
         if (data.hasReport) {
           setDailyInsight(data.report);
         }
@@ -94,6 +102,86 @@ export function Report() {
       console.error('获取日报洞察失败:', error);
     }
   };
+
+  // 获取词云数据
+  useEffect(() => {
+    const fetchWordCloudData = async () => {
+      try {
+        const userId = 1; // TODO: 从用户信息中获取真实的userId
+        console.log('[Report词云] 开始获取数据, activeTab:', activeTab);
+
+        if (activeTab === 'weekly') {
+          // 获取最近7天的词云数据
+          const today = new Date();
+          const endDate = today.toISOString().split('T')[0];
+
+          console.log('[Report词云] 请求weekly数据, endDate:', endDate);
+          const response = await wordCloudApi.getWeekly(userId, endDate);
+          console.log('[Report词云] Weekly API响应:', response);
+
+          if (response.success && response.data) {
+            // 将后端数据格式转换为前端需要的格式
+            const formattedData = response.data.map((dayData, index) => {
+              // keywords已经是数组，不需要JSON.parse
+              const keywords = Array.isArray(dayData.keywords)
+                ? dayData.keywords
+                : JSON.parse(dayData.keywords);
+
+              const daysAgo = response.data.length - 1 - index;
+              const dateLabel = daysAgo === 0 ? '今天' :
+                               daysAgo === 1 ? '昨天' :
+                               `${daysAgo}天前`;
+
+              return {
+                date: dateLabel,
+                data: keywords.map(item => ({
+                  name: item.word,
+                  value: item.value
+                }))
+              };
+            });
+
+            console.log('[Report词云] Weekly格式化后的数据:', formattedData);
+            setRealWordCloudData(formattedData);
+          }
+        } else {
+          // 获取今日词云数据
+          const today = new Date().toISOString().split('T')[0];
+          console.log('[Report词云] 请求daily数据, date:', today);
+
+          const response = await wordCloudApi.getDaily(userId, today);
+          console.log('[Report词云] Daily API响应:', response);
+
+          if (response.success && response.data && response.data.keywords) {
+            // keywords已经是数组，不需要JSON.parse
+            const keywords = Array.isArray(response.data.keywords)
+              ? response.data.keywords
+              : JSON.parse(response.data.keywords);
+
+            const formattedData = keywords.map(item => ({
+              name: item.word,
+              value: item.value
+            }));
+
+            console.log('[Report词云] Daily格式化后的数据:', formattedData);
+
+            setRealWordCloudData([{
+              date: '今天',
+              data: formattedData
+            }]);
+          }
+        }
+      } catch (error) {
+        console.error('[Report词云] 获取失败:', error);
+        // 如果获取失败，使用mock数据
+        setRealWordCloudData(null);
+      } finally {
+        setLoadingWordCloud(false);
+      }
+    };
+
+    fetchWordCloudData();
+  }, [activeTab]);
 
   // 生成洞察
   const handleGenerateInsight = async (type) => {
@@ -240,11 +328,11 @@ export function Report() {
         focus: 'self',
         textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
       },
-      data: activeTab === 'weekly' 
-              ? historicalWordCloudData[timeIndex].data 
-              : historicalWordCloudData[historicalWordCloudData.length - 1].data
+      data: activeTab === 'weekly'
+              ? (realWordCloudData && realWordCloudData[timeIndex] ? realWordCloudData[timeIndex].data : historicalWordCloudData[timeIndex].data)
+              : (realWordCloudData && realWordCloudData[0] ? realWordCloudData[0].data : historicalWordCloudData[historicalWordCloudData.length - 1].data)
     }]
-  }), [timeIndex, activeTab]);
+  }), [timeIndex, activeTab, realWordCloudData]);
 
   const onChartClick = (e) => {
     if (e.name) {
@@ -261,13 +349,13 @@ export function Report() {
       <header className="report-header">
         <h1>数字饮食报告</h1>
         <div className="report-tabs">
-          <button 
+          <button
             className={activeTab === 'weekly' ? 'active' : ''}
             onClick={() => setActiveTab('weekly')}
           >
             周报
           </button>
-          <button 
+          <button
             className={activeTab === 'daily' ? 'active' : ''}
             onClick={() => setActiveTab('daily')}
           >
@@ -328,12 +416,12 @@ export function Report() {
                   <h4>{currentInsight.insightTitle}</h4>
                   <p>{currentInsight.insightSummary}</p>
                   {currentInsight.insightFullText && (
-                    <details className="insight-details">
-                      <summary>查看完整洞察</summary>
-                      <div className="insight-full-text">
-                        {currentInsight.insightFullText}
-                      </div>
-                    </details>
+                    <button
+                      className="view-full-insight-btn"
+                      onClick={() => setShowFullInsightModal(true)}
+                    >
+                      查看完整洞察
+                    </button>
                   )}
                 </div>
                 <div className="insight-actions">
@@ -366,19 +454,19 @@ export function Report() {
                 onEvents={{ 'click': onChartClick }}
               />
             </div>
-            
+
             {activeTab === 'weekly' && (
               <div className="timeline-slider-container">
-                <input 
-                  type="range" 
-                  min="0" 
-                  max={historicalWordCloudData.length - 1} 
+                <input
+                  type="range"
+                  min="0"
+                  max={(realWordCloudData || historicalWordCloudData).length - 1}
                   value={timeIndex}
                   onChange={(e) => setTimeIndex(Number(e.target.value))}
                   className="timeline-slider"
                 />
                 <div className="timeline-labels">
-                  {historicalWordCloudData.map((t, idx) => (
+                  {(realWordCloudData || historicalWordCloudData).map((t, idx) => (
                     <span key={idx} className={idx === timeIndex ? 'active' : ''}>
                       {t.date}
                     </span>
@@ -442,13 +530,20 @@ export function Report() {
           生成分享海报
         </button>
       </div>
-      
+
       {showPoster && (
         <PosterModal
           onClose={() => setShowPoster(false)}
           pieOption={pieOption}
           insight={activeTab === 'weekly' ? weeklyInsight : dailyInsight}
           activeTab={activeTab}
+        />
+      )}
+
+      {showFullInsightModal && (
+        <FullInsightModal
+          insight={activeTab === 'weekly' ? weeklyInsight : dailyInsight}
+          onClose={() => setShowFullInsightModal(false)}
         />
       )}
 
@@ -525,6 +620,27 @@ function HistoryInsightModal({ type, onClose }) {
               ))}
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 完整洞察模态框组件
+function FullInsightModal({ insight, onClose }) {
+  if (!insight) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content full-insight-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>{insight.insightTitle}</h3>
+          <button className="modal-close-btn" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="full-insight-text">
+            {insight.insightFullText}
+          </div>
         </div>
       </div>
     </div>
