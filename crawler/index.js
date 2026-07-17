@@ -169,6 +169,39 @@ function classifyByText(title, excerpt) {
   return '娱乐科普';
 }
 
+/**
+ * 校验字幕与标题是否相关
+ * 提取标题中的关键词（去除常见停用词），检查字幕中是否包含至少一个关键词
+ */
+function isSubtitleRelevant(title, subtitle) {
+  if (!title || !subtitle) return false;
+
+  // 从标题中提取关键词（2字以上的连续中文字符或英文单词）
+  const keywords = [];
+  // 中文关键词：2-4 个连续汉字
+  const cnMatches = title.match(/[\u4e00-\u9fa5]{2,4}/g);
+  if (cnMatches) keywords.push(...cnMatches);
+  // 英文关键词：4个字母以上的单词
+  const enMatches = title.match(/[a-zA-Z]{4,}/g);
+  if (enMatches) keywords.push(...enMatches);
+
+  if (keywords.length === 0) return true; // 无法提取关键词时放行
+
+  // 停用词
+  const stopWords = new Set(['什么', '怎么', '为什么', '如何', '一个', '这个', '那个', '可以', '不能', '不是', '就是', '还是', '有没有', '为什么', '怎么样']);
+
+  // 检查字幕中是否包含至少一个关键词（排除停用词）
+  const relevantKeywords = keywords.filter(k => !stopWords.has(k));
+  if (relevantKeywords.length === 0) return true;
+
+  const subtitleLower = subtitle.toLowerCase();
+  for (const kw of relevantKeywords) {
+    if (subtitleLower.includes(kw.toLowerCase())) return true;
+  }
+
+  return false;
+}
+
 /** B 站分类映射 */
 function classifyBilibili(tagName) {
   const map = {
@@ -285,8 +318,8 @@ async function crawlBilibili(getToken) {
     return;
   }
 
-  // CC 字幕提取（前 5 条）
-  console.log('  📝 提取 CC 字幕（前5条）...');
+  // CC 字幕提取（前 5 条），并校验字幕与标题的相关性
+  console.log('   提取 CC 字幕（前5条）...');
   const subtitleMap = new Map();
   for (let i = 0; i < Math.min(allItems.length, 5); i++) {
     const item = allItems[i];
@@ -300,7 +333,14 @@ async function crawlBilibili(getToken) {
         const subs = await bl.fetchSubtitleList(client, aid, cid);
         if (subs.length > 0) {
           const text = await bl.fetchSubtitleText(client, subs[0].url);
-          subtitleMap.set(aid, text);
+          // 校验字幕与标题的相关性：字幕中应包含标题中的关键词
+          const title = (item.title || '').trim();
+          if (title && text && isSubtitleRelevant(title, text)) {
+            subtitleMap.set(aid, text);
+            console.log(`    ✓ ${title.substring(0, 30)}... 字幕匹配`);
+          } else {
+            console.log(`    ⚠ ${title.substring(0, 30)}... 字幕不匹配，丢弃`);
+          }
         }
       }, `B站-字幕-${item.title}`);
     } catch { /* skip */ }

@@ -237,6 +237,72 @@ public class DashboardController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * 清理 contentRaw 与标题不匹配的条目（爬虫字幕抓错导致的）
+     * 提取标题关键词，检查 contentRaw 中是否包含，不包含则清空 contentRaw 和 aiSummary
+     */
+    @PostMapping("/cleanup-mismatched-content")
+    public ResponseEntity<Map<String, Object>> cleanupMismatchedContent() {
+        Long userId = getCurrentUserId();
+        List<InformationItem> items = informationItemRepository.findByUserId(userId);
+
+        int fixed = 0;
+        for (InformationItem item : items) {
+            String title = item.getTitle();
+            String content = item.getContentRaw();
+            if (title == null || content == null || content.isEmpty()) continue;
+
+            // 提取标题中的关键词（2字以上的连续中文或4字母以上英文）
+            java.util.List<String> keywords = new java.util.ArrayList<>();
+            java.util.regex.Matcher cnMatcher = java.util.regex.Pattern.compile("[\u4e00-\u9fa5]{2,4}").matcher(title);
+            while (cnMatcher.find()) keywords.add(cnMatcher.group());
+            java.util.regex.Matcher enMatcher = java.util.regex.Pattern.compile("[a-zA-Z]{4,}").matcher(title);
+            while (enMatcher.find()) keywords.add(enMatcher.group());
+
+            if (keywords.isEmpty()) continue;
+
+            // 停用词
+            java.util.Set<String> stopWords = java.util.Set.of(
+                "什么", "怎么", "为什么", "如何", "一个", "这个", "那个",
+                "可以", "不能", "不是", "就是", "还是", "有没有", "怎么样"
+            );
+
+            // 检查 contentRaw 中是否包含至少一个关键词
+            boolean matched = false;
+            String contentLower = content.toLowerCase();
+            for (String kw : keywords) {
+                if (stopWords.contains(kw)) continue;
+                if (contentLower.contains(kw.toLowerCase())) {
+                    matched = true;
+                    break;
+                }
+            }
+
+            if (!matched) {
+                // 内容不匹配，清空 contentRaw 和 AI 摘要
+                item.setContentRaw(title); // 用标题作为内容
+                item.setAiSummary(null);
+                item.setNutritionProtein(null);
+                item.setNutritionCarbs(null);
+                item.setNutritionVitamins(null);
+                item.setNutritionFats(null);
+                item.setNutritionFiber(null);
+                item.setNutritionReasoning(null);
+                item.setKnowledgeScore(null);
+                item.setAnalyzedAt(null);
+                informationItemRepository.save(item);
+                fixed++;
+                System.out.println("[Cleanup] 修复不匹配内容: " + title.substring(0, Math.min(30, title.length())));
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("fixedCount", fixed);
+        result.put("message", "已修复 " + fixed + " 条内容不匹配的条目");
+        return ResponseEntity.ok(result);
+    }
+
     // ==================== 鉴权辅助 ====================
 
     private Long getCurrentUserId() {
