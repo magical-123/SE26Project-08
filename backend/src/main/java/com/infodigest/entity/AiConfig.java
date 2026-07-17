@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "ai_configs")
 @Data
 @NoArgsConstructor
-public class AiConfig {
+public class AIConfig {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,7 +18,7 @@ public class AiConfig {
     private Long userId;
 
     @Column(nullable = false, length = 50)
-    private String modelType;
+    private String modelType; // GPT_4, GPT_4_TURBO, GPT_3_5_TURBO, CLAUDE_3_OPUS, etc.
 
     @Column(length = 500)
     private String apiKey;
@@ -28,6 +28,7 @@ public class AiConfig {
 
     private Integer maxTokens;
 
+    // For custom models
     @Column(length = 100)
     private String customModelName;
 }

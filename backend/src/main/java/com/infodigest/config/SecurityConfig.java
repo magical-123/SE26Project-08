@@ -35,6 +35,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/ai-config/**").permitAll()
                 .requestMatchers("/api/analysis/**").permitAll()
+                .requestMatchers("/api/insights/**").permitAll()
+                .requestMatchers("/api/wordcloud/**").permitAll()
                 .requestMatchers("/api/inbox/test/**").permitAll()
                 .anyRequest().authenticated()
             )

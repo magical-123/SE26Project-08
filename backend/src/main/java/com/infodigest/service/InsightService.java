@@ -283,6 +283,14 @@ public class InsightService {
      * 获取最新洞察
      */
     public Optional<UserReport> getLatestInsight(Long userId, ReportType type, LocalDate reportDate) {
+        // 对于周报，需要查询本周的报告（reportDate 为本周周一）
+        if (type == ReportType.WEEKLY) {
+            LocalDate weekStart = reportDate.with(java.time.DayOfWeek.MONDAY);
+            return reportRepository.findFirstByUserIdAndTypeAndReportDateOrderByVersionDesc(
+                    userId, type, weekStart);
+        }
+
+        // 对于日报，直接使用传入的日期
         return reportRepository.findFirstByUserIdAndTypeAndReportDateOrderByVersionDesc(
                 userId, type, reportDate);
     }
