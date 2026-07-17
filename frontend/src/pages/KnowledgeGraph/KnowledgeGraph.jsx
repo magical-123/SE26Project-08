@@ -419,6 +419,7 @@ function KnowledgeGraphInner() {
   const [conceptNodes, setConceptNodes] = useState([]);
   const [sourceConceptMap, setSourceConceptMap] = useState({});
   const [dataLoading, setDataLoading] = useState(true);
+  const [premiumItems, setPremiumItems] = useState([]);
   const { items } = useInboxItems();
   const reactFlowInstance = useReactFlow();
   const isDraggingRef = useRef(false);
@@ -464,6 +465,22 @@ function KnowledgeGraphInner() {
             mapping[Number(itemId)] = conceptIds.map(cid => `concept-${cid}`);
           });
           setSourceConceptMap(mapping);
+
+          // Store premium items from API (all优质信息源, not limited by inbox page size)
+          const apiPremiumItems = (graphData.items || []).map(item => ({
+            ...item,
+            hasNote: true,
+            id: item.id,
+            title: item.title,
+            platform: item.platform,
+            category: item.category,
+            author: item.platform || '未知来源',
+            duration: (item.durationMinutes || 1) + ' 分钟',
+            date: item.crawledAt || '',
+            aiSummary: item.aiSummary || null,
+            knowledgeScore: item.knowledgeScore || null,
+          }));
+          setPremiumItems(apiPremiumItems);
 
           setVisibleConcepts(new Set(nodes.map(n => n.id)));
         }
@@ -534,9 +551,8 @@ function KnowledgeGraphInner() {
   };
 
   const graphData = useMemo(() => {
-    const premiumItems = (items || []).filter(item => item.hasNote);
     return buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap);
-  }, [items, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap]);
+  }, [premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap]);
 
   // Compute highlight / dim state
   const { enhancedNodes, enhancedEdges } = useMemo(() => {
@@ -742,7 +758,7 @@ function KnowledgeGraphInner() {
   const validConcepts = useMemo(() => {
     const counts = {};
     conceptNodes.forEach(c => counts[c.id] = 0);
-    (items || []).filter(item => item.hasNote).forEach(item => {
+    premiumItems.forEach(item => {
       const cids = sourceConceptMap[item.id] || [];
       cids.forEach(cid => { if (counts[cid] !== undefined) counts[cid]++; });
     });
@@ -754,7 +770,7 @@ function KnowledgeGraphInner() {
       seenLabels.add(c.label);
       return true;
     });
-  }, [items, conceptNodes, sourceConceptMap]);
+  }, [premiumItems, conceptNodes, sourceConceptMap]);
 
   const allVisible = validConcepts.length > 0 && validConcepts.every(c => visibleConcepts.has(c.id));
 

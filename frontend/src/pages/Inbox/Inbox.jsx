@@ -26,7 +26,7 @@ export function Inbox() {
   const [draftTags, setDraftTags] = useState([]);
 
   const filteredItems = filter === 'All' ? items : items.filter(item => item.platform === filter);
-  const hasNoteCount = items.filter(i => i.hasNote).length;
+  const aiSummaryCount = items.filter(i => i.aiSummary).length;
   const totalCount = items.length;
 
   // 切换平台筛选时，如果当前过滤结果为空且还有更多数据，自动加载更多
@@ -93,7 +93,7 @@ export function Inbox() {
       <header className="inbox-header">
         <h1>捕获箱 (Inbox)</h1>
         <div className="inbox-subtitle">
-          共捕获 <strong>{totalCount}</strong> 条内容，其中 <strong>{hasNoteCount}</strong> 条已处理
+          共捕获 <strong>{totalCount}</strong> 条内容，其中 <strong>{aiSummaryCount}</strong> 条已生成 AI 摘要
         </div>
         <div className="inbox-filters">
           {['All', 'Bilibili', 'Zhihu', 'Xiaohongshu', 'GitHub'].map(f => (

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { inboxApi } from '../utils/api';
 import { inboxItems as fallbackItems } from '../mock/inboxData';
 
-const STORAGE_KEY = 'infodigest_inbox_cache';
+const STORAGE_KEY = 'infodigest_inbox_cache_v2';
 
 /**
  * 格式化后端的 InformationItem 为前端需要的格式
@@ -30,11 +30,12 @@ function formatItem(item) {
     date: formatTimeAgo(item.crawledAt),
     isFavorite: false,
     isLiked: false,
-    hasNote: item.processStatus === 'PROCESSED',
+    hasNote: item.isPremium === true,
     opened: true,
     note: '',
     tags: [],
     processStatus: item.processStatus,
+    isPremium: item.isPremium === true,
     url: item.url,
     contentRaw: item.contentRaw,
     aiSummary: item.aiSummary || null,
@@ -75,7 +76,7 @@ export function useInboxItems() {
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
   const [refetching, setRefetching] = useState(false);
-  const pageSize = 30;
+  const pageSize = 1000;
 
   // 检测是否需要自动刷新（从 Settings 页面跳转过来）
   useEffect(() => {
@@ -136,6 +137,33 @@ export function useInboxItems() {
     }
   }, []);
 
+  // 合并 API 数据与本地缓存：保留本地修改的 hasNote/note/tags 状态
+  const mergeWithCache = useCallback((apiItems) => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return apiItems;
+      const cached = JSON.parse(raw);
+      if (!Array.isArray(cached) || cached.length === 0) return apiItems;
+
+      const cacheMap = new Map();
+      cached.forEach(c => cacheMap.set(c.id, c));
+
+      return apiItems.map(apiItem => {
+        const cachedItem = cacheMap.get(apiItem.id);
+        if (!cachedItem) return apiItem;
+        if (cachedItem.hasNote !== apiItem.hasNote) {
+          return { ...apiItem, hasNote: cachedItem.hasNote, processStatus: cachedItem.processStatus || apiItem.processStatus };
+        }
+        if (cachedItem.note !== undefined && cachedItem.note !== apiItem.note) {
+          return { ...apiItem, note: cachedItem.note, hasNote: cachedItem.hasNote };
+        }
+        return apiItem;
+      });
+    } catch {
+      return apiItems;
+    }
+  }, []);
+
   // 首次加载 / 自动刷新：先读缓存，再请求 API
   const loadInitial = useCallback(async () => {
     if (initialized && !refetching) return;
@@ -153,16 +181,17 @@ export function useInboxItems() {
       }
     } catch { /* ignore */ }
 
-    // 2. 请求后端 API
+    // 2. 请求后端 API，并与缓存合并（保留用户修改的 hasNote/note/tags）
     try {
       const data = await inboxApi.getItems(0, pageSize);
       const formatted = (data.items || []).map(formatItem);
-      setItems(formatted);
+      const merged = mergeWithCache(formatted);
+      setItems(merged);
       setHasMore(data.hasMore ?? false);
       setPage(0);
-      // 缓存到 localStorage
+      // 缓存到 localStorage（使用合并后的数据）
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
       } catch { /* ignore */ }
     } catch (err) {
       console.warn('API 请求失败，使用缓存/Mock 数据:', err.message);
@@ -174,7 +203,7 @@ export function useInboxItems() {
       setInitialized(true);
       setRefetching(false);
     }
-  }, [initialized, refetching]);
+  }, [initialized, refetching, mergeWithCache]);
 
   // 自动加载
   useEffect(() => {
@@ -253,24 +282,23 @@ export function useInboxItems() {
     // 先读取当前状态，决定要设置为什么
     setItems((prev) => {
       const current = prev.find(i => i.id === id);
-      const newStatus = current && current.hasNote ? 'UNPROCESSED' : 'PROCESSED';
-      const newHasNote = current && current.hasNote ? false : true;
+      const newIsPremium = current && current.hasNote ? false : true;
 
       // 乐观更新本地
       const updated = prev.map((item) =>
         item.id === id
-          ? { ...item, hasNote: newHasNote, processStatus: newStatus }
+          ? { ...item, hasNote: newIsPremium, isPremium: newIsPremium }
           : item
       );
 
       // 同步到后端
-      inboxApi.updateItem(id, { processStatus: newStatus }).catch((err) => {
+      inboxApi.updateItem(id, { isPremium: newIsPremium }).catch((err) => {
         console.error('更新优质信息源状态失败:', err);
         // 失败则回滚本地状态
         setItems((old) =>
           old.map((item) =>
             item.id === id
-              ? { ...item, hasNote: !newHasNote, processStatus: newStatus === 'PROCESSED' ? 'UNPROCESSED' : 'PROCESSED' }
+              ? { ...item, hasNote: !newIsPremium, isPremium: !newIsPremium }
               : item
           )
         );
@@ -286,7 +314,7 @@ export function useInboxItems() {
     setItems((prev) =>
       prev.map((item) =>
         item.id === id
-          ? { ...item, hasNote: true, note, tags }
+          ? { ...item, hasNote: true, isPremium: true, note, tags }
           : item
       )
     );
@@ -294,7 +322,7 @@ export function useInboxItems() {
     try {
       await inboxApi.updateItem(id, {
         contentRaw: note,
-        processStatus: 'PROCESSED',
+        isPremium: true,
       });
     } catch (err) {
       console.error('保存笔记失败:', err);

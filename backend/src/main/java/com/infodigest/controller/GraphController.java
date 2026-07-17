@@ -10,6 +10,7 @@ import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.ItemConceptRepository;
 import com.infodigest.repository.NodePositionRepository;
 import com.infodigest.repository.UserRepository;
+import com.infodigest.service.AiSummaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -29,6 +30,7 @@ public class GraphController {
     private final ItemConceptRepository itemConceptRepository;
     private final NodePositionRepository nodePositionRepository;
     private final UserRepository userRepository;
+    private final AiSummaryService aiSummaryService;
 
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -102,14 +104,43 @@ public class GraphController {
                 .map(InformationItem::getId)
                 .collect(Collectors.toList());
 
+        // 1. 先从 item_concepts 表读取已有映射
         List<ItemConcept> mappings = premiumItemIds.isEmpty()
                 ? Collections.emptyList()
                 : itemConceptRepository.findByItemIdIn(premiumItemIds);
 
         Map<Long, List<Long>> itemToConcepts = new HashMap<>();
+        Set<Long> mappedItemIds = new HashSet<>();
         for (ItemConcept mapping : mappings) {
             itemToConcepts.computeIfAbsent(mapping.getItemId(), k -> new ArrayList<>())
                     .add(mapping.getConceptId());
+            mappedItemIds.add(mapping.getItemId());
+        }
+
+        // 2. 对还没有映射的 premium 条目，根据 category 动态匹配 concept
+        //    concept.name = "cat-" + category  <->  item.category 匹配
+        Map<String, Long> categoryConceptMap = new HashMap<>();
+        for (Concept c : concepts) {
+            String name = c.getName();
+            if (name != null && name.startsWith("cat-")) {
+                categoryConceptMap.put(name.substring(4), c.getId());
+            }
+            // 也按 label 匹配（中文名直接等于 category）
+            if (c.getLabel() != null) {
+                categoryConceptMap.putIfAbsent(c.getLabel(), c.getId());
+            }
+        }
+
+        for (InformationItem item : premiumItems) {
+            if (mappedItemIds.contains(item.getId())) continue;
+            String category = item.getCategory();
+            if (category == null || category.isEmpty()) continue;
+
+            Long conceptId = categoryConceptMap.get(category);
+            if (conceptId != null) {
+                itemToConcepts.computeIfAbsent(item.getId(), k -> new ArrayList<>())
+                        .add(conceptId);
+            }
         }
 
         Map<String, Object> result = new HashMap<>();
@@ -148,5 +179,40 @@ public class GraphController {
             nodePositionRepository.save(np);
         }
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 一键自动映射：遍历当前用户所有有分类的信息项，
+     * 根据 category 自动创建概念和 ItemConcept 映射
+     */
+    @PostMapping("/auto-map")
+    public ResponseEntity<Map<String, Object>> autoMapAll() {
+        Long userId = getCurrentUserId();
+        List<InformationItem> allItems = informationItemRepository.findByUserId(userId);
+
+        int mappedCount = 0;
+        int skippedCount = 0;
+
+        for (InformationItem item : allItems) {
+            String category = item.getCategory();
+            if (category == null || category.isEmpty()) {
+                skippedCount++;
+                continue;
+            }
+            try {
+                aiSummaryService.ensureConceptMapping(item);
+                mappedCount++;
+            } catch (Exception e) {
+                skippedCount++;
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("mappedCount", mappedCount);
+        result.put("skippedCount", skippedCount);
+        result.put("totalItems", allItems.size());
+        result.put("message", "已为 " + mappedCount + " 条信息创建概念映射，跳过 " + skippedCount + " 条（无分类）");
+        return ResponseEntity.ok(result);
     }
 }

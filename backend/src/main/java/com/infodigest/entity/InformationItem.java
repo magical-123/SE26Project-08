@@ -37,6 +37,9 @@ public class InformationItem {
     @Column(nullable = false)
     private String processStatus = "UNPROCESSED"; // UNPROCESSED, PROCESSED, FAILED
 
+    // 用户手动标记的优质信息源（与 processStatus 独立）
+    private Boolean isPremium = false;
+
     // AI 分析相关字段
     private Integer knowledgeScore; // 知识含量评分(0-100)
 
@@ -51,9 +54,9 @@ public class InformationItem {
     @Column(nullable = false, updatable = false)
     private LocalDateTime crawledAt = LocalDateTime.now();
 
-    // hasNote: 前端用于判断是否已处理/标记优质，数据库无独立字段，通过 processStatus 推断
+    // hasNote: 前端用于判断是否标记为优质信息源，由 isPremium 字段控制
     public Boolean getHasNote() {
-        return "PROCESSED".equals(this.processStatus);
+        return Boolean.TRUE.equals(this.isPremium);
     }
 
     // AI 分析结果字段 - 营养成分评估

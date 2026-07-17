@@ -34,20 +34,20 @@ public class InboxController {
     @Autowired
     private AiSummaryService aiSummaryService;
 
-    // 获取当前登录用户的信息项（支持分页 + 小红书限流，总上限 30 条）
+    // 获取当前登录用户的信息项（支持分页 + 小红书限流，总上限 1000 条）
     @GetMapping("/items")
     public ResponseEntity<Map<String, Object>> getInboxItems(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "1000") int size,
             @RequestParam(defaultValue = "4") int xiaohongshuLimit,
-            @RequestParam(defaultValue = "30") int maxTotal) {
+            @RequestParam(defaultValue = "1000") int maxTotal) {
         // 获取当前用户
         Long userId = getCurrentUserId();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // 取最近 200 条做平台限流，避免小红书刷屏把 GitHub/B 站数据挤出首页
-        PageRequest recentRequest = PageRequest.of(0, 200, Sort.by(Sort.Direction.DESC, "crawledAt"));
+        // 取最近 1000 条做平台限流，避免小红书刷屏把 GitHub/B 站数据挤出首页
+        PageRequest recentRequest = PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "crawledAt"));
         List<InformationItem> recentItems = informationItemRepository.findByUserId(userId, recentRequest).getContent();
 
         // 检查用户是否启用了"娱乐信息隐藏"
@@ -105,11 +105,22 @@ public class InboxController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 创建新信息项
+    // 创建新信息项（带去重：同标题+平台只保留最新一条）
     @PostMapping("/items")
     public ResponseEntity<InformationItem> createInboxItem(@RequestBody InformationItem item) {
         Long userId = getCurrentUserId();
         item.setUserId(userId);
+
+        // 去重检查：同一用户下，同标题+平台已存在则直接跳过，不更新不重新分析
+        if (item.getTitle() != null && item.getPlatform() != null) {
+            Optional<InformationItem> existing = informationItemRepository
+                    .findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(userId, item.getTitle(), item.getPlatform());
+            if (existing.isPresent()) {
+                System.out.println("[Inbox] 跳过重复数据: " + item.getTitle() + " (" + item.getPlatform() + ")");
+                return ResponseEntity.ok(existing.get());
+            }
+        }
+
         InformationItem savedItem = informationItemRepository.save(item);
 
         // 异步触发 AI 摘要生成（不阻塞响应）
@@ -134,6 +145,7 @@ public class InboxController {
             if (itemDetails.getDurationMinutes() != null) item.setDurationMinutes(itemDetails.getDurationMinutes());
             if (itemDetails.getContentRaw() != null) item.setContentRaw(itemDetails.getContentRaw());
             if (itemDetails.getProcessStatus() != null) item.setProcessStatus(itemDetails.getProcessStatus());
+            if (itemDetails.getIsPremium() != null) item.setIsPremium(itemDetails.getIsPremium());
             InformationItem updatedItem = informationItemRepository.save(item);
             return ResponseEntity.ok(updatedItem);
         } else {
