@@ -412,6 +412,7 @@ function KnowledgeGraphInner() {
   const { items } = useInboxItems();
   const reactFlowInstance = useReactFlow();
   const isDraggingRef = useRef(false);
+  const initialPositionsSavedRef = useRef(false);
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
 
@@ -639,6 +640,28 @@ function KnowledgeGraphInner() {
       reactFlowInstance.fitView({ padding: 0.2, duration: 0 });
     });
   }, [enhancedNodes, reactFlowInstance, savedViewport]);
+
+  // Save all initial positions once after first load, so that dragging
+  // concept nodes won't cause source nodes to recalculate positions.
+  useEffect(() => {
+    if (enhancedNodes.length === 0) return;
+    if (initialPositionsSavedRef.current) return;
+    initialPositionsSavedRef.current = true;
+
+    const positions = enhancedNodes.map(n => ({
+      nodeId: n.id,
+      posX: n.position.x,
+      posY: n.position.y,
+    }));
+    savePositions(positions);
+    setSavedPositions(prev => {
+      const next = { ...prev };
+      enhancedNodes.forEach(n => {
+        next[n.id] = { x: n.position.x, y: n.position.y };
+      });
+      return next;
+    });
+  }, [enhancedNodes, savePositions, setSavedPositions]);
 
   // ----- Event handlers -----
   const onNodeClick = useCallback((_event, node) => {
