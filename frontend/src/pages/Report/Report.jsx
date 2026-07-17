@@ -1,298 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { reportData } from '../../mock/reportData';
-import {
-  historicalWordCloudData,
+import { 
+  historicalWordCloudData, 
   sourceMapping,
   weeklyPieData,
   dailyPieData,
   weeklyAiInsight,
   dailyAiInsight
 } from '../../mock/dashboardData';
-import { Download, ExternalLink, ArrowRight, Sparkles } from 'lucide-react';
+import { Download, ExternalLink, ArrowRight, Sparkles, Info } from 'lucide-react';
 import { PosterModal } from '../../components/PosterModal/PosterModal';
-import { wordCloudApi } from '../../utils/api';
 import './Report.css';
 
 export function Report() {
   const [activeTab, setActiveTab] = useState('weekly');
   const [selectedWord, setSelectedWord] = useState(null);
-  const [timeIndex, setTimeIndex] = useState(6); // 默认显示最后一天（今天）
+  const [timeIndex, setTimeIndex] = useState(historicalWordCloudData.length - 1);
   const [showPoster, setShowPoster] = useState(false);
-  const [nutritionData, setNutritionData] = useState({
-    protein: 0,
-    carbs: 0,
-    vitamins: 0,
-    fats: 0,
-    fiber: 0
-  });
-  const [realWordCloudData, setRealWordCloudData] = useState(null);
-  const [loadingWordCloud, setLoadingWordCloud] = useState(true);
-
-  // 洞察相关状态
-  const [weeklyInsight, setWeeklyInsight] = useState(null);
-  const [dailyInsight, setDailyInsight] = useState(null);
-  const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
-  const [isGeneratingDaily, setIsGeneratingDaily] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [historyType, setHistoryType] = useState(null);
-  const [showFullInsightModal, setShowFullInsightModal] = useState(false);
-
-  // 加载营养统计数据和洞察
-  React.useEffect(() => {
-    fetchNutritionStats();
-    fetchInsights();
-  }, []);
-
-  const fetchNutritionStats = async () => {
-    try {
-      // TODO: 从 localStorage 或 context 获取真实的 userId
-      const userId = 1;
-
-      const response = await fetch(`http://localhost:8080/api/analysis/nutrition-stats/${userId}`);
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.nutrition) {
-          setNutritionData(data.nutrition);
-        }
-      }
-    } catch (error) {
-      console.error('获取营养统计出错:', error);
-    }
-  };
-
-  // 获取洞察
-  const fetchInsights = async () => {
-    const userId = 1;
-
-    // 获取周报洞察
-    try {
-      const response = await fetch(
-        `http://localhost:8080/api/insights/latest?userId=${userId}&type=WEEKLY`
-      );
-      console.log('周报响应状态:', response.status);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('周报数据:', data);
-        if (data.hasReport) {
-          setWeeklyInsight(data.report);
-        }
-      }
-    } catch (error) {
-      console.error('获取周报洞察失败:', error);
-    }
-
-    // 获取日报洞察
-    try {
-      const response = await fetch(
-        `http://localhost:8080/api/insights/latest?userId=${userId}&type=DAILY`
-      );
-      console.log('日报响应状态:', response.status);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('日报数据:', data);
-        if (data.hasReport) {
-          setDailyInsight(data.report);
-        }
-      }
-    } catch (error) {
-      console.error('获取日报洞察失败:', error);
-    }
-  };
-
-  // 获取词云数据
-  useEffect(() => {
-    const fetchWordCloudData = async () => {
-      try {
-        const userId = 1; // TODO: 从用户信息中获取真实的userId
-        console.log('[Report词云] 开始获取数据, activeTab:', activeTab);
-
-        if (activeTab === 'weekly') {
-          // 获取最近7天的词云数据
-          const today = new Date();
-          const endDate = today.toISOString().split('T')[0];
-
-          console.log('[Report词云] 请求weekly数据, endDate:', endDate);
-          const response = await wordCloudApi.getWeekly(userId, endDate);
-          console.log('[Report词云] Weekly API响应:', response);
-
-          if (response.success && response.data) {
-            // 将后端数据格式转换为前端需要的格式
-            const formattedData = response.data.map((dayData, index) => {
-              // keywords已经是数组，不需要JSON.parse
-              const keywords = Array.isArray(dayData.keywords)
-                ? dayData.keywords
-                : JSON.parse(dayData.keywords);
-
-              const daysAgo = response.data.length - 1 - index;
-              const dateLabel = daysAgo === 0 ? '今天' :
-                               daysAgo === 1 ? '昨天' :
-                               `${daysAgo}天前`;
-
-              return {
-                date: dateLabel,
-                data: keywords.map(item => ({
-                  name: item.word,
-                  value: item.value
-                }))
-              };
-            });
-
-            console.log('[Report词云] Weekly格式化后的数据:', formattedData);
-            setRealWordCloudData(formattedData);
-          }
-        } else {
-          // 获取今日词云数据
-          const today = new Date().toISOString().split('T')[0];
-          console.log('[Report词云] 请求daily数据, date:', today);
-
-          const response = await wordCloudApi.getDaily(userId, today);
-          console.log('[Report词云] Daily API响应:', response);
-
-          if (response.success && response.data && response.data.keywords) {
-            // keywords已经是数组，不需要JSON.parse
-            const keywords = Array.isArray(response.data.keywords)
-              ? response.data.keywords
-              : JSON.parse(response.data.keywords);
-
-            const formattedData = keywords.map(item => ({
-              name: item.word,
-              value: item.value
-            }));
-
-            console.log('[Report词云] Daily格式化后的数据:', formattedData);
-
-            setRealWordCloudData([{
-              date: '今天',
-              data: formattedData
-            }]);
-          }
-        }
-      } catch (error) {
-        console.error('[Report词云] 获取失败:', error);
-        // 如果获取失败，使用mock数据
-        setRealWordCloudData(null);
-      } finally {
-        setLoadingWordCloud(false);
-      }
-    };
-
-    fetchWordCloudData();
-  }, [activeTab]);
-
-  // 生成洞察
-  const handleGenerateInsight = async (type) => {
-    const userId = 1;
-    const isWeekly = type === 'WEEKLY';
-
-    if (isWeekly) {
-      setIsGeneratingWeekly(true);
-    } else {
-      setIsGeneratingDaily(true);
-    }
-
-    try {
-      const response = await fetch(
-        `http://localhost:8080/api/insights/generate?userId=${userId}&type=${type}`,
-        { method: 'POST' }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          if (isWeekly) {
-            setWeeklyInsight(data.report);
-          } else {
-            setDailyInsight(data.report);
-          }
-          alert('洞察生成成功！');
-        } else {
-          alert('生成失败: ' + data.error);
-        }
-      } else {
-        alert('生成失败，请稍后重试');
-      }
-    } catch (error) {
-      console.error('生成洞察失败:', error);
-      alert('生成洞察失败: ' + error.message);
-    } finally {
-      if (isWeekly) {
-        setIsGeneratingWeekly(false);
-      } else {
-        setIsGeneratingDaily(false);
-      }
-    }
-  };
-
-  // 查看历史洞察
-  const handleViewHistory = (type) => {
-    setHistoryType(type);
-    setShowHistoryModal(true);
-  };
+  const [showInfo, setShowInfo] = useState(false);
 
   const pieOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: {d}%'
-    },
-    legend: {
-      orient: 'horizontal',
-      bottom: '0',
-      left: 'center',
-      textStyle: {
-        color: '#333',
-        fontSize: 12
-      }
-    },
+    tooltip: { trigger: 'item' },
     series: [
       {
-        name: '营养成分',
         type: 'pie',
-        radius: ['50%', '70%'],
-        center: ['50%', '45%'],
+        radius: ['65%', '90%'],
+        center: ['50%', '50%'],
         avoidLabelOverlap: false,
-        label: {
-          show: true,
-          position: 'outside',
-          color: '#444',
-          fontWeight: 'bold',
-          formatter: '{d}%'
+        label: { show: false },
+        labelLine: { show: false },
+        itemStyle: {
+          borderRadius: 6,
+          borderColor: '#fff',
+          borderWidth: 2
         },
-        labelLine: { show: true, lineStyle: { color: '#888' } },
-        data: [
-          {
-            value: nutritionData.protein,
-            name: '蛋白质',
-            itemStyle: { color: 'rgba(14, 165, 233, 0.8)' }
-          },
-          {
-            value: nutritionData.carbs,
-            name: '碳水',
-            itemStyle: { color: 'rgba(16, 185, 129, 0.8)' }
-          },
-          {
-            value: nutritionData.vitamins,
-            name: '维生素',
-            itemStyle: { color: 'rgba(245, 158, 11, 0.8)' }
-          },
-          {
-            value: nutritionData.fats,
-            name: '脂肪',
-            itemStyle: { color: 'rgba(244, 63, 94, 0.8)' }
-          },
-          {
-            value: nutritionData.fiber,
-            name: '纤维',
-            itemStyle: { color: 'rgba(139, 92, 246, 0.8)' }
-          }
-        ]
+        data: activeTab === 'weekly' ? weeklyPieData : dailyPieData
       }
     ]
-  }), [nutritionData]);
+  }), [activeTab]);
 
   const wordCloudOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
@@ -328,11 +78,11 @@ export function Report() {
         focus: 'self',
         textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
       },
-      data: activeTab === 'weekly'
-              ? (realWordCloudData && realWordCloudData[timeIndex] ? realWordCloudData[timeIndex].data : historicalWordCloudData[timeIndex].data)
-              : (realWordCloudData && realWordCloudData[0] ? realWordCloudData[0].data : historicalWordCloudData[historicalWordCloudData.length - 1].data)
+      data: activeTab === 'weekly' 
+              ? historicalWordCloudData[timeIndex].data 
+              : historicalWordCloudData[historicalWordCloudData.length - 1].data
     }]
-  }), [timeIndex, activeTab, realWordCloudData]);
+  }), [timeIndex, activeTab]);
 
   const onChartClick = (e) => {
     if (e.name) {
@@ -349,13 +99,13 @@ export function Report() {
       <header className="report-header">
         <h1>数字饮食报告</h1>
         <div className="report-tabs">
-          <button
+          <button 
             className={activeTab === 'weekly' ? 'active' : ''}
             onClick={() => setActiveTab('weekly')}
           >
             周报
           </button>
-          <button
+          <button 
             className={activeTab === 'daily' ? 'active' : ''}
             onClick={() => setActiveTab('daily')}
           >
@@ -365,82 +115,78 @@ export function Report() {
       </header>
 
       <div className="report-grid">
-        <GlassCard className="report-card pie-card">
-          <h3>五维度营养分布</h3>
-          <div className="chart-box">
-            <ReactECharts option={pieOption} style={{ height: 300, width: '100%' }} opts={{ renderer: 'svg' }} />
+        <GlassCard className="report-card pie-card" style={{ padding: '24px 32px' }}>
+          <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>营养分类占比</h3>
+          
+          <div className="nutrition-label-container">
+            <div className="nl-header" style={{ position: 'relative' }}>
+              <h2>营养成分表</h2>
+              <Info className="nl-info-icon" size={20} onClick={() => setShowInfo(true)} />
+            </div>
+            
+            <div className="nl-period">统计周期: {activeTab === 'weekly' ? '1周 (7天)' : '今天'}</div>
+            
+            <div className="nl-thick-bar"></div>
+            
+            <div className="nl-amount-row">
+              <div className="nl-amount-left">
+                <span className="nl-amount-title">摄入量</span>
+                <span className="nl-amount-subtitle">总耗时 (小时)</span>
+              </div>
+              <div className="nl-amount-right">
+                {(() => {
+                  const data = activeTab === 'weekly' ? weeklyPieData : dailyPieData;
+                  return data.reduce((acc, curr) => acc + (curr.hours || 0), 0).toFixed(1) + 'h';
+                })()}
+              </div>
+              <div className="nl-donut-wrapper">
+                <div className="nl-donut-bg"></div>
+                <div className="nl-donut-chart-inner">
+                  <ReactECharts option={pieOption} style={{ height: '140px', width: '140px' }} />
+                </div>
+              </div>
+            </div>
+            
+            <div className="nl-medium-bar"></div>
+            
+            <div className="nl-percent-header">
+              <span>占比 %*</span>
+            </div>
+            
+            <div className="nl-rows">
+              {(activeTab === 'weekly' ? weeklyPieData : dailyPieData).map((item, idx) => (
+                <div className="nl-row" key={idx}>
+                  <div className="nl-row-left">
+                    <span className="nl-color-block" style={{ backgroundColor: item.itemStyle.color }}></span>
+                    <span className="nl-row-name">{item.name}</span>
+                    <span className="nl-row-sub">({item.subName})</span>
+                    <span className="nl-row-hours">{item.hours}h</span>
+                  </div>
+                  <div className="nl-row-right">
+                    {item.value}%
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="nl-thick-bar" style={{ marginTop: '4px' }}></div>
+            
+            <div className="nl-footer-note">
+              * 占比表示该营养成分在您当前的数字饮食摄入周期中所占的比重。保持高蛋白低脂肪有助于数字健康。
+            </div>
           </div>
         </GlassCard>
 
         <GlassCard className="report-card insight-card">
           <div className="insight-header">
             <Sparkles className="insight-icon" size={18} />
-            <h3>{activeTab === 'weekly' ? '本周洞察' : '本日洞察'}</h3>
+            <h3>{currentInsight.title}</h3>
           </div>
-
-          {/* 根据是否有洞察显示不同内容 */}
-          {(() => {
-            const currentInsight = activeTab === 'weekly' ? weeklyInsight : dailyInsight;
-            const isGenerating = activeTab === 'weekly' ? isGeneratingWeekly : isGeneratingDaily;
-            const reportType = activeTab === 'weekly' ? 'WEEKLY' : 'DAILY';
-
-            if (isGenerating) {
-              return (
-                <div className="insight-content empty">
-                  <p>⏳ 正在生成洞察，请稍候...</p>
-                </div>
-              );
-            }
-
-            if (!currentInsight) {
-              return (
-                <>
-                  <div className="insight-content empty">
-                    <p>还未有洞察，快去生成吧</p>
-                  </div>
-                  <div className="insight-actions">
-                    <button
-                      className="generate-insight-btn"
-                      onClick={() => handleGenerateInsight(reportType)}
-                    >
-                      生成报告
-                    </button>
-                  </div>
-                </>
-              );
-            }
-
-            return (
-              <>
-                <div className="insight-content">
-                  <h4>{currentInsight.insightTitle}</h4>
-                  <p>{currentInsight.insightSummary}</p>
-                  {currentInsight.insightFullText && (
-                    <button
-                      className="view-full-insight-btn"
-                      onClick={() => setShowFullInsightModal(true)}
-                    >
-                      查看完整洞察
-                    </button>
-                  )}
-                </div>
-                <div className="insight-actions">
-                  <button
-                    className="regenerate-insight-btn"
-                    onClick={() => handleGenerateInsight(reportType)}
-                  >
-                    重新生成
-                  </button>
-                  <button
-                    className="view-history-btn"
-                    onClick={() => handleViewHistory(reportType)}
-                  >
-                    查看历史
-                  </button>
-                </div>
-              </>
-            );
-          })()}
+          <div className="insight-content">
+            {currentInsight.summary.split(/\*\*(.*?)\*\*/g).map((part, i) => 
+              i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+            )}
+          </div>
         </GlassCard>
 
         <div className="report-trend-container">
@@ -449,26 +195,24 @@ export function Report() {
             <p className="card-hint">点击词汇查看溯源 {activeTab === 'weekly' && '/ 拖动底部滑块查看历史流变'}</p>
             <div className="chart-box" style={{ height: '260px', position: 'relative' }}>
               <ReactECharts 
-                key={activeTab}
                 option={wordCloudOption} 
-                style={{ height: 260, width: '100%' }}
-                opts={{ renderer: 'svg' }}
+                style={{ height: '100%', width: '100%' }}
                 onEvents={{ 'click': onChartClick }}
               />
             </div>
-
+            
             {activeTab === 'weekly' && (
               <div className="timeline-slider-container">
-                <input
-                  type="range"
-                  min="0"
-                  max={(realWordCloudData || historicalWordCloudData).length - 1}
+                <input 
+                  type="range" 
+                  min="0" 
+                  max={historicalWordCloudData.length - 1} 
                   value={timeIndex}
                   onChange={(e) => setTimeIndex(Number(e.target.value))}
                   className="timeline-slider"
                 />
                 <div className="timeline-labels">
-                  {(realWordCloudData || historicalWordCloudData).map((t, idx) => (
+                  {historicalWordCloudData.map((t, idx) => (
                     <span key={idx} className={idx === timeIndex ? 'active' : ''}>
                       {t.date}
                     </span>
@@ -532,119 +276,59 @@ export function Report() {
           生成分享海报
         </button>
       </div>
-
+      
       {showPoster && (
-        <PosterModal
+        <PosterModal 
           onClose={() => setShowPoster(false)}
           pieOption={pieOption}
-          insight={activeTab === 'weekly' ? weeklyInsight : dailyInsight}
+          insight={currentInsight}
           activeTab={activeTab}
         />
       )}
 
-      {showFullInsightModal && (
-        <FullInsightModal
-          insight={activeTab === 'weekly' ? weeklyInsight : dailyInsight}
-          onClose={() => setShowFullInsightModal(false)}
-        />
-      )}
-
-      {showHistoryModal && (
-        <HistoryInsightModal
-          type={historyType}
-          onClose={() => setShowHistoryModal(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-// 历史洞察模态框组件
-function HistoryInsightModal({ type, onClose }) {
-  const [historyReports, setHistoryReports] = React.useState([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    fetchHistoryReports();
-  }, []);
-
-  const fetchHistoryReports = async () => {
-    const userId = 1;
-    try {
-      const response = await fetch(
-        `http://localhost:8080/api/insights/all-history?userId=${userId}&type=${type}`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setHistoryReports(data.reports);
-        }
-      }
-    } catch (error) {
-      console.error('获取历史报告失败:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content history-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{type === 'WEEKLY' ? '周报' : '日报'}历史记录</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
-        </div>
-
-        <div className="modal-body">
-          {isLoading ? (
-            <p>加载中...</p>
-          ) : historyReports.length === 0 ? (
-            <p className="empty-message">暂无历史记录</p>
-          ) : (
-            <div className="history-list">
-              {historyReports.map((report) => (
-                <div key={report.id} className="history-item">
-                  <div className="history-item-header">
-                    <h3>{report.insightTitle}</h3>
-                    <span className="history-date">
-                      {report.reportDate} (版本 {report.version})
-                    </span>
-                  </div>
-                  <p className="history-summary">{report.insightSummary}</p>
-                  <details className="history-details">
-                    <summary>查看完整内容</summary>
-                    <div className="history-full-text">
-                      {report.insightFullText}
-                    </div>
-                  </details>
-                </div>
-              ))}
+      {showInfo && createPortal(
+        <div className="info-modal-overlay" onClick={() => setShowInfo(false)}>
+          <div className="info-modal-container" onClick={e => e.stopPropagation()}>
+            <div className="info-modal-header">
+              <h2>数字饮食营养素指南</h2>
+              <button className="info-modal-close" onClick={() => setShowInfo(false)}>×</button>
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// 完整洞察模态框组件
-function FullInsightModal({ insight, onClose }) {
-  if (!insight) return null;
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content full-insight-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{insight.insightTitle}</h3>
-          <button className="modal-close-btn" onClick={onClose}>×</button>
-        </div>
-        <div className="modal-body">
-          <div className="full-insight-text">
-            {insight.insightFullText}
+            <div className="info-modal-content">
+              <div className="info-modal-item">
+                <h3>🥩 1. 蛋白质 (Protein) —— 深度认知与硬核知识</h3>
+                <p><strong>定义：</strong>能够构建个人认知护城河的底层逻辑、学术论文、长篇深度分析、基础科学。</p>
+                <p><strong>特点：</strong>难咀嚼、不易消化（需要高度专注），但能带来长期的心智成长，是增长认知“肌肉”的绝对主力。</p>
+                <p className="info-example">例如：《大语言模型 Transformer 架构的数学推导》、《人类简史》。</p>
+              </div>
+              <div className="info-modal-item">
+                <h3>🍚 2. 碳水化合物 (Carbs) —— 实用技能与行业快讯</h3>
+                <p><strong>定义：</strong>能够快速转化为行动力、拿来就用的工具技巧，或是最新的行业新闻动态。</p>
+                <p><strong>特点：</strong>消化快，能提供快速的“能量”，看完立刻就能在工作或聊天中用上，但半衰期较短（技术和新闻容易过时）。</p>
+                <p className="info-example">例如：《10分钟教你用 React 19 新特性》、《今日 AI 圈五件大事》。</p>
+              </div>
+              <div className="info-modal-item">
+                <h3>🍊 3. 维生素 (Vitamins) —— 创意灵感与美学体验</h3>
+                <p><strong>定义：</strong>设计作品、艺术鉴赏、优秀的文案、能够激发大脑产生新点子的小众内容。</p>
+                <p><strong>特点：</strong>不需要大量或长时间摄入，但不可或缺。它们能打破思维定势，让大脑保持活跃和年轻。</p>
+                <p className="info-example">例如：《2026年最佳网页动效赏析》、《宫崎骏的色彩哲学》。</p>
+              </div>
+              <div className="info-modal-item">
+                <h3>🍔 4. 脂肪与糖分 (Fats & Sugars) —— 纯娱乐与情绪多巴胺</h3>
+                <p><strong>定义：</strong>搞笑短视频、无脑爽剧、明星八卦、情绪煽动型的口水文。</p>
+                <p><strong>特点：</strong>口感极佳，能瞬间飙升多巴胺（极具爽感），但毫无长期价值。适量摄入可以解压，但过量会导致“数字肥胖”和注意力涣散。</p>
+                <p className="info-example">例如：《某网红最新狗血大瓜》、《3分钟看完这部爽剧》。</p>
+              </div>
+              <div className="info-modal-item">
+                <h3>🥬 5. 膳食纤维 (Fiber) —— 哲思与心理复原力</h3>
+                <p><strong>定义：</strong>哲学探讨、心理疏导、历史宏观感悟、慢节奏的自然纪录片或人物访谈。</p>
+                <p><strong>特点：</strong>不能立刻教你赚钱，也不能让你发笑，但它能清理大脑的“信息垃圾”，缓解焦虑，让你平心静气。</p>
+                <p className="info-example">例如：《项飙：把自己作为方法》、《地球脉动》。</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
