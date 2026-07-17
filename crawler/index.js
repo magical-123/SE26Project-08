@@ -171,35 +171,37 @@ function classifyByText(title, excerpt) {
 
 /**
  * 校验字幕与标题是否相关
- * 提取标题中的关键词（去除常见停用词），检查字幕中是否包含至少一个关键词
+ * bigram 分词：标题切成 2 字滑动窗口 + 英文单词(>=3字母)，
+ * 字幕中命中任意一个非停用 gram 即视为相关
  */
 function isSubtitleRelevant(title, subtitle) {
   if (!title || !subtitle) return false;
 
-  // 从标题中提取关键词（2字以上的连续中文字符或英文单词）
-  const keywords = [];
-  // 中文关键词：2-4 个连续汉字
-  const cnMatches = title.match(/[\u4e00-\u9fa5]{2,4}/g);
-  if (cnMatches) keywords.push(...cnMatches);
-  // 英文关键词：4个字母以上的单词
-  const enMatches = title.match(/[a-zA-Z]{4,}/g);
-  if (enMatches) keywords.push(...enMatches);
+  // 通用词（bigram 级停用词），不具区分度
+  const stopGrams = new Set([
+    '视频', '内容', '文章', '介绍', '分享', '讲解', '分析', '什么', '怎么', '为什', '么样', '如何',
+    '一个', '这个', '那个', '可以', '不能', '不是', '就是', '还是', '没有', '有没', '其实', '真的',
+    '到底', '是不', '大家', '我们', '你们', '他们', '自己', '觉得', '知道', '应该', '时候', '现在',
+    '问题', '东西', '事情', '感觉', '看到', '出现', '进行', '使用', '需要', '带你', '教程',
+  ]);
 
-  if (keywords.length === 0) return true; // 无法提取关键词时放行
+  const grams = [];
+  // 中文：连续汉字段切 2 字滑动窗口
+  const cnSegs = title.match(/[\u4e00-\u9fa5]+/g) || [];
+  for (const seg of cnSegs) {
+    for (let i = 0; i + 2 <= seg.length; i++) {
+      const g = seg.substring(i, i + 2);
+      if (!stopGrams.has(g)) grams.push(g);
+    }
+  }
+  // 英文：3 字母以上的单词（覆盖 LLM、Git 等短词）
+  const enWords = title.match(/[a-zA-Z]{3,}/g) || [];
+  for (const w of enWords) grams.push(w.toLowerCase());
 
-  // 停用词
-  const stopWords = new Set(['什么', '怎么', '为什么', '如何', '一个', '这个', '那个', '可以', '不能', '不是', '就是', '还是', '有没有', '为什么', '怎么样']);
-
-  // 检查字幕中是否包含至少一个关键词（排除停用词）
-  const relevantKeywords = keywords.filter(k => !stopWords.has(k));
-  if (relevantKeywords.length === 0) return true;
+  if (grams.length === 0) return true; // 无法提取关键词时放行
 
   const subtitleLower = subtitle.toLowerCase();
-  for (const kw of relevantKeywords) {
-    if (subtitleLower.includes(kw.toLowerCase())) return true;
-  }
-
-  return false;
+  return grams.some(g => subtitleLower.includes(g));
 }
 
 /** B 站分类映射 */
