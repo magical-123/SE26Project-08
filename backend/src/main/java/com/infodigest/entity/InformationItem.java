@@ -60,4 +60,8 @@ public class InformationItem {
 
     @Column(length = 1000)
     private String nutritionReasoning;     // 营养成分分析理由
+
+    // 用户行为数据字段
+    private Integer watchDurationSeconds;  // 实际观看时长（秒）
+    private Double completionRate;         // 完播率（0.0-1.0）
 }
