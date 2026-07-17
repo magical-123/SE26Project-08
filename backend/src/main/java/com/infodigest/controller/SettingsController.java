@@ -96,27 +96,32 @@ public class SettingsController {
         // B 站
         boolean biliConnected = platformMap.containsKey("BILIBILI");
         long biliCount = informationItemRepository.countByUserIdAndPlatform(userId, "BILIBILI");
-        platforms.add(buildPlatform("bilibili", "Bilibili", biliConnected || biliCount > 0,
-                biliConnected ? "已通过 Cookie 授权" : (biliCount > 0 ? "已通过 Cookie 授权" : "未授权")));
+        String biliDesc = biliConnected ? "已通过 Cookie 授权" + (biliCount > 0 ? "（" + biliCount + "条数据）" : "") : "未授权";
+        platforms.add(buildPlatform("bilibili", "Bilibili", biliConnected, biliDesc));
 
         // 知乎
         boolean zhihuConnected = platformMap.containsKey("ZHIHU");
         long zhihuCount = informationItemRepository.countByUserIdAndPlatform(userId, "ZHIHU");
-        platforms.add(buildPlatform("zhihu", "Zhihu", zhihuConnected || zhihuCount > 0,
-                zhihuConnected ? "已通过 Cookie 授权" : (zhihuCount > 0 ? "已通过 Cookie 授权" : "未授权")));
+        String zhihuDesc = zhihuConnected ? "已通过 Cookie 授权" + (zhihuCount > 0 ? "（" + zhihuCount + "条数据）" : "") : "未授权";
+        platforms.add(buildPlatform("zhihu", "Zhihu", zhihuConnected, zhihuDesc));
 
         // 小红书
         boolean xhsConnected = platformMap.containsKey("XIAOHONGSHU");
         long xhsCount = informationItemRepository.countByUserIdAndPlatform(userId, "XIAOHONGSHU");
-        platforms.add(buildPlatform("xiaohongshu", "小红书", xhsConnected || xhsCount > 0,
-                xhsConnected ? "已连接" : (xhsCount > 0 ? "已连接" : "未授权")));
+        String xhsDesc = xhsConnected ? "已连接" + (xhsCount > 0 ? "（" + xhsCount + "条数据）" : "") : "未授权";
+        platforms.add(buildPlatform("xiaohongshu", "小红书", xhsConnected, xhsDesc));
 
         // GitHub
         boolean githubConnected = platformMap.containsKey("GITHUB");
-        platforms.add(buildPlatform("github", "GitHub", githubConnected,
-                githubConnected ? "已通过 Token 授权" : "未授权"));
+        long githubCount = informationItemRepository.countByUserIdAndPlatform(userId, "GITHUB");
+        String githubDesc = githubConnected ? "已通过 Token 授权" + (githubCount > 0 ? "（" + githubCount + "条数据）" : "") : "未授权";
+        platforms.add(buildPlatform("github", "GitHub", githubConnected, githubDesc));
 
         result.put("platforms", platforms);
+
+        // 返回娱乐信息隐藏状态
+        result.put("hideEntertainment", isEntertainmentHidden(userId));
+
         return ResponseEntity.ok(result);
     }
 
@@ -576,6 +581,45 @@ public class SettingsController {
         return ResponseEntity.status(502).body(result);
     }
 
+    /**
+     * 切换娱乐信息隐藏开关
+     */
+    @PostMapping("/toggle-entertainment-hide")
+    public ResponseEntity<Map<String, Object>> toggleEntertainmentHide() {
+        Long userId = getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean current = isEntertainmentHidden(userId);
+        String newValue = current ? "[]" : "[\"ENTERTAINMENT\"]";
+        user.setHiddenPlatforms(newValue);
+        userRepository.save(user);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("hideEntertainment", !current);
+        return ResponseEntity.ok(response);
+    }
+
+    private boolean isEntertainmentHidden(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (user.getHiddenPlatforms() == null) return false;
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String[] hidden = mapper.readValue(user.getHiddenPlatforms(), String[].class);
+            for (String h : hidden) {
+                if ("ENTERTAINMENT".equalsIgnoreCase(h)) return true;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * 从 JWT 获取当前用户 ID
+     */
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();

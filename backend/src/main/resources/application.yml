@@ -22,3 +22,10 @@ logging:
   level:
     com.infodigest: INFO
     org.springframework.security: INFO
+
+# AI 摘要配置（每条数据入库时异步触发，无需定时调度）
+ai:
+  deepseek:
+    api-url: https://api.deepseek.com/v1/chat/completions
+    api-key: ${DEEPSEEK_API_KEY:sk-your-api-key}
+    model: deepseek-chat
