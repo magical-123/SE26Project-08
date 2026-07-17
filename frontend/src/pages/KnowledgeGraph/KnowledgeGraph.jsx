@@ -38,8 +38,14 @@ function buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNo
     });
   });
 
-  // Only keep concepts that actually have premium items AND are visible
-  const validConcepts = conceptNodes.filter(c => conceptCounts[c.id] > 0);
+  // Only keep concepts that actually have premium items AND are visible (按 label 去重)
+  const seenLabels = new Set();
+  const validConcepts = conceptNodes.filter(c => {
+    if (conceptCounts[c.id] <= 0) return false;
+    if (seenLabels.has(c.label)) return false;
+    seenLabels.add(c.label);
+    return true;
+  });
   const activeConcepts = validConcepts.filter(c => !visibleConcepts || visibleConcepts.has(c.id));
   
   const width = window.innerWidth || 800;
@@ -267,20 +273,24 @@ function ConceptNode({ data }) {
   return (
     <div
       style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: bgColor,
-        border: `${borderWidth}px solid ${borderColor}`,
-        boxShadow: `0 0 ${shadowBlur}px ${shadowColor}`,
-        opacity,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
+        opacity,
         transition: 'all 0.3s ease',
       }}
     >
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: bgColor,
+          border: `${borderWidth}px solid ${borderColor}`,
+          boxShadow: `0 0 ${shadowBlur}px ${shadowColor}`,
+          cursor: 'pointer',
+        }}
+      />
       <span
         style={{
           background: 'rgba(255,255,255,0.85)',
@@ -289,11 +299,11 @@ function ConceptNode({ data }) {
           fontSize: 12,
           fontWeight: 700,
           color: '#2a2a2a',
-          maxWidth: size - 16,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          marginTop: 4,
+          maxWidth: 160,
           lineHeight: 1.3,
+          textAlign: 'center',
+          wordBreak: 'break-word',
         }}
       >
         {data.label || ''}
@@ -736,7 +746,14 @@ function KnowledgeGraphInner() {
       const cids = sourceConceptMap[item.id] || [];
       cids.forEach(cid => { if (counts[cid] !== undefined) counts[cid]++; });
     });
-    return conceptNodes.filter(c => counts[c.id] > 0);
+    // 先按 label 去重（保留第一个出现的），再过滤掉无关联数据的
+    const seenLabels = new Set();
+    return conceptNodes.filter(c => {
+      if (counts[c.id] <= 0) return false;
+      if (seenLabels.has(c.label)) return false;
+      seenLabels.add(c.label);
+      return true;
+    });
   }, [items, conceptNodes, sourceConceptMap]);
 
   const allVisible = validConcepts.length > 0 && validConcepts.every(c => visibleConcepts.has(c.id));

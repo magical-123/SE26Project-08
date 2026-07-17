@@ -280,7 +280,7 @@ export function Report() {
         <GlassCard className="report-card pie-card">
           <h3>五维度营养分布</h3>
           <div className="chart-box">
-            <ReactECharts option={pieOption} style={{ height: '100%', width: '100%' }} />
+            <ReactECharts option={pieOption} style={{ height: 300, width: '100%' }} opts={{ renderer: 'svg' }} />
           </div>
         </GlassCard>
 
@@ -361,8 +361,10 @@ export function Report() {
             <p className="card-hint">点击词汇查看溯源 {activeTab === 'weekly' && '/ 拖动底部滑块查看历史流变'}</p>
             <div className="chart-box" style={{ height: '260px', position: 'relative' }}>
               <ReactECharts 
+                key={activeTab}
                 option={wordCloudOption} 
-                style={{ height: '100%', width: '100%' }}
+                style={{ height: 260, width: '100%' }}
+                opts={{ renderer: 'svg' }}
                 onEvents={{ 'click': onChartClick }}
               />
             </div>
