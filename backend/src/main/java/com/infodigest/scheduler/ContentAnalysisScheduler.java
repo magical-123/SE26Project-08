@@ -1,6 +1,7 @@
 package com.infodigest.scheduler;
 
 import com.infodigest.entity.InformationItem;
+import com.infodigest.repository.AIConfigRepository;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.service.ContentAnalysisService;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -22,23 +25,37 @@ public class ContentAnalysisScheduler {
     @Autowired
     private ContentAnalysisService analysisService;
 
+    @Autowired
+    private AIConfigRepository aiConfigRepository;
+
     private static final int BATCH_SIZE = 10;
 
     @Scheduled(fixedRate = 60000)
     public void scanAndAnalyzeItems() {
         log.debug("Starting scheduled content analysis scan");
 
-        List<InformationItem> unprocessedItems = itemRepository.findByProcessStatus(
+        // 只处理有 AI 配置的用户的数据
+        Set<Long> usersWithConfig = aiConfigRepository.findAll().stream()
+                .map(config -> config.getUserId())
+                .collect(Collectors.toSet());
+
+        if (usersWithConfig.isEmpty()) {
+            log.debug("No users with AI config found, skipping analysis");
+            return;
+        }
+
+        List<InformationItem> unprocessedItems = itemRepository.findByProcessStatusAndUserIdIn(
                 "UNPROCESSED",
+                usersWithConfig,
                 PageRequest.of(0, BATCH_SIZE)
         );
 
         if (unprocessedItems.isEmpty()) {
-            log.debug("No unprocessed items found");
+            log.debug("No unprocessed items found for users with AI config");
             return;
         }
 
-        log.info("Found {} unprocessed items, starting analysis", unprocessedItems.size());
+        log.info("Found {} unprocessed items for users with AI config, starting analysis", unprocessedItems.size());
 
         for (InformationItem item : unprocessedItems) {
             analyzeItemAsync(item.getId());

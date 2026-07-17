@@ -104,9 +104,12 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
                 <div className="ai-summary-header">
                   <Sparkles size={16} />
                   <span>AI 智能摘要</span>
+                  {d.knowledgeScore != null && (
+                    <span className="ai-score-tag">知识评分：{d.knowledgeScore}</span>
+                  )}
                 </div>
                 <p>
-                  {d.summary || '系统已经对该信息源进行了智能解析。本文探讨了相关领域的核心概念和未来发展趋势，是一篇高质量的内容。'}
+                  {d.aiSummary || 'AI 正在分析中，稍后刷新即可查看...'}
                 </p>
               </div>
 

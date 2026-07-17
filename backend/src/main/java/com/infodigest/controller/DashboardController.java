@@ -141,6 +141,102 @@ public class DashboardController {
         return ResponseEntity.ok(summary);
     }
 
+    // ==================== 清理重复数据 ====================
+
+    /**
+     * 清理当前用户的重复信息项（基于 url + platform 去重，保留最新的一条）
+     */
+    @PostMapping("/cleanup-duplicates")
+    public ResponseEntity<Map<String, Object>> cleanupDuplicates() {
+        Long userId = getCurrentUserId();
+        List<InformationItem> items = informationItemRepository.findByUserId(userId);
+
+        Map<String, InformationItem> seen = new LinkedHashMap<>();
+        List<Long> toDelete = new ArrayList<>();
+
+        items.sort((a, b) -> b.getCrawledAt().compareTo(a.getCrawledAt()));
+
+        for (InformationItem item : items) {
+            String key = (item.getUrl() != null ? item.getUrl() : "") + "|" + (item.getPlatform() != null ? item.getPlatform() : "");
+            if (seen.containsKey(key)) {
+                toDelete.add(item.getId());
+            } else {
+                seen.put(key, item);
+            }
+        }
+
+        for (Long id : toDelete) {
+            informationItemRepository.deleteById(id);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("deletedCount", toDelete.size());
+        result.put("remainingCount", seen.size());
+        result.put("message", "已删除 " + toDelete.size() + " 条重复数据，保留 " + seen.size() + " 条");
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 基于标题去重：同一平台下标题相同的只保留最新一条
+     */
+    @PostMapping("/cleanup-title-duplicates")
+    public ResponseEntity<Map<String, Object>> cleanupTitleDuplicates() {
+        Long userId = getCurrentUserId();
+        List<InformationItem> items = informationItemRepository.findByUserId(userId);
+
+        Map<String, InformationItem> seen = new LinkedHashMap<>();
+        List<Long> toDelete = new ArrayList<>();
+
+        items.sort((a, b) -> b.getCrawledAt().compareTo(a.getCrawledAt()));
+
+        for (InformationItem item : items) {
+            String key = (item.getTitle() != null ? item.getTitle() : "") + "|" + (item.getPlatform() != null ? item.getPlatform() : "");
+            if (seen.containsKey(key)) {
+                toDelete.add(item.getId());
+            } else {
+                seen.put(key, item);
+            }
+        }
+
+        for (Long id : toDelete) {
+            informationItemRepository.deleteById(id);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("deletedCount", toDelete.size());
+        result.put("remainingCount", seen.size());
+        result.put("message", "已删除 " + toDelete.size() + " 条标题重复数据，保留 " + seen.size() + " 条");
+        return ResponseEntity.ok(result);
+    }
+
+    // ==================== 迁移旧优质数据 ====================
+
+    /**
+     * 重置所有 isPremium 为 false（修复 Hibernate 自动建列时的默认值问题）
+     */
+    @PostMapping("/reset-premium")
+    public ResponseEntity<Map<String, Object>> resetPremium() {
+        Long userId = getCurrentUserId();
+        List<InformationItem> items = informationItemRepository.findByUserId(userId);
+
+        int reset = 0;
+        for (InformationItem item : items) {
+            if (Boolean.TRUE.equals(item.getIsPremium())) {
+                item.setIsPremium(false);
+                informationItemRepository.save(item);
+                reset++;
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("resetCount", reset);
+        result.put("message", "已将 " + reset + " 条数据的 isPremium 重置为 false");
+        return ResponseEntity.ok(result);
+    }
+
     // ==================== 鉴权辅助 ====================
 
     private Long getCurrentUserId() {

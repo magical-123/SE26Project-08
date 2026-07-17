@@ -17,6 +17,7 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     Page<InformationItem> findByUserId(Long userId, Pageable pageable);
     List<InformationItem> findByUserIdAndProcessStatus(Long userId, String processStatus);
     List<InformationItem> findByProcessStatus(String processStatus, Pageable pageable);
+    List<InformationItem> findByProcessStatusAndUserIdIn(String processStatus, java.util.Collection<Long> userIds, Pageable pageable);
     Optional<InformationItem> findByIdAndUserId(Long id, Long userId);
 
     // 查询用户在指定时间范围内的已分析视频
@@ -29,4 +30,7 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
 
     long countByUserIdAndPlatform(Long userId, String platform);
     List<InformationItem> findByAiSummaryIsNull(Pageable pageable);
+
+    // 按标题+平台+用户查找最新的一条（用于去重）
+    Optional<InformationItem> findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(Long userId, String title, String platform);
 }

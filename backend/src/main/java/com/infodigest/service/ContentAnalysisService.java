@@ -113,7 +113,8 @@ public class ContentAnalysisService {
             item.setNutritionReasoning(result.getReasoning());
             item.setAiSummary(result.getSummary());
             item.setAnalyzedAt(LocalDateTime.now());
-            item.setProcessStatus("PROCESSED");
+            // 不再修改 processStatus，保持原状态（UNPROCESSED/FAILED）
+            // isPremium 由用户手动标记，与 AI 分析无关
 
             itemRepository.save(item);
 
