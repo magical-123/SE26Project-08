@@ -38,6 +38,10 @@ export function Settings() {
   const [zhihuQrPolling, setZhihuQrPolling] = useState(false);
   const [zhihuQrLoading, setZhihuQrLoading] = useState(false);
 
+  // 娱乐信息隐藏开关
+  const [hideEntertainment, setHideEntertainment] = useState(false);
+  const [togglingHide, setTogglingHide] = useState(false);
+
   // 页面加载时从后端获取真实平台连接状态
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +55,10 @@ export function Settings() {
           if (remote) return { ...p, connected: remote.connected, desc: remote.desc };
           return p;
         }));
+        // 读取娱乐信息隐藏状态
+        if (typeof data.hideEntertainment === 'boolean') {
+          setHideEntertainment(data.hideEntertainment);
+        }
       })
       .catch((err) => {
         if (cancelled) return;
@@ -88,6 +96,20 @@ export function Settings() {
       }));
     } catch (err) {
       console.warn('刷新平台状态失败:', err.message);
+    }
+  };
+
+  const handleToggleEntertainmentHide = async () => {
+    setTogglingHide(true);
+    try {
+      const data = await settingsApi.toggleEntertainmentHide();
+      if (data.hideEntertainment !== undefined) {
+        setHideEntertainment(data.hideEntertainment);
+      }
+    } catch (err) {
+      console.warn('切换娱乐信息隐藏失败:', err.message);
+    } finally {
+      setTogglingHide(false);
     }
   };
 
@@ -268,11 +290,11 @@ export function Settings() {
     let promptMsg = '';
 
     if (platform === 'github') {
-      promptMsg = '请输入 GitHub Personal Access Token\n\n获取方式：GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token';
+      promptMsg = '请输入 GitHub Personal Access Token\n\n获取方式：\n1. 打开 GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)\n2. 点击 Generate new token，勾选 repo 和 user 权限\n3. 生成后复制 Token 粘贴到此处';
     } else if (platform === 'xiaohongshu') {
-      promptMsg = '请输入小红书 Cookie（可选）\n\n不填写也可使用公开发现页。获取方式：浏览器登录 xiaohongshu.com 后，F12 → Application → Cookies → 复制完整 Cookie 字符串';
+      promptMsg = '请输入小红书 Cookie（可选，不填则使用公开发现页）\n\n📌 获取方式：\n1. 浏览器打开 xiaohongshu.com 并登录\n2. 按 F12 打开开发者工具 → 切换到 Console（控制台）标签\n3. 输入 document.cookie 并回车\n4. 复制输出的完整字符串，粘贴到此处';
     } else if (platform === 'zhihu') {
-      promptMsg = '请输入知乎完整 Cookie（必须包含 z_c0=... 字段！）\n\n获取方式：\n1. 浏览器打开 zhihu.com 并登录\n2. 按 F12 → Application → Cookies → zhihu.com\n3. 全选所有 Cookie（Ctrl+A），复制粘贴到此处\n\n提示：可用「终端运行 zhihu_poc.py」自动获取完整 Cookie';
+      promptMsg = '请输入知乎完整 Cookie（必须包含 z_c0=... 字段！）\n\n📌 获取方式：\n1. 浏览器打开 zhihu.com 并登录\n2. 按 F12 打开开发者工具 → 切换到 Console（控制台）标签\n3. 输入 document.cookie 并回车\n4. 复制输出的完整字符串，粘贴到此处\n\n💡 提示：也可使用顶部的「知乎扫码登录」免手动复制';
     }
 
     credential = window.prompt(promptMsg);
@@ -408,7 +430,12 @@ export function Settings() {
                 <p>自动隐藏标签为"娱乐短剧"等低营养信息，不在趋势中展示</p>
               </div>
               <label className="switch">
-                <input type="checkbox" defaultChecked />
+                <input
+                  type="checkbox"
+                  checked={hideEntertainment}
+                  disabled={togglingHide}
+                  onChange={handleToggleEntertainmentHide}
+                />
                 <span className="slider"></span>
               </label>
             </div>

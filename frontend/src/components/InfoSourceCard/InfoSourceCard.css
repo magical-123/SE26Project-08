@@ -212,3 +212,34 @@
   border-bottom: 1px solid var(--text-main);
   padding-bottom: 1px;
 }
+
+/* AI 摘要 */
+.isc-ai-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.isc-ai-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #10B981;
+}
+
+.isc-score-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 3px;
+  white-space: nowrap;
+}

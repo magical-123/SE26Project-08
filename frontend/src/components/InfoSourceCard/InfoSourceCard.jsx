@@ -1,6 +1,6 @@
 import React from 'react';
 import { GlassCard } from '../GlassCard/GlassCard';
-import { Clock, PlayCircle, FileText, Mic, ArrowUpRight, Heart, Star, Sparkles } from 'lucide-react';
+import { Clock, PlayCircle, FileText, Mic, ArrowUpRight, Heart, Star, Sparkles, Zap } from 'lucide-react';
 import './InfoSourceCard.css';
 
 const platformIcon = {
@@ -44,6 +44,17 @@ export function InfoSourceCard({ data, onClick, onTogglePremium, isPremium, prem
 
       <div className="isc-body">
         <h3 className="isc-title">{data.title}</h3>
+        {data.aiSummary && (
+          <p className="isc-ai-summary">
+            <Zap size={12} className="isc-ai-icon" />
+            {data.aiSummary}
+            {data.knowledgeScore != null && (
+              <span className="isc-score-tag">
+                {data.knowledgeScore}分
+              </span>
+            )}
+          </p>
+        )}
       </div>
 
       <div className="isc-footer">

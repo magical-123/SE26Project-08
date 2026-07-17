@@ -46,9 +46,9 @@ public class CrawlScheduler {
     private static final List<String> PLATFORMS = List.of("bilibili", "zhihu", "github", "xiaohongshu");
 
     /**
-     * 每 30 秒自动触发一次全平台爬虫
+     * 每 5 分钟自动触发一次全平台爬虫
      */
-    @Scheduled(fixedRate = 30000)
+    @Scheduled(fixedRate = 300000)
     public void scheduledCrawl() {
         if (!running.compareAndSet(false, true)) {
             System.out.println("[CrawlScheduler] 上一次爬虫周期尚未结束，跳过本轮");
@@ -68,13 +68,9 @@ public class CrawlScheduler {
                 List<UserPlatform> platforms = userPlatformRepository.findByUserId(user.getId());
                 Set<String> connectedPlatforms = ConcurrentHashMap.newKeySet();
                 for (UserPlatform up : platforms) {
-                    if (up.getCredential() != null && !up.getCredential().isBlank()) {
-                        connectedPlatforms.add(up.getPlatform().toLowerCase());
-                    }
+                    // 只要有平台记录就视为已连接（含空凭证的小红书等）
+                    connectedPlatforms.add(up.getPlatform().toLowerCase());
                 }
-
-                // 小红书不需要凭证，始终抓取
-                connectedPlatforms.add("xiaohongshu");
 
                 for (String platform : PLATFORMS) {
                     if (!connectedPlatforms.contains(platform)) {

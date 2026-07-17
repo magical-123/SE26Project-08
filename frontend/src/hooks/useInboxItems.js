@@ -37,6 +37,8 @@ function formatItem(item) {
     processStatus: item.processStatus,
     url: item.url,
     contentRaw: item.contentRaw,
+    aiSummary: item.aiSummary || null,
+    knowledgeScore: item.knowledgeScore || null,
   };
 }
 
@@ -181,7 +183,7 @@ export function useInboxItems() {
     }
   }, [loadInitial, refetching, initialized]);
 
-  // 实时更新：每 30 秒静默拉取最新 30 条数据，替换当前列表
+  // 实时更新：每 5 分钟静默拉取最新 30 条数据，替换当前列表
   useEffect(() => {
     if (!initialized) return;
     const timer = setInterval(async () => {
@@ -198,7 +200,7 @@ export function useInboxItems() {
           } catch {}
         }
       } catch { /* silent */ }
-    }, 30000);
+    }, 300000);
     return () => clearInterval(timer);
   }, [initialized, pageSize]);
 
@@ -246,15 +248,36 @@ export function useInboxItems() {
     }
   }, []);
 
-  // togglePremium（本地标记优质信息源）
-  const togglePremium = useCallback((id) => {
-    setItems((prev) =>
-      prev.map((item) =>
+  // togglePremium（标记/取消优质信息源，同步到后端）
+  const togglePremium = useCallback(async (id) => {
+    // 先读取当前状态，决定要设置为什么
+    setItems((prev) => {
+      const current = prev.find(i => i.id === id);
+      const newStatus = current && current.hasNote ? 'UNPROCESSED' : 'PROCESSED';
+      const newHasNote = current && current.hasNote ? false : true;
+
+      // 乐观更新本地
+      const updated = prev.map((item) =>
         item.id === id
-          ? { ...item, hasNote: !item.hasNote }
+          ? { ...item, hasNote: newHasNote, processStatus: newStatus }
           : item
-      )
-    );
+      );
+
+      // 同步到后端
+      inboxApi.updateItem(id, { processStatus: newStatus }).catch((err) => {
+        console.error('更新优质信息源状态失败:', err);
+        // 失败则回滚本地状态
+        setItems((old) =>
+          old.map((item) =>
+            item.id === id
+              ? { ...item, hasNote: !newHasNote, processStatus: newStatus === 'PROCESSED' ? 'UNPROCESSED' : 'PROCESSED' }
+              : item
+          )
+        );
+      });
+
+      return updated;
+    });
   }, []);
 
   // 保存笔记（调 real API）
