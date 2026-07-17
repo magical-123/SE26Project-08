@@ -23,6 +23,10 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     List<InformationItem> findByUserIdAndProcessStatusAndAnalyzedAtBetween(
             Long userId, String processStatus, LocalDateTime startTime, LocalDateTime endTime);
 
+    // 查询用户在指定时间范围内的已分析视频（使用crawledAt）
+    List<InformationItem> findByUserIdAndProcessStatusAndCrawledAtBetween(
+            Long userId, String processStatus, LocalDateTime startTime, LocalDateTime endTime);
+
     long countByUserIdAndPlatform(Long userId, String platform);
     List<InformationItem> findByAiSummaryIsNull(Pageable pageable);
 }
