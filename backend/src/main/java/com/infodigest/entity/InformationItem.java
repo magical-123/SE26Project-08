@@ -35,7 +35,7 @@ public class InformationItem {
     private String contentRaw;
 
     @Column(nullable = false)
-    private String processStatus = "UNPROCESSED"; // UNPROCESSED, PROCESSED
+    private String processStatus = "UNPROCESSED"; // UNPROCESSED, PROCESSED, FAILED
 
     // AI 分析相关字段
     private Integer knowledgeScore; // 知识含量评分(0-100)
@@ -55,4 +55,14 @@ public class InformationItem {
     public Boolean getHasNote() {
         return "PROCESSED".equals(this.processStatus);
     }
+
+    // AI 分析结果字段 - 营养成分评估
+    private Integer nutritionProtein;      // 蛋白质：深度认知与硬核知识
+    private Integer nutritionCarbs;        // 碳水化合物：实用技能与行业快讯
+    private Integer nutritionVitamins;     // 维生素：创意灵感与美学体验
+    private Integer nutritionFats;         // 脂肪与糖分：纯娱乐与情绪多巴胺
+    private Integer nutritionFiber;        // 膳食纤维：哲思与心理复原力
+
+    @Column(length = 1000)
+    private String nutritionReasoning;     // 营养成分分析理由
 }
