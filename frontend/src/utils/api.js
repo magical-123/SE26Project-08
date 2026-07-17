@@ -134,6 +134,35 @@ export const dashboardApi = {
   },
 };
 
+// ===== Word Cloud API =====
+
+export const wordCloudApi = {
+  /** 生成指定日期的词云数据 */
+  async generate(userId, date) {
+    const res = await apiFetch(
+      `/api/wordcloud/generate?userId=${userId}&date=${date}`,
+      { method: 'POST' }
+    );
+    return res.json();
+  },
+
+  /** 获取指定日期的词云数据 */
+  async getDaily(userId, date) {
+    const res = await apiFetch(
+      `/api/wordcloud/daily?userId=${userId}&date=${date}`
+    );
+    return res.json();
+  },
+
+  /** 获取最近7天的词云数据 */
+  async getWeekly(userId, endDate) {
+    const res = await apiFetch(
+      `/api/wordcloud/weekly?userId=${userId}&endDate=${endDate}`
+    );
+    return res.json();
+  },
+};
+
 // ===== Settings API =====
 
 export const settingsApi = {

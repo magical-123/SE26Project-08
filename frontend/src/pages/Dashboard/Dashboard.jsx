@@ -9,6 +9,8 @@ import { AIQuoteCard } from '../../components/AIQuoteCard/AIQuoteCard';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { BookOpen, Zap, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { nutritionData, wordCloudData, aiQuotes, reviewCards } from '../../mock/dashboardData';
+import { wordCloudApi } from '../../utils/api';
 import './Dashboard.css';
 
 const API_BASE = 'http://localhost:8080';
@@ -30,6 +32,42 @@ export function Dashboard() {
   const [aiQuotes, setAiQuotes] = useState([]);
   const [reviewCards, setReviewCards] = useState([]);
   const [summary, setSummary] = useState({ todayViews: 0, premiumCount: 0, immersionHours: 0 });
+  const [realWordCloudData, setRealWordCloudData] = useState(null);
+  const [loadingWordCloud, setLoadingWordCloud] = useState(true);
+
+  // 获取今日词云数据（从增强的 report 后端 API）
+  useEffect(() => {
+    const fetchWordCloud = async () => {
+      try {
+        const username = localStorage.getItem('username');
+        if (!username) return;
+
+        const userId = 1; // TODO: 从用户信息中获取真实的userId
+        const today = new Date().toISOString().split('T')[0];
+
+        const response = await wordCloudApi.getDaily(userId, today);
+
+        if (response.success && response.data && response.data.keywords) {
+          const keywords = Array.isArray(response.data.keywords)
+            ? response.data.keywords
+            : JSON.parse(response.data.keywords);
+
+          const formattedData = keywords.map(item => ({
+            name: item.word,
+            value: item.value
+          }));
+
+          setRealWordCloudData(formattedData);
+        }
+      } catch (error) {
+        console.error('[词云] 获取失败:', error);
+      } finally {
+        setLoadingWordCloud(false);
+      }
+    };
+
+    fetchWordCloud();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,9 +140,9 @@ export function Dashboard() {
         focus: 'self',
         textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
       },
-      data: wordCloudData
+      data: realWordCloudData || wordCloudData
     }]
-  }), [wordCloudData]);
+  }), [realWordCloudData, wordCloudData]);
 
   // Transform nutrition API data: {value, name, itemStyle:{color}} → {name, value, color}
   const transformedNutritionData = useMemo(() => {

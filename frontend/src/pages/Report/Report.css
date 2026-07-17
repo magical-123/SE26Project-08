@@ -421,7 +421,6 @@
 
 .insight-card {
   height: 100%;
-  background: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.4) 100%);
   border-left: 4px solid var(--primary);
   display: flex;
   flex-direction: column;
@@ -658,11 +657,12 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.5);
+  background: transparent;  /* 修改：去掉黑色半透明背景 */
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  pointer-events: none;  /* 添加：让背景不拦截点击事件 */
 }
 
 .modal-content {
@@ -674,6 +674,7 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+  pointer-events: auto;  /* 添加：让浮窗本身可以接收点击事件 */
 }
 
 .modal-header {
@@ -917,5 +918,68 @@
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* 查看完整洞察按钮 */
+.view-full-insight-btn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background: rgba(14,165,233,0.1);
+  color: var(--primary);
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-full-insight-btn:hover {
+  background: rgba(14,165,233,0.2);
+  transform: translateY(-1px);
+}
+
+/* 完整洞察模态框 */
+.full-insight-modal {
+  max-width: 900px;
+}
+
+.full-insight-modal .modal-header h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.modal-close-btn {
+  font-size: 28px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  background: none;
+  border: none;
+  line-height: 1;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.modal-close-btn:hover {
+  color: var(--text-main);
+  transform: rotate(90deg);
+}
+
+.full-insight-modal .modal-body {
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.full-insight-text {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
 }
 }
