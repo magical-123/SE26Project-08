@@ -36,4 +36,8 @@ public interface UserReportRepository extends JpaRepository<UserReport, Long> {
     // 查询用户某个日期范围的报告
     List<UserReport> findByUserIdAndTypeAndReportDateBetweenOrderByReportDateDesc(
             Long userId, ReportType type, LocalDate startDate, LocalDate endDate);
+
+    // 查询用户某个日期范围的报告（升序，用于周报生成）
+    List<UserReport> findByUserIdAndTypeAndReportDateBetween(
+            Long userId, ReportType type, LocalDate startDate, LocalDate endDate);
 }
