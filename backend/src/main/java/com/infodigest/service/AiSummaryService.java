@@ -67,8 +67,15 @@ public class AiSummaryService {
         System.out.println("[AiSummary] 异步生成摘要: " + item.getTitle());
         boolean ok = generateSummary(item);
         if (ok) {
-            item.setAnalyzedAt(LocalDateTime.now());
-            informationItemRepository.save(item);
+            // 使用局部更新，仅更新 AI 摘要相关字段，避免覆盖用户手动标记的 isPremium 等字段
+            informationItemRepository.updateAiSummaryFields(
+                    item.getId(),
+                    item.getAiSummary(),
+                    item.getKnowledgeScore(),
+                    item.getScoreReasoning(),
+                    item.getCategory(),
+                    LocalDateTime.now()
+            );
             System.out.println("[AiSummary] ✅ 完成: " + item.getTitle()
                     + " | 评分=" + item.getKnowledgeScore()
                     + " | 分类=" + item.getCategory());
