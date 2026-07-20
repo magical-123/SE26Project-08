@@ -8,16 +8,7 @@ const STORAGE_KEY = 'infodigest_inbox_cache_v2';
  * 格式化后端的 InformationItem 为前端需要的格式
  */
 function formatItem(item) {
-  // 后端字段名到前端字段名的映射
-  const categoryColors = {
-    '深度知识': '#10B981',
-    '娱乐短剧': '#F43F5E',
-    '行业资讯': '#F59E0B',
-    '创意灵感': '#3B82F6',
-    '实用技巧': '#0EA5E9',
-    '效率与认知': '#EC4899',
-    '娱乐科普': '#F43F5E',
-  };
+
 
   return {
     id: item.id,
@@ -25,15 +16,13 @@ function formatItem(item) {
     platform: formatPlatform(item.platform),
     author: item.platform || '未知来源',
     duration: (item.durationMinutes || 1) + ' 分钟',
-    category: item.category || '深度知识',
-    color: categoryColors[item.category] || '#10B981',
     date: formatTimeAgo(item.crawledAt),
     isFavorite: item.isFavorite === true,
     isLiked: item.isLiked === true,
     hasNote: item.isPremium === true,
     opened: true,
     note: '',
-    tags: [],
+    keywords: [],
     processStatus: item.processStatus,
     isPremium: item.isPremium === true,
     url: item.url,
@@ -156,8 +145,8 @@ export function useInboxItems() {
         if (cachedItem.note !== undefined) {
           result.note = cachedItem.note;
         }
-        if (cachedItem.tags !== undefined) {
-          result.tags = cachedItem.tags;
+        if (cachedItem.keywords !== undefined) {
+          result.keywords = cachedItem.keywords;
         }
         return result;
       });
@@ -264,7 +253,6 @@ export function useInboxItems() {
         title: item.title,
         url: item.url || '',
         platform: item.platform === 'Bilibili' ? 'BILIBILI' : item.platform?.toUpperCase() || 'BILIBILI',
-        category: item.category || '深度知识',
         durationMinutes: parseInt(item.duration) || 1,
         contentRaw: item.contentRaw || '',
       };
@@ -315,13 +303,12 @@ export function useInboxItems() {
     });
   }, []);
 
-  // 保存笔记（调 real API）
-  const saveNote = useCallback(async (id, note, tags) => {
+  const saveNote = useCallback(async (id, note, keywords) => {
     // 本地先更新
     setItems((prev) =>
       prev.map((item) =>
         item.id === id
-          ? { ...item, hasNote: true, isPremium: true, note, tags }
+          ? { ...item, hasNote: true, isPremium: true, note, keywords }
           : item
       )
     );

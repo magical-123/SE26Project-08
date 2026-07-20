@@ -85,8 +85,7 @@ public class AiSummaryService {
                 );
             });
             System.out.println("[AiSummary] ✅ 完成: " + item.getTitle()
-                    + " | 评分=" + item.getKnowledgeScore()
-                    + " | 分类=" + item.getCategory());
+                    + " | 评分=" + item.getKnowledgeScore());
         } else {
             System.out.println("[AiSummary] ❌ 失败: " + item.getTitle());
         }
@@ -137,12 +136,6 @@ public class AiSummaryService {
             if (result.containsKey("scoreReasoning")) {
                 item.setScoreReasoning((String) result.get("scoreReasoning"));
             }
-            if (result.containsKey("category")) {
-                item.setCategory((String) result.get("category"));
-            }
-
-            // 自动创建概念映射：根据 AI 分类将信息源关联到对应概念
-            ensureConceptMapping(item);
 
             return true;
         } catch (Exception e) {
@@ -175,8 +168,7 @@ public class AiSummaryService {
                 + "{\n"
                 + "  \"summary\": \"30-80字中文摘要，娱乐内容可短至10-20字\",\n"
                 + "  \"knowledgeScore\": 从 0 到 100 的知识含量评分，娱乐类 0-20，实用技巧/资讯 40-60，深度知识/科普 60-100,\n"
-                + "  \"scoreReasoning\": \"一句话说明打分理由（如：硬核技术教程，清晰讲解架构原理）\",\n"
-                + "  \"category\": \"深度知识|行业资讯|创意灵感|实用技巧|娱乐科普|娱乐短剧（六选一）\"\n"
+                + "  \"scoreReasoning\": \"一句话说明打分理由（如：硬核技术教程，清晰讲解架构原理）\"\n"
                 + "}";
     }
 
@@ -290,58 +282,5 @@ public class AiSummaryService {
         return objectMapper.readValue(content, Map.class);
     }
 
-    /**
-     * 确保信息项有对应的概念映射（根据 category 字段）
-     * 如果概念不存在则自动创建，如果映射不存在则自动建立
-     */
-    public void ensureConceptMapping(InformationItem item) {
-        String category = item.getCategory();
-        if (category == null || category.isEmpty()) return;
-
-        Long userId = item.getUserId();
-        String conceptName = "cat-" + category;
-        String conceptLabel = category;
-        String color = getCategoryColor(category);
-
-        // 查找或创建概念
-        List<Concept> userConcepts = conceptRepository.findByUserId(userId);
-        Concept targetConcept = userConcepts.stream()
-                .filter(c -> conceptName.equals(c.getName()))
-                .findFirst()
-                .orElse(null);
-
-        if (targetConcept == null) {
-            // 创建新概念
-            Concept newConcept = new Concept();
-            newConcept.setUserId(userId);
-            newConcept.setName(conceptName);
-            newConcept.setLabel(conceptLabel);
-            newConcept.setColor(color);
-            targetConcept = conceptRepository.save(newConcept);
-            System.out.println("[AiSummary] 自动创建概念: " + conceptLabel + " (color=" + color + ")");
-        }
-
-        // 检查映射是否已存在，避免重复
-        if (itemConceptRepository.findByItemIdAndConceptId(item.getId(), targetConcept.getId()).isEmpty()) {
-            ItemConcept mapping = new ItemConcept();
-            mapping.setItemId(item.getId());
-            mapping.setConceptId(targetConcept.getId());
-            itemConceptRepository.save(mapping);
-        }
-    }
-
-    /**
-     * 根据分类返回对应颜色
-     */
-    private String getCategoryColor(String category) {
-        switch (category) {
-            case "深度知识": return "#10B981";
-            case "行业资讯": return "#F59E0B";
-            case "创意灵感": return "#3B82F6";
-            case "实用技巧": return "#0EA5E9";
-            case "娱乐科普": return "#EC4899";
-            case "娱乐短剧": return "#F43F5E";
-            default: return "#8B5CF6";
-        }
-    }
+    // Removed ensureConceptMapping and getCategoryColor
 }

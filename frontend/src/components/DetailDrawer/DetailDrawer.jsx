@@ -4,32 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Edit3, PlayCircle, FileText, Mic, Clock, Calendar } from 'lucide-react';
 import './DetailDrawer.css';
 
-const TAG_OPTIONS = ['兴趣', '实用', '震撼', '共鸣'];
-const CATEGORY_COLORS = {
-  '深度知识': '#10B981',
-  '实用技巧': '#0EA5E9',
-  '行业资讯': '#F59E0B',
-  '娱乐科普': '#F43F5E',
-};
+import { Tag } from 'lucide-react';
 
 const platformIcon = {
   Bilibili: <PlayCircle size={14} />,
   Zhihu: <FileText size={14} />,
 };
 
-function getTagColor(tag) {
-  switch (tag) {
-    case '兴趣': return '#8B5CF6';
-    case '实用': return '#10B981';
-    case '震撼': return '#F43F5E';
-    case '共鸣': return '#F59E0B';
-    default: return '#0EA5E9';
-  }
-}
-
-export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNoteChange, onToggleTag, onUpgrade, onTogglePremium, onRegenerateSummary, sourceTitle }) {
+export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywords, selectedKeywords, onNoteChange, onToggleKeyword, onAddKeyword, onDeleteKeyword, onUpgrade, onTogglePremium, onRegenerateSummary, sourceTitle }) {
   const d = data?.data || data || {};
-  const categoryColor = CATEGORY_COLORS[d.category] || '#0EA5E9';
   const isPremium = !!d.hasNote;
 
   // 打开抽屉时锁定 body 滚动，防止滚动栏影响抽屉显示
@@ -60,13 +43,10 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
             exit={{ x: '100%', opacity: 0.5 }}
             transition={{ type: 'spring', damping: 32, stiffness: 300, mass: 0.9 }}
           >
-            <div className="drawer-glow-border" style={{ '--accent': categoryColor }} />
+            <div className="drawer-glow-border" style={{ '--accent': '#0EA5E9' }} />
 
             <div className="drawer-header">
               <div className="drawer-header-content">
-                <span className="drawer-category-pill" style={{ color: categoryColor, borderColor: categoryColor }}>
-                  {d.category || '知识节点'}
-                </span>
                 <h2>{sourceTitle || d.sourceTitle || data?.title || '详情'}</h2>
               </div>
               <button className="close-btn" onClick={onClose}>
@@ -137,27 +117,40 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
                 />
               </div>
 
-              {/* Emotion Tags */}
-              <div className="tag-section">
-                <div className="tag-section-label">情感标签</div>
-                <div className="tag-options">
-                  {TAG_OPTIONS.map(tag => {
-                    const active = (draftTags || d.tags || []).includes(tag);
-                    const color = getTagColor(tag);
+              {/* Keyword Tags */}
+              <div className="keyword-section">
+                <div className="keyword-section-label">
+                  <Tag size={14} /> 关键词（领域）
+                </div>
+                <div className="keyword-options">
+                  {(suggestedKeywords || []).map(kw => {
+                    const active = (selectedKeywords || []).includes(kw.label);
                     return (
-                      <button
-                        key={tag}
-                        type="button"
-                        className={`tag-chip ${active ? 'active' : ''}`}
-                        style={{ '--tag-color': color }}
-                        onClick={() => onToggleTag?.(tag)}
-
+                      <div
+                        key={kw.label}
+                        className={`keyword-chip ${active ? 'active' : ''}`}
+                        onClick={() => onToggleKeyword?.(kw.label)}
                       >
-                        {tag}
-                      </button>
+                        {kw.label} {kw.isNew && <span className="new-badge">新</span>}
+                        <button 
+                          className="keyword-chip-delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`确定要彻底删除关键词“${kw.label}”吗？这将从系统中移除该领域。`)) {
+                              onDeleteKeyword?.(kw.label);
+                            }
+                          }}
+                          title="彻底删除该关键词"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
+                <button className="add-keyword-btn" onClick={onAddKeyword}>
+                  + 添加关键词
+                </button>
               </div>
 
 

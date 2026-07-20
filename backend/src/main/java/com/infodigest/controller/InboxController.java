@@ -5,6 +5,7 @@ import com.infodigest.entity.User;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.UserRepository;
 import com.infodigest.service.AiSummaryService;
+import com.infodigest.service.KeywordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,6 +39,9 @@ public class InboxController {
     @Autowired
     private AiSummaryService aiSummaryService;
 
+    @Autowired
+    private KeywordService keywordService;
+
     // 获取当前登录用户的信息项（支持分页 + 小红书限流，总上限 1000 条）
     @GetMapping("/items")
     public ResponseEntity<Map<String, Object>> getInboxItems(
@@ -60,8 +64,8 @@ public class InboxController {
         List<InformationItem> filteredItems = new ArrayList<>();
         int xhsCount = 0;
         for (InformationItem item : recentItems) {
-            // 跳过被隐藏的娱乐类信息（娱乐短剧 + 娱乐科普）
-            if (hideEntertainment && ("娱乐短剧".equals(item.getCategory()) || "娱乐科普".equals(item.getCategory()))) {
+            // 跳过被隐藏的娱乐类信息（基于 knowledgeScore < 20）
+            if (hideEntertainment && item.getKnowledgeScore() != null && item.getKnowledgeScore() < 20) {
                 continue;
             }
             if ("XIAOHONGSHU".equalsIgnoreCase(item.getPlatform())) {
@@ -145,12 +149,20 @@ public class InboxController {
             if (itemDetails.getTitle() != null) item.setTitle(itemDetails.getTitle());
             if (itemDetails.getUrl() != null) item.setUrl(itemDetails.getUrl());
             if (itemDetails.getPlatform() != null) item.setPlatform(itemDetails.getPlatform());
-            if (itemDetails.getCategory() != null) item.setCategory(itemDetails.getCategory());
             if (itemDetails.getDurationMinutes() != null) item.setDurationMinutes(itemDetails.getDurationMinutes());
             if (itemDetails.getContentRaw() != null) item.setContentRaw(itemDetails.getContentRaw());
             if (itemDetails.getProcessStatus() != null) item.setProcessStatus(itemDetails.getProcessStatus());
+            
+            boolean premiumTriggered = Boolean.TRUE.equals(itemDetails.getIsPremium()) && !Boolean.TRUE.equals(item.getIsPremium());
             if (itemDetails.getIsPremium() != null) item.setIsPremium(itemDetails.getIsPremium());
+            
             InformationItem updatedItem = informationItemRepository.save(item);
+            
+            if (premiumTriggered) {
+                String note = itemDetails.getContentRaw() != null ? itemDetails.getContentRaw() : item.getContentRaw();
+                keywordService.analyzeAndApplyKeywordsAsync(updatedItem, note);
+            }
+            
             return ResponseEntity.ok(updatedItem);
         } else {
             return ResponseEntity.notFound().build();
@@ -293,7 +305,6 @@ public class InboxController {
             item.setTitle(request.getTitle());
             item.setUrl(request.getUrl());
             item.setPlatform(request.getPlatform());
-            item.setCategory(request.getCategory());
             item.setDurationMinutes(request.getDurationMinutes());
             item.setContentRaw(request.getContentRaw());
             item.setProcessStatus("UNPROCESSED");
@@ -320,7 +331,6 @@ public class InboxController {
         private String title;
         private String url;
         private String platform;
-        private String category;
         private Integer durationMinutes;
         private String contentRaw;
 
@@ -336,9 +346,6 @@ public class InboxController {
 
         public String getPlatform() { return platform; }
         public void setPlatform(String platform) { this.platform = platform; }
-
-        public String getCategory() { return category; }
-        public void setCategory(String category) { this.category = category; }
 
         public Integer getDurationMinutes() { return durationMinutes; }
         public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }

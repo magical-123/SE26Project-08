@@ -138,6 +138,32 @@ export const inboxApi = {
   },
 };
 
+// ===== Graph API =====
+
+export const graphApi = {
+  /** 获取信息项关联的关键字（领域） */
+  async getItemKeywords(itemId) {
+    const res = await apiFetch(`/api/graph/item-keywords/${itemId}`);
+    return res.json();
+  },
+
+  /** 更新信息项关联的关键字（领域） */
+  async updateItemKeywords(itemId, keywords) {
+    const res = await apiFetch(`/api/graph/item-keywords/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(keywords),
+    });
+    return res.json();
+  },
+
+  /** 删除关键字 */
+  async deleteKeyword(label) {
+    await apiFetch(`/api/graph/keyword/${encodeURIComponent(label)}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 // ===== Dashboard / Report API =====
 
 export const dashboardApi = {

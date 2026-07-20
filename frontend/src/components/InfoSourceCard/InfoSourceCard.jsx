@@ -47,8 +47,10 @@ export function InfoSourceCard({ data, onClick, onTogglePremium, onToggleLike, o
           {platformIcon[data.platform] || <FileText size={14} />}
           <span>{data.platform}</span>
         </div>
-        <div className="isc-category" style={{ color: data.color, borderColor: data.color }}>
-          {data.category}
+        <div className="isc-keywords">
+          {(data.keywords || []).slice(0, 2).map((kw, i) => (
+            <span key={i} className="isc-keyword-pill">{kw}</span>
+          ))}
         </div>
       </div>
 

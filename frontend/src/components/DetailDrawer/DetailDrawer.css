@@ -61,16 +61,7 @@
   min-width: 0;
 }
 
-.drawer-category-pill {
-  align-self: flex-start;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid;
-  background: rgba(255, 255, 255, 0.5);
-}
+
 
 .drawer-header h2 {
   font-size: 20px;
@@ -283,12 +274,15 @@
   box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.08);
 }
 
-/* ---- Emotion Tags ---- */
-.tag-section {
+/* ---- Keyword Tags ---- */
+.keyword-section {
   margin-top: 4px;
 }
 
-.tag-section-label {
+.keyword-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 1px;
@@ -296,52 +290,98 @@
   margin-bottom: 12px;
 }
 
-.tag-options {
+.keyword-options {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.tag-chip {
+.keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
   font-weight: 700;
   padding: 7px 16px;
   border-radius: 20px;
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: rgba(255, 255, 255, 0.5);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   will-change: transform;
 }
 
-.tag-chip:hover:not([disabled]) {
-  transform: translateY(-2px) scale(1.04);
-  border-color: var(--tag-color);
-  color: var(--tag-color);
-  background: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--tag-color) 18%, transparent);
+.new-badge {
+  font-size: 9px;
+  padding: 2px 4px;
+  background: rgba(14, 165, 233, 0.15);
+  color: #0EA5E9;
+  border-radius: 4px;
+  font-weight: 800;
 }
 
-.tag-chip.active {
-  background: var(--tag-color);
+.keyword-chip:hover:not([disabled]) {
+  transform: translateY(-2px) scale(1.04);
+  border-color: #0EA5E9;
+  color: #0EA5E9;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 6px 18px color-mix(in srgb, #0EA5E9 18%, transparent);
+}
+
+.keyword-chip.active {
+  background: #0EA5E9;
   color: #fff;
-  border-color: var(--tag-color);
+  border-color: #0EA5E9;
   transform: scale(1.14);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--tag-color) 35%, transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb, #0EA5E9 35%, transparent);
   animation: tagSpring 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes tagSpring {
-  0% { transform: scale(1); }
-  45% { transform: scale(1.24); }
-  70% { transform: scale(1.1); }
-  100% { transform: scale(1.14); }
+.keyword-chip.active .new-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
 }
 
-.tag-chip[disabled] {
+.keyword-chip-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
   opacity: 0.6;
-  cursor: not-allowed;
+  transition: all 0.2s;
+  margin-left: 4px;
+}
+
+.keyword-chip-delete:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+}
+.add-keyword-btn {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px dashed rgba(0, 0, 0, 0.15);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-keyword-btn:hover {
+  border-color: #0EA5E9;
+  color: #0EA5E9;
+  background: rgba(14, 165, 233, 0.05);
 }
 
 /* ---- Existing Note ---- */

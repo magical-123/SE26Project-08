@@ -238,7 +238,6 @@ export function Report() {
                         <h4>{src.title}</h4>
                       </div>
                       <div className="sl-item-meta">
-                        <span className="sl-category">{src.category}</span>
                         <span className="sl-time">{src.time}</span>
                         <button className="sl-go-btn"><ArrowRight size={14}/></button>
                       </div>

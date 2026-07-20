@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { InfoSourceCard } from '../../components/InfoSourceCard/InfoSourceCard';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
+import { graphApi } from '../../utils/api';
 import './Inbox.css';
 
 const containerVariants = {
@@ -23,7 +24,8 @@ export function Inbox() {
   const { items, togglePremium, toggleLike, toggleFavorite, regenerateSummary, saveNote, updateItem, loading, error, hasMore, loadMore, refetching } = useInboxItems();
   const [selectedItem, setSelectedItem] = useState(null);
   const [draftNote, setDraftNote] = useState('');
-  const [draftTags, setDraftTags] = useState([]);
+  const [selectedKeywords, setSelectedKeywords] = useState([]);
+  const [suggestedKeywords, setSuggestedKeywords] = useState([]);
 
   const filteredItems = filter === 'All' ? items : items.filter(item => item.platform === filter);
   const aiSummaryCount = items.filter(i => i.aiSummary).length;
@@ -52,31 +54,78 @@ export function Inbox() {
     }
   };
 
-  const openDrawer = (item) => {
+  const openDrawer = async (item) => {
     setSelectedItem(item);
     setDraftNote(item.note || '');
-    setDraftTags(item.tags || []);
+    
+    // 初始化空状态
+    setSelectedKeywords([]);
+    setSuggestedKeywords([]);
+    
+    // 获取关键词
+    try {
+      const concepts = await graphApi.getItemKeywords(item.id);
+      const kws = concepts.map(c => c.label);
+      setSelectedKeywords(kws);
+      setSuggestedKeywords(kws.map(label => ({ label, isNew: false }))); 
+    } catch (e) {
+      console.error('获取关键词失败:', e);
+    }
+
     if (!item.opened) {
       updateItem(item.id, { opened: true });
     }
   };
 
-  const toggleTag = (tag) => {
-    setDraftTags(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+  const toggleKeyword = (kw) => {
+    setSelectedKeywords(prev =>
+      prev.includes(kw) ? prev.filter(t => t !== kw) : [...prev, kw]
     );
+  };
+  
+  const handleAddKeyword = () => {
+    const kw = prompt('请输入新关键词：');
+    if (kw && !selectedKeywords.includes(kw)) {
+      setSelectedKeywords(prev => [...prev, kw]);
+      if (!suggestedKeywords.find(s => s.label === kw)) {
+        setSuggestedKeywords(prev => [...prev, { label: kw, isNew: true }]);
+      }
+    }
+  };
+
+  const handleDeleteKeyword = async (label) => {
+    if (!label) return;
+    try {
+      await graphApi.deleteKeyword(label);
+      // Update local state to remove the deleted keyword
+      setSelectedKeywords(prev => prev.filter(k => k !== label));
+      setSuggestedKeywords(prev => prev.filter(k => k.label !== label));
+      // Optionally trigger refetch if you want the graph to update immediately
+      sessionStorage.setItem('inbox:shouldRefetch', 'true');
+    } catch (e) {
+      console.error('删除关键词失败:', e);
+      alert('删除失败，请稍后重试');
+    }
   };
 
   const handleCloseDrawer = () => {
     if (selectedItem) {
-      updateItem(selectedItem.id, { note: draftNote, tags: draftTags });
+      updateItem(selectedItem.id, { note: draftNote, keywords: selectedKeywords });
+      graphApi.updateItemKeywords(selectedItem.id, selectedKeywords.map(label => ({ 
+        label, 
+        isNew: suggestedKeywords.find(s => s.label === label)?.isNew || false 
+      })));
     }
     setSelectedItem(null);
   };
 
   const handleUpgrade = () => {
     if (!selectedItem) return;
-    saveNote(selectedItem.id, draftNote, draftTags);
+    saveNote(selectedItem.id, draftNote, selectedKeywords);
+    graphApi.updateItemKeywords(selectedItem.id, selectedKeywords.map(label => ({ 
+      label, 
+      isNew: suggestedKeywords.find(s => s.label === label)?.isNew || false 
+    })));
     setSelectedItem(null);
   };
 
@@ -213,9 +262,12 @@ export function Inbox() {
         onClose={handleCloseDrawer}
         data={selectedItem}
         draftNote={draftNote}
-        draftTags={draftTags}
+        suggestedKeywords={suggestedKeywords}
+        selectedKeywords={selectedKeywords}
         onNoteChange={setDraftNote}
-        onToggleTag={toggleTag}
+        onToggleKeyword={toggleKeyword}
+        onAddKeyword={handleAddKeyword}
+        onDeleteKeyword={handleDeleteKeyword}
         onUpgrade={handleUpgrade}
         onTogglePremium={(id) => {
           handleTogglePremium(id);
