@@ -171,37 +171,35 @@ function classifyByText(title, excerpt) {
 
 /**
  * 校验字幕与标题是否相关
- * bigram 分词：标题切成 2 字滑动窗口 + 英文单词(>=3字母)，
- * 字幕中命中任意一个非停用 gram 即视为相关
+ * 提取标题中的关键词（去除常见停用词），检查字幕中是否包含至少一个关键词
  */
 function isSubtitleRelevant(title, subtitle) {
   if (!title || !subtitle) return false;
 
-  // 通用词（bigram 级停用词），不具区分度
-  const stopGrams = new Set([
-    '视频', '内容', '文章', '介绍', '分享', '讲解', '分析', '什么', '怎么', '为什', '么样', '如何',
-    '一个', '这个', '那个', '可以', '不能', '不是', '就是', '还是', '没有', '有没', '其实', '真的',
-    '到底', '是不', '大家', '我们', '你们', '他们', '自己', '觉得', '知道', '应该', '时候', '现在',
-    '问题', '东西', '事情', '感觉', '看到', '出现', '进行', '使用', '需要', '带你', '教程',
-  ]);
+  // 从标题中提取关键词（2字以上的连续中文字符或英文单词）
+  const keywords = [];
+  // 中文关键词：2-4 个连续汉字
+  const cnMatches = title.match(/[\u4e00-\u9fa5]{2,4}/g);
+  if (cnMatches) keywords.push(...cnMatches);
+  // 英文关键词：4个字母以上的单词
+  const enMatches = title.match(/[a-zA-Z]{4,}/g);
+  if (enMatches) keywords.push(...enMatches);
 
-  const grams = [];
-  // 中文：连续汉字段切 2 字滑动窗口
-  const cnSegs = title.match(/[\u4e00-\u9fa5]+/g) || [];
-  for (const seg of cnSegs) {
-    for (let i = 0; i + 2 <= seg.length; i++) {
-      const g = seg.substring(i, i + 2);
-      if (!stopGrams.has(g)) grams.push(g);
-    }
-  }
-  // 英文：3 字母以上的单词（覆盖 LLM、Git 等短词）
-  const enWords = title.match(/[a-zA-Z]{3,}/g) || [];
-  for (const w of enWords) grams.push(w.toLowerCase());
+  if (keywords.length === 0) return true; // 无法提取关键词时放行
 
-  if (grams.length === 0) return true; // 无法提取关键词时放行
+  // 停用词
+  const stopWords = new Set(['什么', '怎么', '为什么', '如何', '一个', '这个', '那个', '可以', '不能', '不是', '就是', '还是', '有没有', '为什么', '怎么样']);
+
+  // 检查字幕中是否包含至少一个关键词（排除停用词）
+  const relevantKeywords = keywords.filter(k => !stopWords.has(k));
+  if (relevantKeywords.length === 0) return true;
 
   const subtitleLower = subtitle.toLowerCase();
-  return grams.some(g => subtitleLower.includes(g));
+  for (const kw of relevantKeywords) {
+    if (subtitleLower.includes(kw.toLowerCase())) return true;
+  }
+
+  return false;
 }
 
 /** B 站分类映射 */
@@ -320,33 +318,42 @@ async function crawlBilibili(getToken) {
     return;
   }
 
-  // CC 字幕提取（前 5 条），并校验字幕与标题的相关性
-  console.log('   提取 CC 字幕（前5条）...');
+  // CC 字幕提取（前 N 条并行），并校验字幕与标题的相关性
+  const extractCount = Math.min(allItems.length, config.SUBTITLE_EXTRACT_COUNT || 3);
+  console.log(`   提取 CC 字幕（前${extractCount}条，并行）...`);
   const subtitleMap = new Map();
-  for (let i = 0; i < Math.min(allItems.length, 5); i++) {
+
+  const subtitlePromises = [];
+  for (let i = 0; i < extractCount; i++) {
     const item = allItems[i];
     const aid = item.history?.oid || item.oid;
     if (!aid) continue;
-    try {
-      await withRetry(async () => {
-        const info = await bl.fetchVideoInfo(client, aid);
-        const cid = info.cid || (info.pages && info.pages[0]?.cid);
-        if (!cid) return;
-        const subs = await bl.fetchSubtitleList(client, aid, cid);
-        if (subs.length > 0) {
-          const text = await bl.fetchSubtitleText(client, subs[0].url);
-          // 校验字幕与标题的相关性：字幕中应包含标题中的关键词
-          const title = (item.title || '').trim();
-          if (title && text && isSubtitleRelevant(title, text)) {
-            subtitleMap.set(aid, text);
-            console.log(`    ✓ ${title.substring(0, 30)}... 字幕匹配`);
-          } else {
-            console.log(`    ⚠ ${title.substring(0, 30)}... 字幕不匹配，丢弃`);
-          }
-        }
-      }, `B站-字幕-${item.title}`);
-    } catch { /* skip */ }
+    subtitlePromises.push(
+      (async () => {
+        try {
+          await withRetry(async () => {
+            const info = await bl.fetchVideoInfo(client, aid);
+            const cid = info.cid || (info.pages && info.pages[0]?.cid);
+            if (!cid) return;
+            const subs = await bl.fetchSubtitleList(client, aid, cid);
+            if (subs.length > 0) {
+              const text = await bl.fetchSubtitleText(client, subs[0].url);
+              // 校验字幕与标题的相关性：字幕中应包含标题中的关键词
+              const title = (item.title || '').trim();
+              if (title && text && isSubtitleRelevant(title, text)) {
+                subtitleMap.set(aid, text);
+                console.log(`    ✓ ${title.substring(0, 30)}... 字幕匹配`);
+              } else {
+                console.log(`    ⚠ ${title.substring(0, 30)}... 字幕不匹配，丢弃`);
+              }
+            }
+          }, `B站-字幕-${item.title}`);
+        } catch { /* skip */ }
+      })()
+    );
   }
+  // 并行等待所有字幕提取完成
+  await Promise.allSettled(subtitlePromises);
 
   // 写入后端
   console.log('  💾 写入后端...');
@@ -412,29 +419,33 @@ async function crawlZhihu(getToken) {
     return;
   }
 
-  // 提取全文
-  console.log('  📝 提取全文内容（前5条）...');
+  // 提取全文（前 N 条并行）
+  const extractCount = Math.min(allItems.length, config.SUBTITLE_EXTRACT_COUNT || 3);
+  console.log(`  📝 提取全文内容（前${extractCount}条，并行）...`);
   const contentMap = new Map();
-  for (let i = 0; i < Math.min(allItems.length, 5); i++) {
+
+  const contentPromises = [];
+  for (let i = 0; i < extractCount; i++) {
     const item = allItems[i];
-    try {
-      await withRetry(async () => {
-        const text = await zh.fetchContentDetail(client, item);
-        contentMap.set(i, text);
-      }, `知乎-全文-${item.title}`);
-    } catch { /* skip */ }
+    contentPromises.push(
+      (async () => {
+        try {
+          await withRetry(async () => {
+            const text = await zh.fetchContentDetail(client, item);
+            if (text) contentMap.set(i, text);
+          }, `知乎-全文-${item.title}`);
+        } catch { /* skip */ }
+      })()
+    );
   }
+  // 并行等待所有全文提取完成
+  await Promise.allSettled(contentPromises);
 
   // 写入后端
   console.log('  💾 写入后端...');
-  const transformed = allItems.map((item, idx) =>
-    transformZhihuItem(item, contentMap.get(idx) || '')
-  );
+  const transformed = allItems.map((item, i) => transformZhihuItem(item, contentMap.get(i) || ''));
   const result = await batchWriteItems(transformed, getToken);
   console.log(`  📊 知乎: 成功 ${result.success} / 失败 ${result.failed}\n`);
-
-  // 关闭 Playwright 浏览器
-  try { await zh.closeBrowser(); } catch {}
   return result;
 }
 
@@ -451,181 +462,82 @@ async function crawlGitHub(getToken) {
 
   const client = gh.createGitHubClient(token);
 
-  // 验证 Token，同时获取用户名
-  console.log('  🔍 验证 Token...');
-  let username = config.GITHUB_USERNAME;
+  // 抓取 Star 仓库
+  console.log('  📥 拉取 Star 仓库...');
+  let repos = [];
   try {
-    const res = await withRetry(async () => {
-      const r = await client.get('/user');
-      return r;
-    }, 'GitHub-Token验证');
-    if (!res.data?.login) {
-      console.error('  ❌ Token 无效，跳过\n');
-      return;
-    }
-    username = username || res.data.login;
-    console.log(`  ✓ Token 有效，用户: ${username}`);
-  } catch (err) {
-    console.error(`  ❌ Token 验证异常: ${err.message}，跳过\n`);
-    return;
-  }
-
-  let allItems = [];
-
-  // 1. 抓取 Starred 仓库
-  console.log('  📥 拉取 Starred 仓库...');
-  try {
-    const starResult = await withRetry(
-      () => gh.fetchStarredRepos(client, username, { perPage: config.MAX_ITEMS_PER_RUN }),
-      'GitHub-Starred'
+    repos = await withRetry(
+      () => gh.fetchStarredRepos(client, { limit: config.MAX_ITEMS_PER_RUN }),
+      'GitHub-Star'
     );
-    allItems = starResult.items || [];
-    console.log(`  ✓ Starred ${allItems.length} 个仓库`);
-  } catch (err) {
-    console.error(`  ⚠ Starred 抓取失败: ${err.message}`);
-  }
-
-  // 2. 补充近期公开活动
-  if (allItems.length < 5) {
-    try {
-      const eventResult = await withRetry(
-        () => gh.fetchUserEvents(client, username, { perPage: 10 }),
-        'GitHub-Events'
-      );
-      allItems = allItems.concat(eventResult.items || []);
-    } catch { /* skip */ }
-  }
-
-  allItems = allItems.slice(0, config.MAX_ITEMS_PER_RUN);
-
-  if (allItems.length === 0) {
-    console.log('  ⚠ 没有获取到内容，跳过\n');
-    return;
-  }
-
-  // 3. 提取 README 和 Topics（前 5 条）
-  console.log('  📝 提取仓库详情（前5条）...');
-  const enrichMap = new Map();
-  for (let i = 0; i < Math.min(allItems.length, 5); i++) {
-    const item = allItems[i];
-    if (item.contentType !== 'repository') continue;
-    const [owner, repo] = (item.owner ? `${item.owner}/${item.title.split('/').pop()}` : item.title).split('/');
-    if (!owner || !repo) continue;
-    try {
-      await withRetry(async () => {
-        const [readme, topics] = await Promise.all([
-          gh.fetchRepoReadme(client, owner, repo),
-          gh.fetchRepoTopics(client, owner, repo),
-        ]);
-        enrichMap.set(i, { readme, topics });
-      }, `GitHub-详情-${repo}`);
-    } catch { /* skip */ }
-  }
-
-  // 4. 写入后端
-  console.log('  💾 写入后端...');
-  const transformed = allItems.map((item, idx) => {
-    const enrich = enrichMap.get(idx) || {};
-    return transformGitHubItem(item, enrich.readme || '', enrich.topics || []);
-  });
-  const result = await batchWriteItems(transformed, getToken);
-  console.log(`  📊 GitHub: 成功 ${result.success} / 失败 ${result.failed}\n`);
-  return result;
-}
-
-// ===== 小红书抓取 =====
-async function crawlXiaohongshu(getToken) {
-  const xhs = loadXiaohongshu();
-  console.log('📕 【小红书】开始抓取...\n');
-
-  const cookie = await getCredential('xiaohongshu', 'XIAOHONGSHU_COOKIE');
-  if (cookie) {
-    console.log('  ✓ 已配置小红书 Cookie，将尝试个性化推荐');
-  } else {
-    console.log('  ℹ 未配置小红书 Cookie，使用公开发现页');
-  }
-
-  let items = [];
-  try {
-    items = await withRetry(
-      () => xhs.fetchXiaohongshuItems(cookie, config.MAX_ITEMS_PER_RUN),
-      '小红书-发现页'
-    );
-    console.log(`  ✓ 共获取 ${items.length} 条内容`);
+    console.log(`  ✓ Starred ${repos.length} 个仓库`);
   } catch (err) {
     console.error(`  ❌ 抓取失败: ${err.message}`);
     return;
   }
 
-  if (items.length === 0) {
-    console.log('  ⚠ 没有获取到内容，跳过\n');
-    return;
+  // 提取 README（前 N 条并行）
+  const extractCount = Math.min(repos.length, config.SUBTITLE_EXTRACT_COUNT || 3);
+  console.log(`  📝 提取 README（前${extractCount}条，并行）...`);
+  const readmeMap = new Map();
+
+  const readmePromises = [];
+  for (let i = 0; i < extractCount; i++) {
+    const repo = repos[i];
+    readmePromises.push(
+      (async () => {
+        try {
+          await withRetry(async () => {
+            const readme = await gh.fetchReadme(client, repo);
+            if (readme) readmeMap.set(i, readme);
+          }, `GitHub-README-${repo.title}`);
+        } catch { /* skip */ }
+      })()
+    );
   }
+  // 并行等待所有 README 提取完成
+  await Promise.allSettled(readmePromises);
 
   // 写入后端
   console.log('  💾 写入后端...');
-  const result = await batchWriteItems(items, getToken);
-  console.log(`  📊 小红书: 成功 ${result.success} / 失败 ${result.failed}\n`);
+  const transformed = repos.map((repo, i) => transformGitHubItem(repo, readmeMap.get(i) || '', repo.topics || []));
+  const result = await batchWriteItems(transformed, getToken);
+  console.log(`  📊 GitHub: 成功 ${result.success} / 失败 ${result.failed}\n`);
   return result;
 }
 
+// ===== 小红书抓取（TODO） =====
+async function crawlXiaohongshu(getToken) {
+  const xhs = loadXiaohongshu();
+  // ... 结构同其他平台
+}
+
 // ===== 主流程 =====
+
 async function runOnce() {
-  console.log('═══════════════════════════════════════');
-  console.log('  InfoDigest 多平台爬虫启动');
-  console.log('═══════════════════════════════════════\n');
+  const getToken = getAuthToken;
+  const platform = forcePlatform;
 
-  // 验证后端连接：获取 JWT
-  let getTokenFn;
-  try {
-    const token = await getAuthToken();
-    getTokenFn = () => Promise.resolve(token);
-    console.log('✓ 后端连接正常\n');
-  } catch (err) {
-    console.error(`❌ 后端连接失败: ${err.message}`);
-    console.error('   请检查 BACKEND_URL 和后端是否启动\n');
-    process.exit(1);
+  if (platform) {
+    // 单平台
+    if (platform === 'bilibili') await crawlBilibili(getToken);
+    else if (platform === 'zhihu') await crawlZhihu(getToken);
+    else if (platform === 'github') await crawlGitHub(getToken);
+    else if (platform === 'xiaohongshu') await crawlXiaohongshu(getToken);
+    else console.error(`未知平台: ${platform}`);
+  } else {
+    // 所有启用平台：并行抓取各平台
+    const enabled = config.ENABLED_PLATFORMS;
+    console.log(`🚀 开始并行抓取 ${enabled.length} 个平台: ${enabled.join(', ')}\n`);
+    
+    const tasks = [];
+    if (enabled.includes('bilibili')) tasks.push(crawlBilibili(getToken));
+    if (enabled.includes('zhihu')) tasks.push(crawlZhihu(getToken));
+    if (enabled.includes('github')) tasks.push(crawlGitHub(getToken));
+    if (enabled.includes('xiaohongshu')) tasks.push(crawlXiaohongshu(getToken));
+
+    await Promise.allSettled(tasks);
   }
-
-  // 确定要抓取的平台
-  let platforms = config.ENABLED_PLATFORMS;
-  if (forcePlatform) {
-    platforms = [forcePlatform];
-  }
-
-  console.log(`📋 启用平台: ${platforms.join(', ')}\n`);
-
-  const results = {};
-
-  for (const platform of platforms) {
-    try {
-      if (platform === 'bilibili') {
-        results.bilibili = await crawlBilibili(getTokenFn);
-      } else if (platform === 'zhihu') {
-        results.zhihu = await crawlZhihu(getTokenFn);
-      } else if (platform === 'github') {
-        results.github = await crawlGitHub(getTokenFn);
-      } else if (platform === 'xiaohongshu') {
-        results.xiaohongshu = await crawlXiaohongshu(getTokenFn);
-      } else {
-        console.log(`⚠️ 未知平台: ${platform}，跳过\n`);
-      }
-    } catch (err) {
-      console.error(`❌ [${platform}] 抓取异常: ${err.message}\n`);
-    }
-  }
-
-  // 汇总
-  let totalSuccess = 0, totalFailed = 0;
-  for (const r of Object.values(results)) {
-    if (r) { totalSuccess += r.success; totalFailed += r.failed; }
-  }
-
-  console.log('═══════════════════════════════════════');
-  console.log(`  总计: 成功 ${totalSuccess} / 失败 ${totalFailed}`);
-  console.log('═══════════════════════════════════════\n');
-
-  return results;
 }
 
 // ===== 轮询模式 =====
@@ -634,15 +546,22 @@ async function startPolling() {
   await runOnce();
   setInterval(async () => {
     console.log(`⏰ [${new Date().toISOString()}] 新一轮抓取开始\n`);
-    try { await runOnce(); } catch (err) { console.error(`轮询异常: ${err.message}`); }
+    try {
+      await runOnce();
+    } catch (err) {
+      console.error('轮询抓取出错:', err.message);
+    }
   }, pollInterval);
 }
 
 // ===== 入口 =====
 if (isPolling) {
-  startPolling().catch(err => { console.error('爬虫致命错误:', err); process.exit(1); });
+  startPolling();
 } else {
-  runOnce()
-    .then(() => process.exit(0))
-    .catch(err => { console.error('爬虫异常退出:', err); process.exit(1); });
+  runOnce().then(() => {
+    console.log('✅ 所有平台抓取完成');
+  }).catch(err => {
+    console.error('❌ 抓取出错:', err);
+    process.exit(1);
+  });
 }
