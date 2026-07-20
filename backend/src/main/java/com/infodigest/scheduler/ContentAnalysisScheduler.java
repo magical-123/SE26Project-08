@@ -28,9 +28,10 @@ public class ContentAnalysisScheduler {
     @Autowired
     private AIConfigRepository aiConfigRepository;
 
-    private static final int BATCH_SIZE = 10;
+    // 每 30 秒扫描一次，每次最多处理 20 条（异步并发）
+    private static final int BATCH_SIZE = 20;
 
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 30000)
     public void scanAndAnalyzeItems() {
         log.debug("Starting scheduled content analysis scan");
 

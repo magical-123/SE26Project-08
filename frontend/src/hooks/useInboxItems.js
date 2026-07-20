@@ -137,7 +137,7 @@ export function useInboxItems() {
     }
   }, []);
 
-  // 合并 API 数据与本地缓存：保留本地修改的 hasNote/note/tags 状态
+  // 合并 API 数据与本地缓存：API 数据为权威来源，缓存仅补充 API 不返回的字段（note/tags）
   const mergeWithCache = useCallback((apiItems) => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -151,13 +151,15 @@ export function useInboxItems() {
       return apiItems.map(apiItem => {
         const cachedItem = cacheMap.get(apiItem.id);
         if (!cachedItem) return apiItem;
-        if (cachedItem.hasNote !== apiItem.hasNote) {
-          return { ...apiItem, hasNote: cachedItem.hasNote, processStatus: cachedItem.processStatus || apiItem.processStatus };
+        // 只从缓存补充 note/tags，hasNote 以 API 返回为准
+        const result = { ...apiItem };
+        if (cachedItem.note !== undefined) {
+          result.note = cachedItem.note;
         }
-        if (cachedItem.note !== undefined && cachedItem.note !== apiItem.note) {
-          return { ...apiItem, note: cachedItem.note, hasNote: cachedItem.hasNote };
+        if (cachedItem.tags !== undefined) {
+          result.tags = cachedItem.tags;
         }
-        return apiItem;
+        return result;
       });
     } catch {
       return apiItems;
@@ -212,7 +214,7 @@ export function useInboxItems() {
     }
   }, [loadInitial, refetching, initialized]);
 
-  // 实时更新：每 5 分钟静默拉取最新 30 条数据，替换当前列表
+  // 实时更新：每 30 秒静默拉取最新数据，替换当前列表
   useEffect(() => {
     if (!initialized) return;
     const timer = setInterval(async () => {
@@ -220,18 +222,17 @@ export function useInboxItems() {
         const data = await inboxApi.getItems(0, pageSize);
         if (data.items && data.items.length > 0) {
           const formatted = (data.items || []).map(formatItem);
-          // 直接替换为最新 30 条数据
-          setItems(formatted);
+          const merged = mergeWithCache(formatted);
+          setItems(merged);
           setHasMore(data.hasMore ?? false);
-          // 更新缓存
           try {
-            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
           } catch {}
         }
       } catch { /* silent */ }
-    }, 300000);
+    }, 30000);
     return () => clearInterval(timer);
-  }, [initialized, pageSize]);
+  }, [initialized, pageSize, mergeWithCache]);
 
   // 加载更多（无限滚动）
   const loadMore = useCallback(async () => {
@@ -279,7 +280,6 @@ export function useInboxItems() {
 
   // togglePremium（标记/取消优质信息源，同步到后端）
   const togglePremium = useCallback(async (id) => {
-    // 先读取当前状态，决定要设置为什么
     setItems((prev) => {
       const current = prev.find(i => i.id === id);
       const newIsPremium = current && current.hasNote ? false : true;
@@ -291,17 +291,24 @@ export function useInboxItems() {
           : item
       );
 
+      // 同步更新 localStorage 缓存，防止离开页面再回来时丢失状态
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+
       // 同步到后端
       inboxApi.updateItem(id, { isPremium: newIsPremium }).catch((err) => {
         console.error('更新优质信息源状态失败:', err);
-        // 失败则回滚本地状态
-        setItems((old) =>
-          old.map((item) =>
-            item.id === id
-              ? { ...item, hasNote: !newIsPremium, isPremium: !newIsPremium }
-              : item
-          )
+        // 失败则回滚本地状态和缓存
+        const rolledBack = updated.map((item) =>
+          item.id === id
+            ? { ...item, hasNote: !newIsPremium, isPremium: !newIsPremium }
+            : item
         );
+        setItems(rolledBack);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rolledBack));
+        } catch {}
       });
 
       return updated;
