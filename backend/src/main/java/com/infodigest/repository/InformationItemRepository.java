@@ -4,16 +4,14 @@ import com.infodigest.entity.InformationItem;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 @Repository
 public interface InformationItemRepository extends JpaRepository<InformationItem, Long> {
@@ -38,29 +36,35 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     // 按标题+平台+用户查找最新的一条（用于去重）
     Optional<InformationItem> findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(Long userId, String title, String platform);
 
-    // 局部更新：仅更新 AI 分析相关字段，不影响 isPremium 等用户手动标记的字段
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.data.jpa.repository.Query("UPDATE InformationItem i SET " +
-            "i.nutritionProtein = :protein, i.nutritionCarbs = :carbs, " +
-            "i.nutritionVitamins = :vitamins, i.nutritionFats = :fats, " +
-            "i.nutritionFiber = :fiber, i.nutritionReasoning = :reasoning, " +
-            "i.aiSummary = :summary, i.analyzedAt = :analyzedAt " +
-            "WHERE i.id = :id")
-    void updateAnalysisFields(@org.springframework.data.repository.query.Param("id") Long id,
-                              @org.springframework.data.repository.query.Param("protein") Integer protein,
-                              @org.springframework.data.repository.query.Param("carbs") Integer carbs,
-                              @org.springframework.data.repository.query.Param("vitamins") Integer vitamins,
-                              @org.springframework.data.repository.query.Param("fats") Integer fats,
-                              @org.springframework.data.repository.query.Param("fiber") Integer fiber,
-                              @org.springframework.data.repository.query.Param("reasoning") String reasoning,
-                              @org.springframework.data.repository.query.Param("summary") String summary,
-                              @org.springframework.data.repository.query.Param("analyzedAt") LocalDateTime analyzedAt);
-
-    // 局部更新：仅更新 AI 摘要相关字段
+    // 局部更新：仅更新 AI 分析相关字段，不影响 isPremium 等用户手动标记的字段（null 值不覆盖数据库现有值）
     @Modifying
     @Query("UPDATE InformationItem i SET " +
-            "i.aiSummary = :summary, i.knowledgeScore = :score, " +
-            "i.scoreReasoning = :reasoning, i.category = :category, " +
+            "i.nutritionProtein = COALESCE(:protein, i.nutritionProtein), " +
+            "i.nutritionCarbs = COALESCE(:carbs, i.nutritionCarbs), " +
+            "i.nutritionVitamins = COALESCE(:vitamins, i.nutritionVitamins), " +
+            "i.nutritionFats = COALESCE(:fats, i.nutritionFats), " +
+            "i.nutritionFiber = COALESCE(:fiber, i.nutritionFiber), " +
+            "i.nutritionReasoning = COALESCE(:reasoning, i.nutritionReasoning), " +
+            "i.aiSummary = COALESCE(:summary, i.aiSummary), " +
+            "i.analyzedAt = :analyzedAt " +
+            "WHERE i.id = :id")
+    void updateAnalysisFields(@Param("id") Long id,
+                              @Param("protein") Integer protein,
+                              @Param("carbs") Integer carbs,
+                              @Param("vitamins") Integer vitamins,
+                              @Param("fats") Integer fats,
+                              @Param("fiber") Integer fiber,
+                              @Param("reasoning") String reasoning,
+                              @Param("summary") String summary,
+                              @Param("analyzedAt") LocalDateTime analyzedAt);
+
+    // 局部更新：仅更新 AI 摘要相关字段（null 值不覆盖数据库现有值）
+    @Modifying
+    @Query("UPDATE InformationItem i SET " +
+            "i.aiSummary = CASE WHEN :summary IS NULL THEN i.aiSummary ELSE :summary END, " +
+            "i.knowledgeScore = CASE WHEN :score IS NULL THEN i.knowledgeScore ELSE :score END, " +
+            "i.scoreReasoning = CASE WHEN :reasoning IS NULL THEN i.scoreReasoning ELSE :reasoning END, " +
+            "i.category = CASE WHEN :category IS NULL THEN i.category ELSE :category END, " +
             "i.analyzedAt = :analyzedAt " +
             "WHERE i.id = :id")
     void updateAiSummaryFields(@Param("id") Long id,
