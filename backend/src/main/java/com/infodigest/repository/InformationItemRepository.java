@@ -64,14 +64,12 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
             "i.aiSummary = CASE WHEN :summary IS NULL THEN i.aiSummary ELSE :summary END, " +
             "i.knowledgeScore = CASE WHEN :score IS NULL THEN i.knowledgeScore ELSE :score END, " +
             "i.scoreReasoning = CASE WHEN :reasoning IS NULL THEN i.scoreReasoning ELSE :reasoning END, " +
-            "i.category = CASE WHEN :category IS NULL THEN i.category ELSE :category END, " +
             "i.analyzedAt = :analyzedAt " +
             "WHERE i.id = :id")
     void updateAiSummaryFields(@Param("id") Long id,
                                @Param("summary") String summary,
                                @Param("score") Integer score,
                                @Param("reasoning") String reasoning,
-                               @Param("category") String category,
                                @Param("analyzedAt") LocalDateTime analyzedAt);
 
     // 局部更新：仅更新 processStatus

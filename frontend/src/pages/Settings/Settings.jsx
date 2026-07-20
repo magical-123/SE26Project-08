@@ -116,6 +116,8 @@ export function Settings() {
   };
 
   const handleToggleEntertainmentHide = async () => {
+    alert('暂未实现该功能');
+    /*
     setTogglingHide(true);
     try {
       const data = await settingsApi.toggleEntertainmentHide();
@@ -127,6 +129,7 @@ export function Settings() {
     } finally {
       setTogglingHide(false);
     }
+    */
   };
 
   // AI 配置相关函数

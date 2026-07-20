@@ -473,7 +473,6 @@ function KnowledgeGraphInner() {
             id: item.id,
             title: item.title,
             platform: item.platform,
-            category: item.category,
             author: item.platform || '未知来源',
             duration: (item.durationMinutes || 1) + ' 分钟',
             date: item.crawledAt || '',
