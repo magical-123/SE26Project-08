@@ -46,9 +46,9 @@ public class CrawlScheduler {
     private static final List<String> PLATFORMS = List.of("bilibili", "zhihu", "github", "xiaohongshu");
 
     /**
-     * 每 5 分钟自动触发一次全平台爬虫
+     * 项目启动时执行一次，之后每隔 1 小时自动触发一次全平台爬虫
      */
-    @Scheduled(fixedRate = 300000)
+    @Scheduled(initialDelay = 30000, fixedRate = 3600000)
     public void scheduledCrawl() {
         if (!running.compareAndSet(false, true)) {
             System.out.println("[CrawlScheduler] 上一次爬虫周期尚未结束，跳过本轮");
