@@ -27,7 +27,8 @@ public class InformationItem {
 
     private String platform; // Bilibili, Zhihu, etc.
 
-    private String category; // 深度知识, 娱乐短剧, etc.
+    @Deprecated
+    private String category; // 深度知识, 娱乐短剧, etc. (Deprecated, use ItemConcept)
 
     private Integer durationMinutes;
 
