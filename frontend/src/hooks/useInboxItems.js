@@ -28,8 +28,8 @@ function formatItem(item) {
     category: item.category || '深度知识',
     color: categoryColors[item.category] || '#10B981',
     date: formatTimeAgo(item.crawledAt),
-    isFavorite: false,
-    isLiked: false,
+    isFavorite: item.isFavorite === true,
+    isLiked: item.isLiked === true,
     hasNote: item.isPremium === true,
     opened: true,
     note: '',
@@ -219,7 +219,7 @@ export function useInboxItems() {
     if (!initialized) return;
     const timer = setInterval(async () => {
       try {
-        const data = await inboxApi.getItems(0, pageSize);
+        const data = await inboxApi.getItems(0, pageSize, true); // silent=true 不触发 auth:expired
         if (data.items && data.items.length > 0) {
           const formatted = (data.items || []).map(formatItem);
           const merged = mergeWithCache(formatted);
@@ -355,6 +355,84 @@ export function useInboxItems() {
     }
   }, []);
 
+  // 切换点赞
+  const toggleLike = useCallback(async (id) => {
+    setItems((prev) => {
+      const current = prev.find(i => i.id === id);
+      const newLiked = current ? !current.isLiked : true;
+
+      const updated = prev.map((item) =>
+        item.id === id ? { ...item, isLiked: newLiked } : item
+      );
+
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+
+      inboxApi.toggleLike(id).catch((err) => {
+        console.error('点赞更新失败:', err);
+        const rolledBack = updated.map((item) =>
+          item.id === id ? { ...item, isLiked: !newLiked } : item
+        );
+        setItems(rolledBack);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rolledBack));
+        } catch {}
+      });
+
+      return updated;
+    });
+  }, []);
+
+  // 重新生成单条卡片的 AI 摘要
+  const regenerateSummary = useCallback(async (id) => {
+    try {
+      await inboxApi.regenerateSummary(id);
+      // 本地先标记为分析中（去掉旧的空摘要/失败状态提示）
+      setItems((prev) => {
+        const updated = prev.map((item) =>
+          item.id === id ? { ...item, aiSummary: null, processStatus: 'UNPROCESSED' } : item
+        );
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+    } catch (err) {
+      console.error('重新生成摘要失败:', err);
+      throw err;
+    }
+  }, []);
+
+  // 切换收藏
+  const toggleFavorite = useCallback(async (id) => {
+    setItems((prev) => {
+      const current = prev.find(i => i.id === id);
+      const newFav = current ? !current.isFavorite : true;
+
+      const updated = prev.map((item) =>
+        item.id === id ? { ...item, isFavorite: newFav } : item
+      );
+
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+
+      inboxApi.toggleFavorite(id).catch((err) => {
+        console.error('收藏更新失败:', err);
+        const rolledBack = updated.map((item) =>
+          item.id === id ? { ...item, isFavorite: !newFav } : item
+        );
+        setItems(rolledBack);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rolledBack));
+        } catch {}
+      });
+
+      return updated;
+    });
+  }, []);
+
   return {
     items,
     setItems,
@@ -364,6 +442,9 @@ export function useInboxItems() {
     loadMore,
     createItem,
     togglePremium,
+    toggleLike,
+    toggleFavorite,
+    regenerateSummary,
     saveNote,
     updateItem,
     refetching,

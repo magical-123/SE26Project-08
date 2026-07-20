@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { User, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import './AuthPage.css';
 
@@ -13,8 +12,6 @@ export function AuthPage() {
     email: '',
     password: ''
   });
-
-  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     setFormData({
@@ -59,8 +56,12 @@ export function AuthPage() {
       }
       window.dispatchEvent(new Event('avatarChanged'));
       
-      // Navigate to dashboard
-      navigate('/');
+      // 清除旧缓存，确保使用全新 token 加载数据
+      localStorage.removeItem('infodigest_inbox_cache_v2');
+      sessionStorage.clear();
+      
+      // 硬刷新确保全新状态
+      window.location.href = '/';
     } catch (err) {
       setError(err.message);
     } finally {

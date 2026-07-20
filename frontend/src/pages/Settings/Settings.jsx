@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
-import { settingsApi, crawlApi } from '../../utils/api';
+import { settingsApi, crawlApi, aiConfigApi } from '../../utils/api';
 import { QRCodeSVG } from 'qrcode.react';
 import './Settings.css';
 
@@ -132,32 +132,27 @@ export function Settings() {
   // AI 配置相关函数
   const loadAIConfig = async () => {
     try {
-      const userId = 1; // TODO: 从登录状态获取真实 userId
-      const response = await fetch(`http://localhost:8080/api/ai-config/${userId}`);
+      const config = await aiConfigApi.getConfig();
+      const modelTypeMap = {
+        'GPT_4': 'gpt-4',
+        'GPT_4_TURBO': 'gpt-4-turbo',
+        'GPT_3_5_TURBO': 'gpt-3.5-turbo',
+        'CLAUDE_3_OPUS': 'claude-3-opus',
+        'CLAUDE_3_SONNET': 'claude-3-sonnet',
+        'CLAUDE_3_HAIKU': 'claude-3-haiku',
+        'GEMINI_PRO': 'gemini-pro',
+        'CUSTOM': 'custom'
+      };
 
-      if (response.ok) {
-        const config = await response.json();
-        const modelTypeMap = {
-          'GPT_4': 'gpt-4',
-          'GPT_4_TURBO': 'gpt-4-turbo',
-          'GPT_3_5_TURBO': 'gpt-3.5-turbo',
-          'CLAUDE_3_OPUS': 'claude-3-opus',
-          'CLAUDE_3_SONNET': 'claude-3-sonnet',
-          'CLAUDE_3_HAIKU': 'claude-3-haiku',
-          'GEMINI_PRO': 'gemini-pro',
-          'CUSTOM': 'custom'
-        };
+      setSelectedModel(modelTypeMap[config.modelType] || 'gpt-4');
 
-        setSelectedModel(modelTypeMap[config.modelType] || 'gpt-4');
-
-        if (config.modelType === 'CUSTOM') {
-          setCustomConfig({
-            modelName: config.customModelName || '',
-            apiEndpoint: config.apiEndpoint || '',
-            apiKey: '',
-            maxTokens: config.maxTokens || ''
-          });
-        }
+      if (config.modelType === 'CUSTOM') {
+        setCustomConfig({
+          modelName: config.customModelName || '',
+          apiEndpoint: config.apiEndpoint || '',
+          apiKey: '',
+          maxTokens: config.maxTokens || ''
+        });
       }
     } catch (error) {
       console.error('加载 AI 配置失败:', error);
@@ -182,7 +177,6 @@ export function Settings() {
     setSaveStatus('');
 
     try {
-      const userId = 1; // TODO: 从登录状态获取真实 userId
       const modelTypeMap = {
         'gpt-4': 'GPT_4',
         'gpt-4-turbo': 'GPT_4_TURBO',
@@ -195,7 +189,6 @@ export function Settings() {
       };
 
       const requestBody = {
-        userId: userId,
         modelType: modelTypeMap[selectedModel],
         apiKey: selectedModel === 'custom' ? customConfig.apiKey : null,
         apiEndpoint: selectedModel === 'custom' ? customConfig.apiEndpoint : null,
@@ -205,22 +198,9 @@ export function Settings() {
         customModelName: selectedModel === 'custom' ? customConfig.modelName : null
       };
 
-      const response = await fetch('http://localhost:8080/api/ai-config/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (response.ok) {
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus(''), 3000);
-      } else {
-        const errorText = await response.text();
-        console.error('保存失败:', errorText);
-        setSaveStatus('error');
-      }
+      await aiConfigApi.saveConfig(requestBody);
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus(''), 3000);
     } catch (error) {
       console.error('保存 AI 配置失败:', error);
       setSaveStatus('error');

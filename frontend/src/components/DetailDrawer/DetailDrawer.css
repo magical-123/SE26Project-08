@@ -216,6 +216,32 @@
   margin: 0;
 }
 
+.regenerate-summary-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0EA5E9, #8B5CF6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.regenerate-summary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.3);
+}
+
+.regenerate-summary-btn:active {
+  transform: translateY(0);
+}
+
 /* ---- User Notes ---- */
 .user-notes {
   display: flex;

@@ -1,10 +1,14 @@
 package com.infodigest.controller;
 
 import com.infodigest.entity.AIConfig;
+import com.infodigest.entity.User;
 import com.infodigest.repository.AIConfigRepository;
+import com.infodigest.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -17,13 +21,17 @@ public class AIConfigController {
     @Autowired
     private AIConfigRepository configRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @PostMapping("/save")
     public ResponseEntity<?> saveAIConfig(@RequestBody AIConfigRequest request) {
         try {
-            AIConfig config = configRepository.findByUserId(request.getUserId())
+            Long userId = getCurrentUserId();
+            AIConfig config = configRepository.findByUserId(userId)
                     .orElse(new AIConfig());
 
-            config.setUserId(request.getUserId());
+            config.setUserId(userId);
             config.setModelType(request.getModelType());
             config.setApiKey(request.getApiKey());
             config.setApiEndpoint(request.getApiEndpoint());
@@ -32,7 +40,7 @@ public class AIConfigController {
 
             configRepository.save(config);
 
-            log.info("AI config saved for user {}: modelType={}", request.getUserId(), request.getModelType());
+            log.info("AI config saved for user {}: modelType={}", userId, request.getModelType());
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
@@ -50,9 +58,10 @@ public class AIConfigController {
         }
     }
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<?> getAIConfig(@PathVariable Long userId) {
+    @GetMapping("/me")
+    public ResponseEntity<?> getAIConfig() {
         try {
+            Long userId = getCurrentUserId();
             AIConfig config = configRepository.findByUserId(userId)
                     .orElseThrow(() -> new RuntimeException("未找到用户的AI配置"));
 
@@ -71,7 +80,7 @@ public class AIConfigController {
             ));
 
         } catch (Exception e) {
-            log.error("Failed to get AI config for user {}: {}", userId, e.getMessage());
+            log.error("Failed to get AI config for current user: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "获取配置失败: " + e.getMessage()
@@ -79,9 +88,10 @@ public class AIConfigController {
         }
     }
 
-    @DeleteMapping("/{userId}")
-    public ResponseEntity<?> deleteAIConfig(@PathVariable Long userId) {
+    @DeleteMapping("/me")
+    public ResponseEntity<?> deleteAIConfig() {
         try {
+            Long userId = getCurrentUserId();
             AIConfig config = configRepository.findByUserId(userId)
                     .orElseThrow(() -> new RuntimeException("未找到用户的AI配置"));
 
@@ -95,7 +105,7 @@ public class AIConfigController {
             ));
 
         } catch (Exception e) {
-            log.error("Failed to delete AI config for user {}: {}", userId, e.getMessage());
+            log.error("Failed to delete AI config for current user: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "删除失败: " + e.getMessage()
@@ -103,9 +113,16 @@ public class AIConfigController {
         }
     }
 
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return user.getId();
+    }
+
     // DTO for request
     public static class AIConfigRequest {
-        private Long userId;
         private String modelType;
         private String apiKey;
         private String apiEndpoint;
@@ -113,9 +130,6 @@ public class AIConfigController {
         private String customModelName;
 
         // Getters and Setters
-        public Long getUserId() { return userId; }
-        public void setUserId(Long userId) { this.userId = userId; }
-
         public String getModelType() { return modelType; }
         public void setModelType(String modelType) { this.modelType = modelType; }
 

@@ -27,7 +27,7 @@ function getTagColor(tag) {
   }
 }
 
-export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNoteChange, onToggleTag, onUpgrade, onTogglePremium, sourceTitle }) {
+export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNoteChange, onToggleTag, onUpgrade, onTogglePremium, onRegenerateSummary, sourceTitle }) {
   const d = data?.data || data || {};
   const categoryColor = CATEGORY_COLORS[d.category] || '#0EA5E9';
   const isPremium = !!d.hasNote;
@@ -111,6 +111,15 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, draftTags, onNo
                 <p>
                   {d.aiSummary || 'AI 正在分析中，稍后刷新即可查看...'}
                 </p>
+                {!d.aiSummary && onRegenerateSummary && (
+                  <button
+                    className="regenerate-summary-btn"
+                    onClick={() => onRegenerateSummary(d.id)}
+                  >
+                    <Sparkles size={14} />
+                    <span>重新生成摘要</span>
+                  </button>
+                )}
               </div>
 
               {/* User Notes */}

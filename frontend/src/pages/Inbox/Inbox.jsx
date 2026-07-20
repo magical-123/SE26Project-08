@@ -20,7 +20,7 @@ const itemVariants = {
 
 export function Inbox() {
   const [filter, setFilter] = useState('All');
-  const { items, togglePremium, saveNote, updateItem, loading, error, hasMore, loadMore, refetching } = useInboxItems();
+  const { items, togglePremium, toggleLike, toggleFavorite, regenerateSummary, saveNote, updateItem, loading, error, hasMore, loadMore, refetching } = useInboxItems();
   const [selectedItem, setSelectedItem] = useState(null);
   const [draftNote, setDraftNote] = useState('');
   const [draftTags, setDraftTags] = useState([]);
@@ -84,6 +84,23 @@ export function Inbox() {
     togglePremium(id);
   };
 
+  const handleToggleLike = (id) => {
+    toggleLike(id);
+  };
+
+  const handleToggleFavorite = (id) => {
+    toggleFavorite(id);
+  };
+
+  const handleRegenerateSummary = async (id) => {
+    try {
+      await regenerateSummary(id);
+      alert('已重新触发该卡片的 AI 摘要生成，请稍后刷新查看');
+    } catch (err) {
+      alert('重新生成摘要失败：' + err.message);
+    }
+  };
+
   const getPremiumLabel = (item) => {
     return '优质信息源';
   };
@@ -129,6 +146,8 @@ export function Inbox() {
               isPremium={item.hasNote}
               premiumLabel={getPremiumLabel(item)}
               onTogglePremium={handleTogglePremium}
+              onToggleLike={handleToggleLike}
+              onToggleFavorite={handleToggleFavorite}
               onClick={() => openDrawer(item)}
             />
           </motion.div>
@@ -202,6 +221,7 @@ export function Inbox() {
           handleTogglePremium(id);
           setSelectedItem(null);
         }}
+        onRegenerateSummary={handleRegenerateSummary}
         sourceTitle={selectedItem?.title}
       />
     </div>

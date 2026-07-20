@@ -390,19 +390,73 @@ public class AIService {
     }
 
     private AnalysisResultDTO parseAnalysisResult(String jsonContent) throws Exception {
-        // 清理 Markdown 代码块标记
         String cleanedContent = jsonContent.trim();
 
-        // 移除 ```json 和 ``` 标记
+        // 移除 Markdown 代码块标记
         if (cleanedContent.startsWith("```json")) {
             cleanedContent = cleanedContent.substring(7).trim();
         } else if (cleanedContent.startsWith("```")) {
             cleanedContent = cleanedContent.substring(3).trim();
         }
-
         if (cleanedContent.endsWith("```")) {
             cleanedContent = cleanedContent.substring(0, cleanedContent.length() - 3).trim();
         }
+
+        // 用花括号计数法精确提取 JSON 对象
+        int braceDepth = 0;
+        int jsonStart = -1;
+        for (int i = 0; i < cleanedContent.length(); i++) {
+            char c = cleanedContent.charAt(i);
+            if (c == '{') {
+                if (braceDepth == 0) jsonStart = i;
+                braceDepth++;
+            } else if (c == '}') {
+                braceDepth--;
+                if (braceDepth == 0 && jsonStart >= 0) {
+                    cleanedContent = cleanedContent.substring(jsonStart, i + 1);
+                    break;
+                }
+            }
+        }
+
+        // 关键修复：只清理字符串值内部的非法反斜杠转义（如 \'），不碰结构换行符
+        // DeepSeek 有时在字符串值中返回 \' 等非法转义，导致 Jackson 解析失败
+        StringBuilder sb = new StringBuilder();
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = 0; i < cleanedContent.length(); i++) {
+            char c = cleanedContent.charAt(i);
+            if (!inString) {
+                if (c == '"') {
+                    inString = true;
+                    escaped = false;
+                    sb.append(c);
+                } else {
+                    sb.append(c);
+                }
+            } else {
+                if (escaped) {
+                    // 前一个字符是反斜杠，检查当前字符是否是合法 JSON 转义
+                    if (c == '"' || c == '\\' || c == '/' ||
+                        c == 'b' || c == 'f' || c == 'n' ||
+                        c == 'r' || c == 't' || c == 'u') {
+                        sb.append('\\').append(c);
+                    } else {
+                        // 非法转义（如 \'），丢弃反斜杠，只保留字符
+                        sb.append(c);
+                    }
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    inString = false;
+                    sb.append(c);
+                } else {
+                    sb.append(c);
+                }
+            }
+        }
+        cleanedContent = sb.toString();
 
         JsonNode resultJson = objectMapper.readTree(cleanedContent);
 
