@@ -87,7 +87,41 @@ async function getCredential(platform, envKey) {
 }
 
 /**
- * 批量写入信息项到后端
+ * 写入单条数据到后端
+ */
+async function writeSingleItem(token, item, index, total) {
+  try {
+    await axios.post(`${config.BACKEND_URL}/api/inbox/items`, item, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    return { success: true, index, title: item.title };
+  } catch (err) {
+    // 如果是 401/403，Token 可能过期，重新登录
+    if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+      console.log('  🔄 Token 过期，重新登录...');
+      cachedToken = null;
+      const newToken = await getAuthToken();
+      try {
+        await axios.post(`${config.BACKEND_URL}/api/inbox/items`, item, {
+          headers: {
+            Authorization: `Bearer ${newToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        return { success: true, index, title: item.title };
+      } catch {
+        return { success: false, index, title: item.title, error: '重试仍失败' };
+      }
+    }
+    return { success: false, index, title: item.title, error: err.message };
+  }
+}
+
+/**
+ * 批量写入信息项到后端（分批并行，每批 10 条）
  * @param {Array} items - 清洗后的数据项
  * @param {Function} getToken - 获取 JWT Token 的函数
  * @returns {Promise<{success: number, failed: number, errors: Array}>}
@@ -99,51 +133,39 @@ async function batchWriteItems(items, getToken) {
   }
 
   const token = await getToken();
-  let success = 0;
-  let failed = 0;
+  const BATCH_SIZE = 10;
   const errors = [];
+  let totalSuccess = 0;
+  let totalFailed = 0;
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    try {
-      await axios.post(`${config.BACKEND_URL}/api/inbox/items`, item, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      success++;
-      console.log(`  [${i + 1}/${items.length}] ✓ ${item.title}`);
-    } catch (err) {
-      failed++;
-      errors.push({ index: i, title: item.title, error: err.message });
-      console.error(`  [${i + 1}/${items.length}] ✗ ${item.title}: ${err.message}`);
-
-      // 如果是 401/403，Token 可能过期，重新登录
-      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-        console.log('  🔄 Token 过期，重新登录...');
-        cachedToken = null;
-        const newToken = await getToken();
-        // 用新 Token 重试当前这条
-        try {
-          await axios.post(`${config.BACKEND_URL}/api/inbox/items`, item, {
-            headers: {
-              Authorization: `Bearer ${newToken}`,
-              'Content-Type': 'application/json',
-            },
-          });
-          success++;
-          failed--;
-          errors.pop();
-          console.log(`  [${i + 1}/${items.length}] ✓ ${item.title} (token refreshed)`);
-        } catch {
-          console.error(`  [${i + 1}/${items.length}] ✗ ${item.title}: 重试仍失败`);
-        }
+  // 分批并行写入
+  for (let batchStart = 0; batchStart < items.length; batchStart += BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + BATCH_SIZE, items.length);
+    const batch = items.slice(batchStart, batchEnd);
+    
+    const promises = batch.map((item, i) => 
+      writeSingleItem(token, item, batchStart + i, items.length)
+    );
+    
+    const results = await Promise.allSettled(promises);
+    
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value.success) {
+        totalSuccess++;
+        console.log(`  [${result.value.index + 1}/${items.length}] ✓ ${result.value.title}`);
+      } else {
+        totalFailed++;
+        const err = result.status === 'fulfilled' ? result.value : result.reason;
+        const title = err?.title || '未知';
+        const error = err?.error || err?.message || '未知错误';
+        const index = err?.index ?? '?';
+        errors.push({ index, title, error });
+        console.error(`  [${index + 1}/${items.length}] ✗ ${title}: ${error}`);
       }
     }
   }
 
-  return { success, failed, errors };
+  return { success: totalSuccess, failed: totalFailed, errors };
 }
 
 module.exports = {

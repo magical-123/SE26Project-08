@@ -44,9 +44,9 @@ module.exports = {
   AUTH_PASSWORD: process.env.AUTH_PASSWORD || 'testpass',
 
   // ===== 爬虫调优参数 =====
-  /** 每次请求之间随机休眠 [min, max] 毫秒 */
-  REQUEST_DELAY_MIN: 2000,
-  REQUEST_DELAY_MAX: 5000,
+  /** 每次请求之间随机休眠 [min, max] 毫秒（降低延迟以加快抓取速度） */
+  REQUEST_DELAY_MIN: 500,
+  REQUEST_DELAY_MAX: 1500,
 
   /** 最大重试次数 */
   MAX_RETRIES: 3,
@@ -68,4 +68,7 @@ module.exports = {
 
   /** 每次请求的分页大小 */
   PAGE_SIZE: 20,
+
+  /** 字幕/全文提取的并行数量（前 N 条） */
+  SUBTITLE_EXTRACT_COUNT: 3,
 };
