@@ -38,6 +38,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/insights/**").permitAll()
                 .requestMatchers("/api/wordcloud/**").permitAll()
                 .requestMatchers("/api/inbox/test/**").permitAll()
+                .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

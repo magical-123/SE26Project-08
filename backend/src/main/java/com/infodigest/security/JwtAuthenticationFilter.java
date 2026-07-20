@@ -58,8 +58,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 } else {
                     log.warn("JWT Filter - Token validation failed for: {}", username);
                 }
+            } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+                log.warn("JWT Filter - User not found: {}", username);
             } catch (Exception e) {
                 log.error("JWT Filter - Authentication failed for user: {}", username, e);
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Database or server error during authentication");
+                return;
             }
         } else {
             if (username == null) {
