@@ -29,14 +29,16 @@ function fetchWithTimeout(url, options, timeoutMs = 30000) {
  *
  * @param {string} path - API 路径，如 '/api/inbox/items'
  * @param {Object} options - fetch 选项
- * @param {number} timeout - 超时时间（毫秒），默认 30000
+ * @param {number} options.timeout - 超时时间（毫秒），默认 30000
+ * @param {boolean} options.silent - 静默模式，401/403 不触发 auth:expired 事件
  * @returns {Promise<Response>}
  */
-async function apiFetch(path, options = {}, timeout = 30000) {
+async function apiFetch(path, options = {}) {
+  const { timeout = 30000, silent = false, ...fetchOptions } = options;
   const token = getToken();
   const headers = {
     'Content-Type': 'application/json',
-    ...(options.headers || {}),
+    ...(fetchOptions.headers || {}),
   };
 
   if (token) {
@@ -46,7 +48,7 @@ async function apiFetch(path, options = {}, timeout = 30000) {
   let response;
   try {
     response = await fetchWithTimeout(`${API_BASE}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers,
     }, timeout);
   } catch (err) {
@@ -56,12 +58,13 @@ async function apiFetch(path, options = {}, timeout = 30000) {
     throw err;
   }
 
-  // Token 过期或未授权 → 清空 token 并通过事件通知 React Router 跳转
+  // Token 过期或未授权 → 静默模式下只报错不跳转
   if (response.status === 401 || response.status === 403) {
-    window.localStorage.removeItem('token');
-    window.localStorage.removeItem('username');
-    // 使用自定义事件通知 React，避免 window.location.href 硬刷新导致数据丢失
-    window.dispatchEvent(new CustomEvent('auth:expired'));
+    if (!silent) {
+      window.localStorage.removeItem('token');
+      window.localStorage.removeItem('username');
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+    }
     throw new Error('Authentication required');
   }
 
@@ -77,9 +80,10 @@ async function apiFetch(path, options = {}, timeout = 30000) {
 
 export const inboxApi = {
   /** 获取当前用户的信息项（支持分页） */
-  async getItems(page = 0, size = 10) {
+  async getItems(page = 0, size = 10, silent = false) {
     const res = await apiFetch(
-      `/api/inbox/items?page=${page}&size=${size}`
+      `/api/inbox/items?page=${page}&size=${size}`,
+      { silent }
     );
     return res.json();
   },
@@ -113,6 +117,24 @@ export const inboxApi = {
     await apiFetch(`/api/inbox/items/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  /** 切换点赞 */
+  async toggleLike(id) {
+    const res = await apiFetch(`/api/inbox/items/${id}/like`, { method: 'POST' });
+    return res.json();
+  },
+
+  /** 切换收藏 */
+  async toggleFavorite(id) {
+    const res = await apiFetch(`/api/inbox/items/${id}/favorite`, { method: 'POST' });
+    return res.json();
+  },
+
+  /** 重新生成单条卡片的 AI 摘要 */
+  async regenerateSummary(id) {
+    const res = await apiFetch(`/api/inbox/items/${id}/regenerate-summary`, { method: 'POST' });
+    return res.json();
   },
 };
 
@@ -255,6 +277,33 @@ export const crawlApi = {
   async trigger(platform) {
     const res = await apiFetch(`/api/crawl/trigger?platform=${platform}`, {
       method: 'POST',
+    });
+    return res.json();
+  },
+};
+
+// ===== AI Config API =====
+
+export const aiConfigApi = {
+  /** 获取当前用户的 AI 配置 */
+  async getConfig() {
+    const res = await apiFetch('/api/ai-config/me');
+    return res.json();
+  },
+
+  /** 保存当前用户的 AI 配置 */
+  async saveConfig(config) {
+    const res = await apiFetch('/api/ai-config/save', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+    return res.json();
+  },
+
+  /** 删除当前用户的 AI 配置 */
+  async deleteConfig() {
+    const res = await apiFetch('/api/ai-config/me', {
+      method: 'DELETE',
     });
     return res.json();
   },

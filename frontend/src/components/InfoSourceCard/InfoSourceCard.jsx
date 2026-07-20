@@ -8,17 +8,27 @@ const platformIcon = {
   Zhihu: <FileText size={14} />
 };
 
-// 判断是否显示红点：点赞或收藏了，但还没打开看过
+// 判断是否显示红点：收藏了该卡片
 const shouldShowRedDot = (data) => {
-  return (data.isFavorite || data.isLiked) && !data.opened;
+  return data.isFavorite;
 };
 
-export function InfoSourceCard({ data, onClick, onTogglePremium, isPremium, premiumLabel }) {
+export function InfoSourceCard({ data, onClick, onTogglePremium, onToggleLike, onToggleFavorite, isPremium, premiumLabel }) {
   const showRedDot = shouldShowRedDot(data);
 
   const handleTogglePremium = (e) => {
     e.stopPropagation();
     onTogglePremium?.(data.id);
+  };
+
+  const handleToggleLike = (e) => {
+    e.stopPropagation();
+    onToggleLike?.(data.id);
+  };
+
+  const handleToggleFavorite = (e) => {
+    e.stopPropagation();
+    onToggleFavorite?.(data.id);
   };
 
   return (
@@ -60,24 +70,24 @@ export function InfoSourceCard({ data, onClick, onTogglePremium, isPremium, prem
 
         <div className="isc-actions">
           <button
-            className={`isc-action-btn ${data.isFavorite ? 'active' : ''}`}
-            onClick={handleTogglePremium}
-            title={data.isFavorite ? '取消收藏' : '收藏'}
-          >
-            <Heart size={14} fill={data.isFavorite ? '#EF4444' : 'none'} />
-          </button>
-          <button
             className={`isc-action-btn ${data.isLiked ? 'active' : ''}`}
-            onClick={handleTogglePremium}
+            onClick={handleToggleLike}
             title={data.isLiked ? '取消点赞' : '点赞'}
           >
-            <Star size={14} fill={data.isLiked ? '#F59E0B' : 'none'} />
+            <Heart size={14} fill={data.isLiked ? '#EF4444' : 'none'} color={data.isLiked ? '#EF4444' : undefined} />
           </button>
-          <button 
-            className="isc-extract-btn" 
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              onClick(data); 
+          <button
+            className={`isc-action-btn ${data.isFavorite ? 'active' : ''}`}
+            onClick={handleToggleFavorite}
+            title={data.isFavorite ? '取消收藏' : '收藏'}
+          >
+            <Star size={14} fill={data.isFavorite ? '#F59E0B' : 'none'} color={data.isFavorite ? '#F59E0B' : undefined} />
+          </button>
+          <button
+            className="isc-extract-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick(data);
             }}
           >
             <span>提取知识</span>
