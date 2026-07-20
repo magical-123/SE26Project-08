@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -43,6 +44,9 @@ public class AiSummaryService {
     @Autowired
     private AIConfigRepository aiConfigRepository;
 
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
     @Value("${ai.deepseek.api-url}")
     private String defaultApiUrl;
 
@@ -61,20 +65,25 @@ public class AiSummaryService {
     /**
      * 异步为非空摘要的条目生成 AI 摘要
      */
-    @Async
+    @Async("aiSummaryExecutor")
     public void generateSummaryAsync(InformationItem item) {
         // 分隔一下异步线程的输出，避免日志混杂
         System.out.println("[AiSummary] 异步生成摘要: " + item.getTitle());
         boolean ok = generateSummary(item);
         if (ok) {
-            // 使用局部更新，仅更新 AI 摘要相关字段，避免覆盖用户手动标记的 isPremium 等字段
-            informationItemRepository.updateAiSummaryFields(
-                    item.getId(),
-                    item.getAiSummary(),
-                    item.getKnowledgeScore(),
-                    item.getScoreReasoning(),
-                    LocalDateTime.now()
-            );
+            // 使用编程式事务，因为 @Async 和 @Transactional 不能直接一起工作
+            TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+            transactionTemplate.executeWithoutResult(status -> {
+                // 使用局部更新，仅更新 AI 摘要相关字段，避免覆盖用户手动标记的 isPremium 等字段
+                informationItemRepository.updateAiSummaryFields(
+                        item.getId(),
+                        item.getAiSummary(),
+                        item.getKnowledgeScore(),
+                        item.getScoreReasoning(),
+                        item.getCategory(),
+                        LocalDateTime.now()
+                );
+            });
             System.out.println("[AiSummary] ✅ 完成: " + item.getTitle()
                     + " | 评分=" + item.getKnowledgeScore());
         } else {
@@ -221,6 +230,54 @@ public class AiSummaryService {
         if (content.startsWith("```")) {
             content = content.replaceAll("^```(?:json)?\\s*", "").replaceAll("\\s*```$", "");
         }
+
+        // 用花括号计数法精确提取 JSON 对象
+        int braceDepth = 0;
+        int jsonStart = -1;
+        for (int i = 0; i < content.length(); i++) {
+            char c = content.charAt(i);
+            if (c == '{') {
+                if (braceDepth == 0) jsonStart = i;
+                braceDepth++;
+            } else if (c == '}') {
+                braceDepth--;
+                if (braceDepth == 0 && jsonStart >= 0) {
+                    content = content.substring(jsonStart, i + 1);
+                    break;
+                }
+            }
+        }
+
+        // 清除字符串值中非法的反斜杠转义（如 \'），保留合法转义
+        StringBuilder sb = new StringBuilder();
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = 0; i < content.length(); i++) {
+            char c = content.charAt(i);
+            if (!inString) {
+                if (c == '"') { inString = true; escaped = false; sb.append(c); }
+                else { sb.append(c); }
+            } else {
+                if (escaped) {
+                    if (c == '"' || c == '\\' || c == '/' ||
+                        c == 'b' || c == 'f' || c == 'n' ||
+                        c == 'r' || c == 't' || c == 'u') {
+                        sb.append('\\').append(c);
+                    } else {
+                        sb.append(c);
+                    }
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    inString = false;
+                    sb.append(c);
+                } else {
+                    sb.append(c);
+                }
+            }
+        }
+        content = sb.toString();
 
         return objectMapper.readValue(content, Map.class);
     }
