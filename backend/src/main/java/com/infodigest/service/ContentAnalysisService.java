@@ -104,19 +104,18 @@ public class ContentAnalysisService {
         try {
             AnalysisResultDTO result = aiService.analyze(config, "", userPrompt);
 
-            // 保存营养成分分析结果
-            item.setNutritionProtein(result.getProtein());
-            item.setNutritionCarbs(result.getCarbs());
-            item.setNutritionVitamins(result.getVitamins());
-            item.setNutritionFats(result.getFats());
-            item.setNutritionFiber(result.getFiber());
-            item.setNutritionReasoning(result.getReasoning());
-            item.setAiSummary(result.getSummary());
-            item.setAnalyzedAt(LocalDateTime.now());
-            // 不再修改 processStatus，保持原状态（UNPROCESSED/FAILED）
-            // isPremium 由用户手动标记，与 AI 分析无关
-
-            itemRepository.save(item);
+            // 使用局部更新，仅更新 AI 分析相关字段，避免覆盖用户手动标记的 isPremium 等字段
+            itemRepository.updateAnalysisFields(
+                    itemId,
+                    result.getProtein(),
+                    result.getCarbs(),
+                    result.getVitamins(),
+                    result.getFats(),
+                    result.getFiber(),
+                    result.getReasoning(),
+                    result.getSummary(),
+                    LocalDateTime.now()
+            );
 
             log.info("Analysis completed for item {}: protein={}, carbs={}, vitamins={}, fats={}, fiber={}",
                     itemId, result.getProtein(), result.getCarbs(), result.getVitamins(),
@@ -124,8 +123,8 @@ public class ContentAnalysisService {
 
         } catch (Exception e) {
             log.error("Analysis failed for item {}: {}", itemId, e.getMessage(), e);
-            item.setProcessStatus("FAILED");
-            itemRepository.save(item);
+            // 失败时也只更新 processStatus，不影响其他字段
+            itemRepository.updateProcessStatus(itemId, "FAILED");
             throw e;
         }
     }
