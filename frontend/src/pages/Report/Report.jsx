@@ -43,6 +43,9 @@ export function Report() {
   const [weeklyWordCloudHistory, setWeeklyWordCloudHistory] = useState([]);
   const [wordSources, setWordSources] = useState([]);
 
+  // 话题聚类状态
+  const [topicClusters, setTopicClusters] = useState([]);
+
   // 获取营养数据
   useEffect(() => {
     const fetchNutritionData = async () => {
@@ -97,6 +100,26 @@ export function Report() {
       }
     };
     fetchWordCloudData();
+  }, [activeTab]);
+
+  // 获取话题聚类数据
+  useEffect(() => {
+    const fetchTopicClusters = async () => {
+      try {
+        const type = activeTab === 'daily' ? 'daily' : 'weekly';
+        const response = await fetch(`${API_BASE}/api/report/topics?type=${type}`, {
+          headers: getAuthHeaders()
+        });
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[话题聚类] 数据:', data);
+          setTopicClusters(data || []);
+        }
+      } catch (error) {
+        console.error('获取话题聚类失败:', error);
+      }
+    };
+    fetchTopicClusters();
   }, [activeTab]);
 
   // 获取洞察数据
@@ -264,8 +287,6 @@ export function Report() {
       setSelectedWord(e.name);
     }
   };
-
-  const currentTopics = activeTab === 'weekly' ? reportData.weeklyTopicClusters : reportData.dailyTopicClusters;
 
   return (
     <div className="report-page">
@@ -461,19 +482,32 @@ export function Report() {
 
         <GlassCard className="report-card topics-card">
           <h3>高频话题聚类</h3>
-          <ul className="topic-list">
-            {currentTopics.map((cluster, i) => (
-              <li key={i} className="topic-item">
-                <div className="topic-info">
-                  <span className="topic-name">{cluster.name}</span>
-                  <span className="topic-count">{cluster.count} 篇</span>
-                </div>
-                <div className="topic-tags">
-                  {cluster.tags.map(tag => <span key={tag} className="tag">{tag}</span>)}
-                </div>
-              </li>
-            ))}
-          </ul>
+          {topicClusters && topicClusters.length > 0 ? (
+            <ul className="topic-list">
+              {topicClusters.map((cluster, i) => (
+                <li key={i} className="topic-item">
+                  <div className="topic-info">
+                    <span className="topic-name">{cluster.name}</span>
+                    <span className="topic-count">{cluster.count} 篇</span>
+                  </div>
+                  <div className="topic-tags">
+                    {cluster.tags && cluster.tags.map(tag => <span key={tag} className="tag">{tag}</span>)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '40px 20px',
+              color: 'var(--text-muted)',
+              fontSize: '14px'
+            }}>
+              暂无话题聚类数据
+            </div>
+          )}
         </GlassCard>
       </div>
 
