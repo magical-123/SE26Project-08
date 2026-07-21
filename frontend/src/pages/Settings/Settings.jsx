@@ -55,6 +55,8 @@ export function Settings() {
   const [existingApiKey, setExistingApiKey] = useState(''); // 存储已有的屏蔽 API Key
   const [saveStatus, setSaveStatus] = useState(''); // 'success' | 'error' | ''
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [isTestingAI, setIsTestingAI] = useState(false);
+  const [testResult, setTestResult] = useState(null); // { success: boolean, message: string }
 
   // 页面加载时从后端获取真实平台连接状态
   useEffect(() => {
@@ -219,6 +221,39 @@ export function Settings() {
       setSaveStatus('error');
     } finally {
       setIsLoadingAI(false);
+    }
+  };
+
+  const handleTestConfig = async () => {
+    setIsTestingAI(true);
+    setTestResult(null);
+
+    try {
+      const modelTypeMap = {
+        'gpt-4': 'GPT_4',
+        'gpt-4-turbo': 'GPT_4_TURBO',
+        'gpt-3.5-turbo': 'GPT_3_5_TURBO',
+        'claude-3-opus': 'CLAUDE_3_OPUS',
+        'claude-3-sonnet': 'CLAUDE_3_SONNET',
+        'claude-3-haiku': 'CLAUDE_3_HAIKU',
+        'gemini-pro': 'GEMINI_PRO',
+        'custom': 'CUSTOM'
+      };
+
+      const requestBody = {
+        modelType: modelTypeMap[selectedModel],
+        apiKey: selectedModel === 'custom' ? (customConfig.apiKey || null) : null,
+        apiEndpoint: selectedModel === 'custom' ? customConfig.apiEndpoint : null,
+        customModelName: selectedModel === 'custom' ? customConfig.modelName : null
+      };
+
+      const res = await aiConfigApi.testConfig(requestBody);
+      setTestResult({ success: true, message: res.message || '连接成功！' });
+    } catch (error) {
+      console.error('测试 AI 配置失败:', error);
+      setTestResult({ success: false, message: error.message || '连接失败' });
+    } finally {
+      setIsTestingAI(false);
     }
   };
 
@@ -636,29 +671,54 @@ export function Settings() {
                   </p>
                 </div>
 
+                <div className="ai-actions-group">
+                  <button
+                    className={`test-config-btn ${isTestingAI ? 'testing' : ''}`}
+                    onClick={handleTestConfig}
+                    disabled={isTestingAI || isLoadingAI}
+                  >
+                    {isTestingAI ? '测试中...' : '测试连接'}
+                  </button>
+                  <button
+                    className={`save-config-btn ${saveStatus === 'success' ? 'success' : ''}`}
+                    onClick={handleSaveConfig}
+                    disabled={isLoadingAI || isTestingAI}
+                  >
+                    {isLoadingAI ? '保存中...' : saveStatus === 'success' ? '✓ 已保存' : '保存配置'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedModel !== 'custom' && (
+              <div className="ai-actions-group">
+                <button
+                  className={`test-config-btn ${isTestingAI ? 'testing' : ''}`}
+                  onClick={handleTestConfig}
+                  disabled={isTestingAI || isLoadingAI}
+                >
+                  {isTestingAI ? '测试中...' : '测试连接'}
+                </button>
                 <button
                   className={`save-config-btn ${saveStatus === 'success' ? 'success' : ''}`}
                   onClick={handleSaveConfig}
-                  disabled={isLoadingAI}
+                  disabled={isLoadingAI || isTestingAI}
                 >
                   {isLoadingAI ? '保存中...' : saveStatus === 'success' ? '✓ 已保存' : '保存配置'}
                 </button>
               </div>
             )}
-
-            {selectedModel !== 'custom' && (
-              <button
-                className={`save-config-btn ${saveStatus === 'success' ? 'success' : ''}`}
-                onClick={handleSaveConfig}
-                disabled={isLoadingAI}
-              >
-                {isLoadingAI ? '保存中...' : saveStatus === 'success' ? '✓ 已保存' : '保存配置'}
-              </button>
-            )}
           </div>
 
+          {testResult && (
+            <div className={`notification ${testResult.success ? 'success' : 'error'}`} style={{ marginTop: '12px', whiteSpace: 'pre-wrap' }}>
+              <span className="notification-icon">{testResult.success ? '✓' : '✕'}</span>
+              <span className="notification-message">{testResult.message}</span>
+            </div>
+          )}
+
           {saveStatus === 'success' && (
-            <div className="notification success">
+            <div className="notification success" style={{ marginTop: '12px' }}>
               <span className="notification-icon">✓</span>
               <span className="notification-message">配置保存成功</span>
             </div>
