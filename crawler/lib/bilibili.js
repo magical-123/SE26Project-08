@@ -1,6 +1,6 @@
 /**
  * B 站 API 封装
- * 负责：Cookie 鉴权、拉取历史记录、获取视频详情、CC 字幕提取
+ * 负责：Cookie 鉴权、拉取历史记录/点赞/收藏、获取视频详情、CC 字幕提取
  */
 
 const axios = require('axios');
@@ -22,16 +22,19 @@ function createBilibiliClient(cookie) {
 }
 
 /**
- * 校验 Cookie 是否有效
+ * 校验 Cookie 是否有效，返回 { valid, mid }
  * 通过调用需要登录的接口来判断
  */
 async function validateCookie(client) {
   try {
     const res = await client.get('/x/web-interface/nav');
     const data = res.data;
-    return data.code === 0 && data.data && data.data.isLogin;
+    return {
+      valid: data.code === 0 && data.data && data.data.isLogin,
+      mid: data?.data?.mid || null,
+    };
   } catch {
-    return false;
+    return { valid: false, mid: null };
   }
 }
 
@@ -70,7 +73,95 @@ async function fetchHistory(client, options = {}) {
 }
 
 /**
- * 获取单个视频详细信息（含 CC 字幕列表）
+ * 获取用户点赞的视频列表
+ * @param {Object} client - axios 实例
+ * @param {number} mid - 用户 mid
+ * @param {Object} options - { pn, ps }
+ */
+async function fetchLikedVideos(client, mid, options = {}) {
+  const { pn = 1, ps = 10 } = options;
+
+  const res = await client.get('/x/space/like/video', {
+    params: { vmid: mid, pn, ps },
+  });
+  const body = res.data;
+
+  if (body.code !== 0) {
+    throw new Error(`B 站点赞 API 返回错误: code=${body.code}, message=${body.message}`);
+  }
+
+  const list = body.data?.list || [];
+  const page = body.data?.page || {};
+
+  return {
+    items: list.map(v => ({
+      title: v.title || '无标题',
+      aid: v.aid,
+      author: v.author || v.owner?.name || '',
+      pic: v.pic || '',
+    })),
+    count: page.count || list.length,
+  };
+}
+
+/**
+ * 获取用户创建的收藏夹列表
+ * @param {Object} client - axios 实例
+ * @param {number} mid - 用户 mid
+ */
+async function fetchFavoriteFolders(client, mid) {
+  const res = await client.get('/x/v3/fav/folder/created/list', {
+    params: { up_mid: mid, pn: 1, ps: 10 },
+  });
+  const body = res.data;
+
+  if (body.code !== 0) {
+    throw new Error(`B 站收藏夹列表 API 返回错误: code=${body.code}, message=${body.message}`);
+  }
+
+  const list = body.data?.list || [];
+  return list.map(f => ({
+    id: f.id,
+    title: f.title || '默认收藏夹',
+    count: f.media_count || 0,
+  }));
+}
+
+/**
+ * 获取收藏夹中的视频列表
+ * @param {Object} client - axios 实例
+ * @param {number} mediaId - 收藏夹 ID
+ * @param {Object} options - { pn, ps }
+ */
+async function fetchFavoriteResources(client, mediaId, options = {}) {
+  const { pn = 1, ps = 20 } = options;
+
+  const res = await client.get('/x/v3/fav/resource/list', {
+    params: { media_id: mediaId, pn, ps, platform: 'web' },
+  });
+  const body = res.data;
+
+  if (body.code !== 0) {
+    throw new Error(`B 站收藏夹内容 API 返回错误: code=${body.code}, message=${body.message}`);
+  }
+
+  const medias = body.data?.medias || [];
+  const info = body.data?.info || {};
+
+  return {
+    items: medias.map(m => ({
+      title: m.title || '无标题',
+      aid: m.id,
+      author: m.upper?.name || '',
+      intro: m.intro || '',
+    })),
+    hasMore: body.data?.has_more || false,
+    total: info.media_count || medias.length,
+  };
+}
+
+/**
+ * 获取用户单个视频详细信息（含 CC 字幕列表）
  */
 async function fetchVideoInfo(client, aid) {
   const res = await client.get('/x/web-interface/view', {
@@ -125,6 +216,9 @@ module.exports = {
   createBilibiliClient,
   validateCookie,
   fetchHistory,
+  fetchLikedVideos,
+  fetchFavoriteFolders,
+  fetchFavoriteResources,
   fetchVideoInfo,
   fetchSubtitleList,
   fetchSubtitleText,
