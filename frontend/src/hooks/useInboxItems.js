@@ -14,7 +14,7 @@ function formatItem(item) {
     id: item.id,
     title: item.title,
     platform: formatPlatform(item.platform),
-    author: item.platform || '未知来源',
+    author: item.author || '未知作者',
     duration: (item.durationMinutes || 1) + ' 分钟',
     date: formatTimeAgo(item.crawledAt),
     isFavorite: item.isFavorite === true,

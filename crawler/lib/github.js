@@ -125,6 +125,7 @@ function formatRepo(repo) {
   return {
     title: repo.full_name || repo.name || '未知仓库',
     url: repo.html_url || '',
+    author: repo.owner?.login || '',
     owner: repo.owner?.login || '',
     description: repo.description || '',
     language: repo.language || '',

@@ -27,6 +27,8 @@ public class InformationItem {
 
     private String platform; // Bilibili, Zhihu, etc.
 
+    private String author;   // 实际内容作者/UP主/答主
+
     @Deprecated
     private String category; // 深度知识, 娱乐短剧, etc. (Deprecated, use ItemConcept)
 
