@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Edit3, PlayCircle, FileText, Mic, Clock, Calendar } from 'lucide-react';
 import './DetailDrawer.css';
+import ReactECharts from 'echarts-for-react';
 
 import { Tag } from 'lucide-react';
 
@@ -14,6 +15,82 @@ const platformIcon = {
 export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywords, selectedKeywords, onNoteChange, onToggleKeyword, onAddKeyword, onDeleteKeyword, onUpgrade, isUpgrading, onTogglePremium, onRegenerateSummary, sourceTitle }) {
   const d = data?.data || data || {};
   const isPremium = !!d.hasNote;
+
+  // 构建营养数据
+  const nutritionData = useMemo(() => {
+    const hasNutrition = d.nutritionProtein != null && d.nutritionCarbs != null &&
+                         d.nutritionVitamins != null && d.nutritionFats != null &&
+                         d.nutritionFiber != null;
+
+    if (!hasNutrition) {
+      console.log('No nutrition data for item:', d.id, {
+        protein: d.nutritionProtein,
+        carbs: d.nutritionCarbs,
+        vitamins: d.nutritionVitamins,
+        fats: d.nutritionFats,
+        fiber: d.nutritionFiber
+      });
+      return null;
+    }
+
+    // 检查是否所有值都是0
+    const total = d.nutritionProtein + d.nutritionCarbs + d.nutritionVitamins +
+                  d.nutritionFats + d.nutritionFiber;
+    if (total === 0) {
+      console.log('All nutrition values are 0 for item:', d.id);
+      return null;
+    }
+
+    return [
+      { name: '蛋白质（深度知识）', value: d.nutritionProtein, itemStyle: { color: '#0EA5E9' } },
+      { name: '碳水（实用技能）', value: d.nutritionCarbs, itemStyle: { color: '#F59E0B' } },
+      { name: '维生素（创意灵感）', value: d.nutritionVitamins, itemStyle: { color: '#10B981' } },
+      { name: '脂肪（纯娱乐）', value: d.nutritionFats, itemStyle: { color: '#F43F5E' } },
+      { name: '纤维（哲思冥想）', value: d.nutritionFiber, itemStyle: { color: '#8B5CF6' } }
+    ];
+  }, [d.nutritionProtein, d.nutritionCarbs, d.nutritionVitamins, d.nutritionFats, d.nutritionFiber, d.id]);
+
+  // 营养饼图配置
+  const nutritionPieOption = useMemo(() => {
+    if (!nutritionData) return null;
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: {c}%'
+      },
+      legend: {
+        show: false
+      },
+      series: [
+        {
+          type: 'pie',
+          radius: ['30%', '55%'],
+          center: ['50%', '50%'],
+          avoidLabelOverlap: true,
+          label: {
+            show: true,
+            position: 'outside',
+            formatter: '{c}%',
+            fontSize: 10,
+            color: '#666'
+          },
+          labelLine: {
+            show: true,
+            length: 5,
+            length2: 5
+          },
+          itemStyle: {
+            borderRadius: 4,
+            borderColor: '#fff',
+            borderWidth: 1
+          },
+          data: nutritionData
+        }
+      ]
+    };
+  }, [nutritionData]);
 
   // 打开抽屉时锁定 body 滚动，防止滚动栏影响抽屉显示
   useEffect(() => {
@@ -162,6 +239,26 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
                   + 添加关键词
                 </button>
               </div>
+
+              {/* Nutrition Chart */}
+              {nutritionData && nutritionPieOption && (
+                <div className="nutrition-chart-section">
+                  <div className="nutrition-chart-label">
+                    <Sparkles size={12} /> 数字营养成分
+                  </div>
+                  <div className="nutrition-chart-container">
+                    <ReactECharts
+                      option={nutritionPieOption}
+                      style={{ height: '150px', width: '100%' }}
+                    />
+                  </div>
+                  {d.nutritionReasoning && (
+                    <div className="nutrition-reasoning">
+                      <span className="reasoning-text">{d.nutritionReasoning}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
 
             </div>

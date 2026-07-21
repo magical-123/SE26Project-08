@@ -113,6 +113,7 @@
   border-radius: 14px;
   background: rgba(0, 0, 0, 0.02);
   border: 1px solid rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 }
 
 .meta-item {
@@ -151,6 +152,8 @@
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
   border: 1px solid rgba(14, 165, 233, 0.18);
   overflow: hidden;
+  min-height: 120px;
+  flex-shrink: 0;
 }
 
 .ai-summary-glow {
@@ -205,6 +208,7 @@
   font-size: 13.5px;
   line-height: 1.7;
   margin: 0;
+  min-height: 40px;
 }
 
 .regenerate-summary-btn {
@@ -289,6 +293,7 @@
 .user-notes {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .notes-header {
@@ -329,6 +334,7 @@
 /* ---- Keyword Tags ---- */
 .keyword-section {
   margin-top: 4px;
+  flex-shrink: 0;
 }
 
 .keyword-section-label {
@@ -537,4 +543,56 @@
 
 .save-btn.danger:active {
   transform: translateY(0) scale(0.99);
+}
+
+/* ---- Nutrition Chart Section ---- */
+.nutrition-chart-section {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.nutrition-chart-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.nutrition-chart-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.nutrition-reasoning {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(14, 165, 233, 0.05);
+  border-left: 2px solid rgba(14, 165, 233, 0.3);
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-main);
+}
+
+.reasoning-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+
+.reasoning-text {
+  color: var(--text-main);
+  font-size: 11px;
 }

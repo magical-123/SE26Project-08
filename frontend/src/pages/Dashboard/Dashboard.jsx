@@ -51,10 +51,16 @@ export function Dashboard() {
 
         if (response.ok) {
           const wordCloudData = await response.json();
+          console.log('[Dashboard 初始加载] API返回词云数据:', wordCloudData);
           if (wordCloudData && wordCloudData.length > 0) {
             // 后端返回的格式已经是 [{name, value}]
             setRealWordCloudData(wordCloudData);
+            console.log('[Dashboard 初始加载] 已设置realWordCloudData');
+          } else {
+            console.log('[Dashboard 初始加载] 词云数据为空，realWordCloudData保持为null');
           }
+        } else {
+          console.error('[Dashboard 初始加载] API请求失败:', response.status);
         }
       } catch (error) {
         console.error('[词云] 获取失败:', error);
@@ -64,6 +70,56 @@ export function Dashboard() {
     };
 
     fetchWordCloud();
+  }, []);
+
+  // 监听Report页面的词云更新通知 + 页面进入时立即检查
+  useEffect(() => {
+    const fetchWordCloud = async () => {
+      try {
+        const token = sessionStorage.getItem('token');
+        if (!token) return;
+
+        console.log('[Dashboard] 开始获取最新词云数据...');
+        const response = await fetch('http://localhost:8080/api/dashboard/wordcloud', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const wordCloudData = await response.json();
+          console.log('[Dashboard] 收到词云数据:', wordCloudData);
+          if (wordCloudData && wordCloudData.length > 0) {
+            setRealWordCloudData(wordCloudData);
+            console.log('[Dashboard] 词云数据已更新，触发重新渲染');
+          } else {
+            console.log('[Dashboard] 词云数据为空');
+          }
+        } else {
+          console.error('[Dashboard] 词云API响应失败:', response.status);
+        }
+      } catch (error) {
+        console.error('[词云] 刷新失败:', error);
+      }
+    };
+
+    const checkWordCloudUpdate = () => {
+      const lastUpdate = sessionStorage.getItem('dashboard:wordcloudUpdated');
+      if (lastUpdate) {
+        console.log('[Dashboard] 检测到词云更新通知:', lastUpdate);
+        // 清除标记并重新获取词云数据
+        sessionStorage.removeItem('dashboard:wordcloudUpdated');
+        fetchWordCloud();
+      }
+    };
+
+    // 页面加载时立即检查一次是否有待处理的更新通知
+    checkWordCloudUpdate();
+
+    // 每2秒检查一次是否有更新通知
+    const interval = setInterval(checkWordCloudUpdate, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -168,6 +224,22 @@ export function Dashboard() {
     const cloudData = realWordCloudData || wordCloudData;
     const hasData = cloudData && cloudData.length > 0;
 
+    // 转换数据格式：{word, value} -> {name, value}
+    const formattedData = hasData
+      ? cloudData.map(item => ({
+          name: item.word || item.name,
+          value: item.value
+        }))
+      : [];
+
+    console.log('[Dashboard] wordCloudOption 重新计算:', {
+      realWordCloudData: realWordCloudData?.length,
+      wordCloudData: wordCloudData?.length,
+      hasData,
+      原始数据: cloudData?.slice(0, 2),
+      转换后数据: formattedData?.slice(0, 2)
+    });
+
     return {
       backgroundColor: 'transparent',
       tooltip: { show: hasData },
@@ -202,7 +274,7 @@ export function Dashboard() {
           focus: 'self',
           textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
         },
-        data: hasData ? cloudData : []
+        data: formattedData
       }]
     };
   }, [realWordCloudData, wordCloudData]);
