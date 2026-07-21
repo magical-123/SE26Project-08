@@ -21,7 +21,7 @@ function formatItem(item) {
     isLiked: item.isLiked === true,
     hasNote: item.isPremium === true,
     opened: true,
-    note: '',
+    note: item.userNote || '',
     keywords: [],
     processStatus: item.processStatus,
     isPremium: item.isPremium === true,
@@ -312,10 +312,10 @@ export function useInboxItems() {
           : item
       )
     );
-    // 尝试更新后端
+    // 尝试更新后端：笔记存到 userNote 字段，不要覆盖 contentRaw（原始文章内容）
     try {
       await inboxApi.updateItem(id, {
-        contentRaw: note,
+        userNote: note,
         isPremium: true,
       });
     } catch (err) {
@@ -334,9 +334,21 @@ export function useInboxItems() {
     // 尝试更新后端
     try {
       const backendPatch = {};
+      // 映射前端的 note 到后端的 userNote
+      if (patch.note !== undefined) backendPatch.userNote = patch.note;
       if (patch.opened !== undefined) backendPatch.processStatus = 'PROCESSED';
-      if (patch.note !== undefined) backendPatch.contentRaw = patch.note;
-      await inboxApi.updateItem(id, backendPatch);
+      // 直接映射与后端字段名一致的字段
+      if (patch.isPremium !== undefined) backendPatch.isPremium = patch.isPremium;
+      if (patch.userNote !== undefined) backendPatch.userNote = patch.userNote;
+      if (patch.processStatus !== undefined) backendPatch.processStatus = patch.processStatus;
+      if (patch.isLiked !== undefined) backendPatch.isLiked = patch.isLiked;
+      if (patch.isFavorite !== undefined) backendPatch.isFavorite = patch.isFavorite;
+      if (patch.contentRaw !== undefined) backendPatch.contentRaw = patch.contentRaw;
+      
+      // 只有确实有需要发到后端的字段时才调 API
+      if (Object.keys(backendPatch).length > 0) {
+        await inboxApi.updateItem(id, backendPatch);
+      }
     } catch (err) {
       console.error('更新信息项失败:', err);
     }

@@ -34,7 +34,7 @@ public class CrawlController {
      * 爬虫不再依赖 config.js 中硬编码的 testuser/testpass。
      */
     @PostMapping("/trigger")
-    public ResponseEntity<Map<String, Object>> triggerCrawl(@RequestParam String platform) {
+    public ResponseEntity<Map<String, Object>> triggerCrawl(@RequestParam(defaultValue = "all") String platform) {
         Map<String, Object> result = new LinkedHashMap<>();
         
         try {
@@ -47,12 +47,14 @@ public class CrawlController {
             // 生成该用户的 JWT Token（有效期 1 小时，足够爬虫使用）
             String crawlerToken = jwtUtil.generateToken(username, user.getId());
             
-            // 构建命令：node index.js --platform=xxx --auth-token=xxx --user-id=xxx --limit=10
+            // 构建命令：node index.js [--platform=xxx] --auth-token=xxx --user-id=xxx --limit=10
             // 手动触发（首次连接）抓取最近 10 条，避免大量历史数据涌入
             List<String> command = new ArrayList<>();
             command.add("node");
             command.add(crawlerScriptPath);
-            command.add("--platform=" + platform.toLowerCase());
+            if (!"all".equalsIgnoreCase(platform)) {
+                command.add("--platform=" + platform.toLowerCase());
+            }
             command.add("--auth-token=" + crawlerToken);
             command.add("--user-id=" + user.getId());
             command.add("--limit=10");

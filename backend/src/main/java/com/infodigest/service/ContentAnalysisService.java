@@ -116,21 +116,18 @@ public class ContentAnalysisService {
             try {
                 AnalysisResultDTO result = aiService.analyze(config, "", userPrompt);
 
-            // 保存营养成分分析结果
-            item.setNutritionProtein(result.getProtein());
-            item.setNutritionCarbs(result.getCarbs());
-            item.setNutritionVitamins(result.getVitamins());
-            item.setNutritionFats(result.getFats());
-            item.setNutritionFiber(result.getFiber());
-            item.setNutritionReasoning(result.getReasoning());
-            item.setAiSummary(result.getSummary());
-            item.setAnalyzedAt(LocalDateTime.now());
-            // 分析完成后设置为 PROCESSED 状态
-            item.setProcessStatus("PROCESSED");
-            // isPremium 由用户手动标记，与 AI 分析无关
-
-            // 保存营养评分和摘要到数据库
-            itemRepository.save(item);
+            // 重新获取最新状态以免覆盖用户在 AI 分析期间的修改（如 userNote, isPremium）
+            InformationItem freshItem = itemRepository.findById(itemId).orElse(item);
+            freshItem.setNutritionProtein(result.getProtein());
+            freshItem.setNutritionCarbs(result.getCarbs());
+            freshItem.setNutritionVitamins(result.getVitamins());
+            freshItem.setNutritionFats(result.getFats());
+            freshItem.setNutritionFiber(result.getFiber());
+            freshItem.setNutritionReasoning(result.getReasoning());
+            freshItem.setAiSummary(result.getSummary());
+            freshItem.setAnalyzedAt(LocalDateTime.now());
+            freshItem.setProcessStatus("PROCESSED");
+            itemRepository.save(freshItem);
 
                 log.info("Nutrition analysis completed for item {}: protein={}, carbs={}, vitamins={}, fats={}, fiber={}",
                         itemId, result.getProtein(), result.getCarbs(), result.getVitamins(),

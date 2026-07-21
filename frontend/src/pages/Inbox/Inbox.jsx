@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { InfoSourceCard } from '../../components/InfoSourceCard/InfoSourceCard';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
-import { graphApi } from '../../utils/api';
+import { graphApi, crawlApi } from '../../utils/api';
 import './Inbox.css';
 
 const containerVariants = {
@@ -31,9 +31,20 @@ export function Inbox() {
   const aiSummaryCount = items.filter(i => i.aiSummary).length;
   const totalCount = items.length;
 
-  const unprocessedCount = items.filter(i => i.processStatus === 'UNPROCESSED').length;
-  const processedCount = totalCount - unprocessedCount;
-  const processingPercent = totalCount === 0 ? 100 : Math.round((processedCount / totalCount) * 100);
+  const unprocessedCount = items.filter(i => !i.aiSummary && i.processStatus === 'UNPROCESSED').length;
+  
+  const [batchTotal, setBatchTotal] = useState(0);
+
+  useEffect(() => {
+    if (unprocessedCount > batchTotal) {
+      setBatchTotal(unprocessedCount);
+    } else if (unprocessedCount === 0 && batchTotal !== 0) {
+      setBatchTotal(0);
+    }
+  }, [unprocessedCount, batchTotal]);
+
+  const batchProcessedCount = Math.max(0, batchTotal - unprocessedCount);
+  const processingPercent = batchTotal === 0 ? 0 : Math.round((batchProcessedCount / batchTotal) * 100);
   const isProcessing = unprocessedCount > 0;
 
   // 切换平台筛选时，如果当前过滤结果为空且还有更多数据，自动加载更多
@@ -124,14 +135,53 @@ export function Inbox() {
     setSelectedItem(null);
   };
 
-  const handleUpgrade = () => {
+  const [isUpgrading, setIsUpgrading] = useState(false);
+
+  const handleUpgrade = async () => {
     if (!selectedItem) return;
+    
+    // 保存本地修改和设为优质信息源
     saveNote(selectedItem.id, draftNote, selectedKeywords);
-    graphApi.updateItemKeywords(selectedItem.id, selectedKeywords.map(label => ({ 
-      label, 
-      isNew: suggestedKeywords.find(s => s.label === label)?.isNew || false 
-    })));
-    setSelectedItem(null);
+    
+    setIsUpgrading(true);
+    try {
+      const suggestions = await graphApi.analyzeKeywords(selectedItem.id, draftNote);
+      
+      const newKeywords = [...suggestedKeywords];
+      const newSelected = [...selectedKeywords];
+      
+      suggestions.forEach(s => {
+        if (!newKeywords.find(k => k.label === s.label)) {
+          newKeywords.push(s);
+        }
+        if (!newSelected.includes(s.label)) {
+          newSelected.push(s.label);
+        }
+      });
+      
+      setSuggestedKeywords(newKeywords);
+      setSelectedKeywords(newSelected);
+      
+      // 更新到后端
+      await graphApi.updateItemKeywords(selectedItem.id, newSelected.map(label => ({ 
+        label, 
+        isNew: newKeywords.find(s => s.label === label)?.isNew || false 
+      })));
+      
+    } catch (e) {
+      console.error(e);
+      alert('AI推荐领域失败，请稍后重试');
+    } finally {
+      setIsUpgrading(false);
+      
+      // 重新拉取以获取正确的 isNew 状态
+      try {
+        const concepts = await graphApi.getItemKeywords(selectedItem.id);
+        const kws = concepts.map(c => c.label);
+        setSelectedKeywords(kws);
+        setSuggestedKeywords(kws.map(label => ({ label, isNew: false }))); 
+      } catch (err) {}
+    }
   };
 
   const handleTogglePremium = (id) => {
@@ -152,6 +202,15 @@ export function Inbox() {
       alert('已重新触发该卡片的 AI 摘要生成，请稍后刷新查看');
     } catch (err) {
       alert('重新生成摘要失败：' + err.message);
+    }
+  };
+
+  const handleManualUpdate = async () => {
+    try {
+      await crawlApi.trigger('all');
+      alert('爬虫已启动，新数据将在几分钟内同步到 Inbox');
+    } catch (err) {
+      alert('启动爬虫失败：' + err.message);
     }
   };
 
@@ -179,6 +238,9 @@ export function Inbox() {
                 {f}
               </button>
             ))}
+            <button className="filter-btn manual-update-btn" onClick={handleManualUpdate}>
+              🔄 手动更新
+            </button>
           </div>
         </div>
         
@@ -186,7 +248,7 @@ export function Inbox() {
           <div className="inbox-progress-container">
             <div className="inbox-progress-header">
               <span className="progress-label">✨ AI 正在努力分析中...</span>
-              <span className="progress-text">{processedCount} / {totalCount}</span>
+              <span className="progress-text">{batchProcessedCount} / {batchTotal}</span>
             </div>
             <div className="inbox-progress-bar-bg">
               <motion.div 
@@ -295,6 +357,7 @@ export function Inbox() {
         onAddKeyword={handleAddKeyword}
         onDeleteKeyword={handleDeleteKeyword}
         onUpgrade={handleUpgrade}
+        isUpgrading={isUpgrading}
         onTogglePremium={(id) => {
           handleTogglePremium(id);
           setSelectedItem(null);

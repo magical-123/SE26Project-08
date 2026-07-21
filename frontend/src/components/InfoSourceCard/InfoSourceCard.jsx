@@ -42,7 +42,7 @@ export function InfoSourceCard({ data, onClick, onTogglePremium, onToggleLike, o
           <span>{premiumLabel}</span>
         </div>
       )}
-      {data.processStatus === 'UNPROCESSED' && (
+      {(!data.aiSummary && data.processStatus === 'UNPROCESSED') && (
         <div className="isc-processing-badge">
           <div className="isc-spinner" />
           <span>AI 分析中...</span>

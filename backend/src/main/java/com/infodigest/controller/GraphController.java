@@ -97,6 +97,18 @@ public class GraphController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/analyze-keywords/{itemId}")
+    public ResponseEntity<List<KeywordSuggestion>> analyzeKeywords(@PathVariable Long itemId, @RequestBody Map<String, String> body) {
+        Long userId = getCurrentUserId();
+        String note = body != null ? body.get("note") : null;
+        Optional<InformationItem> opt = informationItemRepository.findByIdAndUserId(itemId, userId);
+        if (opt.isPresent()) {
+            List<KeywordSuggestion> keywords = keywordService.analyzeKeywords(opt.get(), note);
+            return ResponseEntity.ok(keywords);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     @GetMapping("/data")
     public ResponseEntity<Map<String, Object>> getGraphData() {
         Long userId = getCurrentUserId();
