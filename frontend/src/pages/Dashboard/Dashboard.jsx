@@ -93,7 +93,17 @@ export function Dashboard() {
         const summaryData = await summaryRes.json();
 
         setNutritionData(nutrition.data || nutrition);
-        setWordCloudData(wordcloud);
+
+        // 转换词云数据格式: {word, value} -> {name, value}
+        const formattedWordCloud = Array.isArray(wordcloud)
+          ? wordcloud.map(item => ({
+              name: item.word || item.name,
+              value: item.value
+            }))
+          : [];
+        console.log('[Dashboard] 词云数据:', formattedWordCloud);
+        setWordCloudData(formattedWordCloud);
+
         setAiQuotes(insights);
         setReviewCards(reviews);
         setSummary(summaryData);
@@ -158,43 +168,48 @@ export function Dashboard() {
     }
   };
 
-  const wordCloudOption = useMemo(() => ({
-    backgroundColor: 'transparent',
-    tooltip: { show: true },
-    series: [{
-      type: 'wordCloud',
-      shape: 'circle',
-      keepAspect: false,
-      left: 'center',
-      top: 'center',
-      width: '100%',
-      height: '100%',
-      right: null,
-      bottom: null,
-      sizeRange: [12, 40],
-      rotationRange: [-45, 45],
-      rotationStep: 45,
-      gridSize: 8,
-      drawOutOfBound: false,
-      layoutAnimation: true,
-      textStyle: {
-        fontFamily: 'Inter, sans-serif',
-        fontWeight: 'bold',
-        color: function () {
-          return 'rgb(' + [
-            Math.round(Math.random() * 100),
-            Math.round(Math.random() * 100),
-            Math.round(Math.random() * 150 + 50)
-          ].join(',') + ')';
-        }
-      },
-      emphasis: {
-        focus: 'self',
-        textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
-      },
-      data: realWordCloudData || wordCloudData
-    }]
-  }), [realWordCloudData, wordCloudData]);
+  const wordCloudOption = useMemo(() => {
+    const cloudData = realWordCloudData || wordCloudData;
+    const hasData = cloudData && cloudData.length > 0;
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: { show: hasData },
+      series: [{
+        type: 'wordCloud',
+        shape: 'circle',
+        keepAspect: false,
+        left: 'center',
+        top: 'center',
+        width: '100%',
+        height: '100%',
+        right: null,
+        bottom: null,
+        sizeRange: [12, 40],
+        rotationRange: [-45, 45],
+        rotationStep: 45,
+        gridSize: 8,
+        drawOutOfBound: false,
+        layoutAnimation: true,
+        textStyle: {
+          fontFamily: 'Inter, sans-serif',
+          fontWeight: 'bold',
+          color: function () {
+            return 'rgb(' + [
+              Math.round(Math.random() * 100),
+              Math.round(Math.random() * 100),
+              Math.round(Math.random() * 150 + 50)
+            ].join(',') + ')';
+          }
+        },
+        emphasis: {
+          focus: 'self',
+          textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
+        },
+        data: hasData ? cloudData : []
+      }]
+    };
+  }, [realWordCloudData, wordCloudData]);
 
   // Transform nutrition API data: keep original format for NutritionLabel
   const transformedNutritionData = useMemo(() => {
@@ -240,7 +255,20 @@ export function Dashboard() {
         <GlassCard className="bento-trend" onClick={() => navigate('/report')} style={{ cursor: 'pointer' }}>
           <h3>近期关注点流变</h3>
           <div className="chart-container">
-            <ReactECharts option={wordCloudOption} style={{ height: '100%', width: '100%' }} />
+            {(realWordCloudData && realWordCloudData.length > 0) || (wordCloudData && wordCloudData.length > 0) ? (
+              <ReactECharts option={wordCloudOption} style={{ height: '100%', width: '100%' }} />
+            ) : (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                color: 'var(--text-muted)',
+                fontSize: '14px'
+              }}>
+                暂无词云数据
+              </div>
+            )}
           </div>
         </GlassCard>
 

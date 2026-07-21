@@ -10,6 +10,7 @@ import com.infodigest.repository.UserRepository;
 import com.infodigest.service.DashboardInsightService;
 import com.infodigest.service.ReviewCardGenerationService;
 import com.infodigest.service.WordCloudService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -20,6 +21,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/dashboard")
 public class DashboardController {
@@ -198,7 +200,7 @@ public class DashboardController {
                     source.put("id", item.getId());
                     source.put("title", item.getTitle());
                     source.put("platform", item.getPlatform());
-                    source.put("link", item.getLink());
+                    source.put("link", item.getUrl());
                     source.put("summary", item.getAiSummary());
                     source.put("completionRate", item.getCompletionRate());
                     sources.add(source);
