@@ -15,7 +15,6 @@ function getAuthHeaders() {
 }
 
 export function AIQuoteCard({ quote, onRefresh }) {
-  const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
@@ -46,18 +45,16 @@ export function AIQuoteCard({ quote, onRefresh }) {
 
   return (
     <>
-      {/* Level 1 & 2: The Card in the Bento Grid */}
+      {/* The Card in the Bento Grid - 只显示摘要 */}
       <motion.div
-        layoutId={`quote-${quote.id}`}
-        className={`ai-quote-wrapper ${isHovered ? 'hover-active' : ''}`}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={() => setIsModalOpen(true)}
         whileHover={{ y: -4 }}
+        className="ai-quote-wrapper"
+        onClick={() => setIsModalOpen(true)}
+        style={{ cursor: 'pointer' }}
       >
-        <GlassCard className={`ai-quote-card ${isHovered ? 'hovered' : ''}`}>
+        <GlassCard className="ai-quote-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <motion.h3 layout="position">💡 AI 洞察金句</motion.h3>
+            <h3>💡 AI 洞察金句</h3>
             <button
               className="regenerate-btn"
               onClick={handleRegenerate}
@@ -68,45 +65,25 @@ export function AIQuoteCard({ quote, onRefresh }) {
             </button>
           </div>
 
-          <motion.p layout="position" className="quote-text">
-            {isHovered ? quote.fullText : quote.summary}
-          </motion.p>
-
-          <AnimatePresence>
-            {isHovered && (
-              <motion.div
-                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
-                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                className="quote-hover-details"
-              >
-                <div className="quote-tags">
-                  {quote.tags.map(tag => (
-                    <span key={tag} className="quote-tag"><Tag size={10} style={{marginRight: 4}}/> {tag}</span>
-                  ))}
-                </div>
-                <div className="quote-source-mini">
-                  {quote.sourcePlatform}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <p className="quote-text">{quote.summary}</p>
         </GlassCard>
       </motion.div>
 
-      {/* Level 3: The Full Modal */}
+      {/* Full Modal - 点击卡片时显示 */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="ai-quote-modal-overlay" onClick={() => setIsModalOpen(false)}>
             <motion.div
-              layoutId={`quote-${quote.id}`}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               className="ai-quote-modal-content"
               onClick={(e) => e.stopPropagation()}
             >
               <button className="close-btn" onClick={() => setIsModalOpen(false)}>
                 <X size={24} />
               </button>
-              
+
               <div className="modal-header">
                 <h2>💡 深度洞察笔记</h2>
                 <div className="modal-tags">
@@ -118,7 +95,7 @@ export function AIQuoteCard({ quote, onRefresh }) {
 
               <div className="modal-body">
                 <p className="modal-full-text">{quote.fullText}</p>
-                
+
                 <div className="modal-source-card">
                   <div className="ms-info">
                     <span className="ms-label">信息溯源</span>
