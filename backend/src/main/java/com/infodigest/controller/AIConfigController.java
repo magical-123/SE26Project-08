@@ -33,10 +33,23 @@ public class AIConfigController {
 
             config.setUserId(userId);
             config.setModelType(request.getModelType());
-            config.setApiKey(request.getApiKey());
-            config.setApiEndpoint(request.getApiEndpoint());
+
+            // 只有当传入的 API Key 不为 null 时才更新（null 表示保持原有值）
+            if (request.getApiKey() != null) {
+                config.setApiKey(request.getApiKey());
+            }
+
+            // 只有当传入的 API Endpoint 不为 null 时才更新
+            if (request.getApiEndpoint() != null) {
+                config.setApiEndpoint(request.getApiEndpoint());
+            }
+
             config.setMaxTokens(request.getMaxTokens());
-            config.setCustomModelName(request.getCustomModelName());
+
+            // 只有当传入的自定义模型名不为 null 时才更新
+            if (request.getCustomModelName() != null) {
+                config.setCustomModelName(request.getCustomModelName());
+            }
 
             configRepository.save(config);
 
