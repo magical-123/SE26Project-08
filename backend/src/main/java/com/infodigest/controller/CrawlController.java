@@ -47,13 +47,15 @@ public class CrawlController {
             // 生成该用户的 JWT Token（有效期 1 小时，足够爬虫使用）
             String crawlerToken = jwtUtil.generateToken(username, user.getId());
             
-            // 构建命令：node index.js --platform=xxx --auth-token=xxx --user-id=xxx
+            // 构建命令：node index.js --platform=xxx --auth-token=xxx --user-id=xxx --limit=10
+            // 手动触发（首次连接）抓取最近 10 条，避免大量历史数据涌入
             List<String> command = new ArrayList<>();
             command.add("node");
             command.add(crawlerScriptPath);
             command.add("--platform=" + platform.toLowerCase());
             command.add("--auth-token=" + crawlerToken);
             command.add("--user-id=" + user.getId());
+            command.add("--limit=10");
 
             ProcessBuilder processBuilder = new ProcessBuilder(command);
             // 设置工作目录。Spring Boot 运行时 user.dir 可能是项目根目录或 target

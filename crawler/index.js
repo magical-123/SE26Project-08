@@ -45,10 +45,12 @@ const args = process.argv.slice(2);
 const isPolling = args.includes('--poll');
 const intervalArg = args.find(a => a.startsWith('--interval='));
 const platformArg = args.find(a => a.startsWith('--platform='));
+const limitArg = args.find(a => a.startsWith('--limit='));
 const pollInterval = intervalArg
   ? parseInt(intervalArg.split('=')[1], 10) * 1000
   : 3600000;
 const forcePlatform = platformArg ? platformArg.split('=')[1].toLowerCase() : null;
+const limitPerPlatform = limitArg ? parseInt(limitArg.split('=')[1], 10) : config.MAX_ITEMS_PER_RUN;
 
 // ===== 数据清洗公共方法 =====
 
@@ -218,19 +220,29 @@ function classifyBilibili(tagName) {
 }
 
 /** B 站 → InformationItem */
-function transformBilibiliItem(historyItem, subtitleText = '') {
+function transformBilibiliItem(historyItem, subtitleText = '', isLiked = false, isFavorite = false) {
   const duration = historyItem.duration || 0;
+  const bvid = historyItem.history?.bvid || '';
+  const aid = historyItem.history?.oid || historyItem.oid || historyItem.aid || '';
+  let url = '';
+  if (historyItem.uri) {
+    url = `https://www.bilibili.com${historyItem.uri}`;
+  } else if (bvid) {
+    url = `https://www.bilibili.com/video/${bvid}`;
+  } else if (aid) {
+    url = `https://www.bilibili.com/video/av${aid}`;
+  }
   return {
     title: historyItem.title || '无标题',
-    url: historyItem.uri
-      ? `https://www.bilibili.com${historyItem.uri}`
-      : `https://www.bilibili.com/video/${historyItem.history?.bvid || ''}`,
+    url: url,
     platform: 'BILIBILI',
     category: classifyBilibili(historyItem.tag_name),
     durationMinutes: Math.round(duration / 60) || 1,
     contentRaw: subtitleText
       ? subtitleText.substring(0, 4000)
       : historyItem.title || '',
+    isLiked: !!isLiked,
+    isFavorite: !!isFavorite,
     processStatus: 'UNPROCESSED',
   };
 }
@@ -282,41 +294,107 @@ async function crawlBilibili(getToken) {
 
   // 验证 Cookie
   console.log('  🔍 验证 Cookie...');
+  let userMid = null;
   try {
-    const valid = await withRetry(() => bl.validateCookie(client), 'B站-Cookie验证');
-    if (!valid) {
+    const result = await withRetry(() => bl.validateCookie(client), 'B站-Cookie验证');
+    if (!result.valid) {
       console.error('  ❌ Cookie 无效，跳过\n');
       return;
     }
-    console.log('  ✓ Cookie 有效');
+    userMid = result.mid;
+    console.log(`  ✓ Cookie 有效 (mid=${userMid})`);
   } catch (err) {
     console.error(`  ❌ Cookie 验证异常: ${err.message}，跳过\n`);
     return;
   }
 
+  // 收集所有来源的数据
+  let allItems = [];
+  const seenAids = new Set(); // 去重用
+
   // 抓取历史记录
   console.log('  📥 拉取观看历史...');
-  let allItems = [];
   let maxId = 0, viewAt = 0;
 
   try {
-    while (allItems.length < config.MAX_ITEMS_PER_RUN) {
+    while (allItems.length < limitPerPlatform) {
       const result = await withRetry(
         () => bl.fetchHistory(client, { maxId, viewAt, ps: config.PAGE_SIZE }),
         'B站-历史记录',
         () => console.error('  ❗ Cookie 已失效')
       );
       if (!result.items || result.items.length === 0) break;
-      allItems = allItems.concat(result.items);
+      for (const item of result.items) {
+        const aid = item.history?.oid || item.oid;
+        if (aid && !seenAids.has(aid)) {
+          seenAids.add(aid);
+          allItems.push(item);
+        }
+      }
       if (!result.hasMore) break;
       maxId = result.nextMaxId;
       viewAt = result.nextViewAt;
     }
-    console.log(`  ✓ 获取 ${allItems.length} 条记录`);
+    console.log(`  ✓ 历史记录: ${allItems.length} 条`);
   } catch (err) {
-    console.error(`  ❌ 抓取失败: ${err.message}`);
-    return;
+    console.error(`  ❌ 历史记录抓取失败: ${err.message}`);
   }
+
+  // 记录点赞和收藏的 aid（用于给历史条目打标记，不作为新数据源）
+  const likedAids = new Set();
+  const favedAids = new Set();
+
+  // 抓取点赞视频列表（仅用于判断哪些历史条目被点赞）
+  if (userMid) {
+    console.log('  👍 拉取点赞视频列表（仅用于标记）...');
+    try {
+      const likedResult = await withRetry(
+        () => bl.fetchLikedVideos(client, userMid, { pn: 1, ps: 10 }),
+        'B站-点赞'
+      );
+      for (const v of likedResult.items) {
+        if (v.aid) likedAids.add(v.aid);
+      }
+      console.log(`  ✓ 点赞视频: ${likedResult.items.length} 条`);
+    } catch (err) {
+      console.error(`  ❌ 点赞抓取失败: ${err.message}`);
+    }
+
+    // 抓取收藏夹列表（仅用于判断哪些历史条目被收藏）
+    console.log('  ⭐ 拉取收藏夹列表（仅用于标记）...');
+    try {
+      const folders = await withRetry(
+        () => bl.fetchFavoriteFolders(client, userMid),
+        'B站-收藏夹列表'
+      );
+      for (const folder of folders.slice(0, 3)) {
+        const resResult = await withRetry(
+          () => bl.fetchFavoriteResources(client, folder.id, { pn: 1, ps: 10 }),
+          `B站-收藏夹-${folder.title}`
+        );
+        for (const m of resResult.items) {
+          if (m.aid) favedAids.add(m.aid);
+        }
+      }
+      console.log(`  ✓ 收藏视频: ${favedAids.size} 条`);
+    } catch (err) {
+      console.error(`  ❌ 收藏夹抓取失败: ${err.message}`);
+    }
+  }
+
+  // 截断到限制条数
+  allItems = allItems.slice(0, limitPerPlatform);
+  console.log(`  📊 历史记录共 ${allItems.length} 条`);
+
+  // 标记每条历史记录的点赞/收藏状态（依据用户实际在B站上的点赞/收藏）
+  for (const item of allItems) {
+    const aid = item.history?.oid || item.oid || item.aid;
+    item.isLiked = likedAids.has(aid);
+    item.isFavorite = favedAids.has(aid);
+  }
+  const likedCountB = allItems.filter(i => i.isLiked).length;
+  const favedCountB = allItems.filter(i => i.isFavorite).length;
+  console.log(`  📊 标记完成: 点赞${likedCountB} 收藏${favedCountB}`);
 
   // CC 字幕提取（前 N 条并行），并校验字幕与标题的相关性
   const extractCount = Math.min(allItems.length, config.SUBTITLE_EXTRACT_COUNT || 3);
@@ -359,7 +437,10 @@ async function crawlBilibili(getToken) {
   console.log('  💾 写入后端...');
   const transformed = allItems.map(item => {
     const aid = item.history?.oid || item.oid;
-    return transformBilibiliItem(item, subtitleMap.get(aid) || '');
+    const result = transformBilibiliItem(item, subtitleMap.get(aid) || '');
+    result.isLiked = item.isLiked || false;
+    result.isFavorite = item.isFavorite || false;
+    return result;
   });
   const result = await batchWriteItems(transformed, getToken);
   console.log(`  📊 B站: 成功 ${result.success} / 失败 ${result.failed}\n`);
@@ -379,47 +460,98 @@ async function crawlZhihu(getToken) {
 
   const client = zh.createZhihuClient(cookie);
 
-  // 验证 Cookie（通过 Playwright 登录）
+  // 验证 Cookie（通过 Playwright 登录 + 实际访问个人页）
   console.log('  🔍 验证 Cookie（Playwright）...');
   try {
-    const valid = await zh.loginWithCookie(cookie);
-    if (!valid) {
+    const loggedIn = await zh.loginWithCookie(cookie);
+    if (!loggedIn) {
       console.error('  ❌ Cookie 无效或缺少 z_c0，跳过\n');
       return;
     }
+    // 进一步实际验证：检查访问个人页是否被重定向
+    const check = await zh.validateCookie();
+    if (!check.valid) {
+      console.error(`  ❌ Cookie 实际验证失败: ${check.reason}，跳过\n`);
+      return;
+    }
+    console.log(`  ✓ 登录用户: ${check.name}`);
   } catch (err) {
     console.error(`  ❌ Playwright 登录异常: ${err.message}，跳过\n`);
     return;
   }
 
-  // 抓取推荐/收藏内容
-  console.log('  📥 拉取推荐内容...');
+  // 1. 抓取浏览历史（主力数据源，v4 API）
+  console.log('  📥 拉取浏览历史...');
   let allItems = [];
+  const seenUrls = new Set();
   try {
-    // 先尝试获取推荐内容
-    const recResult = await withRetry(
-      () => zh.fetchRecommendations(client, { limit: config.MAX_ITEMS_PER_RUN }),
-      '知乎-推荐'
-    );
-    allItems = recResult.items || [];
-
-    // 推荐内容不够 → 补充收藏夹
-    if (allItems.length < config.MAX_ITEMS_PER_RUN) {
-      const colResult = await withRetry(
-        () => zh.fetchCollections(client, { limit: config.MAX_ITEMS_PER_RUN }),
-        '知乎-收藏夹'
+    // 翻页直到达到 limitPerPlatform 或没有更多
+    let offset = 0;
+    while (allItems.length < limitPerPlatform) {
+      const histResult = await withRetry(
+        () => zh.fetchHistory(client, { limit: 20, offset }),
+        '知乎-历史'
       );
-      allItems = allItems.concat(colResult.items || []);
+      const items = histResult.items || [];
+      if (items.length === 0) break;
+      for (const item of items) {
+        if (item.url && !seenUrls.has(item.url)) {
+          seenUrls.add(item.url);
+          allItems.push(item);
+        }
+      }
+      if (!histResult.hasMore) break;
+      offset = histResult.nextOffset;
     }
-
-    allItems = allItems.slice(0, config.MAX_ITEMS_PER_RUN);
-    console.log(`  ✓ 获取 ${allItems.length} 条内容`);
+    console.log(`  ✓ 历史记录: ${allItems.length} 条`);
   } catch (err) {
-    console.error(`  ❌ 抓取失败: ${err.message}`);
-    return;
+    console.error(`  ❌ 历史抓取失败: ${err.message}`);
   }
 
-  // 提取全文（前 N 条并行）
+  // 2. 抓取点赞内容 → 用于标记 isLiked
+  const likedUrls = new Set();
+  try {
+    console.log('  👍 拉取赞同内容...');
+    const voteResult = await withRetry(
+      () => zh.fetchVotedContent(client, { limit: limitPerPlatform }),
+      '知乎-赞同'
+    );
+    for (const item of (voteResult.items || [])) {
+      if (item.url) likedUrls.add(item.url);
+    }
+    console.log(`  ✓ 赞同: ${likedUrls.size} 条`);
+  } catch (err) {
+    console.error(`  ❌ 赞同抓取失败: ${err.message}`);
+  }
+
+  // 3. 抓取收藏内容 → 用于标记 isFavorite
+  const favedUrls = new Set();
+  try {
+    console.log('  ⭐ 拉取收藏夹...');
+    const colResult = await withRetry(
+      () => zh.fetchCollections(client, { limit: limitPerPlatform }),
+      '知乎-收藏夹'
+    );
+    for (const item of (colResult.items || [])) {
+      if (item.url) favedUrls.add(item.url);
+    }
+    console.log(`  ✓ 收藏: ${favedUrls.size} 条`);
+  } catch (err) {
+    console.error(`  ❌ 收藏抓取失败: ${err.message}`);
+  }
+
+  // 4. 标记现有历史条目的点赞/收藏标识（不作为新数据源）
+  for (const item of allItems) {
+    item.isLiked = likedUrls.has(item.url);
+    item.isFavorite = favedUrls.has(item.url);
+  }
+
+  allItems.length = Math.min(allItems.length, limitPerPlatform);
+  const likedCount = allItems.filter(i => i.isLiked).length;
+  const favedCount = allItems.filter(i => i.isFavorite).length;
+  console.log(`  📊 历史记录共 ${allItems.length} 条 (其中点赞${likedCount} 收藏${favedCount})`);
+
+  // 5. 提取全文（前 N 条并行）
   const extractCount = Math.min(allItems.length, config.SUBTITLE_EXTRACT_COUNT || 3);
   console.log(`  📝 提取全文内容（前${extractCount}条，并行）...`);
   const contentMap = new Map();
@@ -438,12 +570,16 @@ async function crawlZhihu(getToken) {
       })()
     );
   }
-  // 并行等待所有全文提取完成
   await Promise.allSettled(contentPromises);
 
-  // 写入后端
+  // 6. 写入后端（带上 isLiked/isFavorite 标记）
   console.log('  💾 写入后端...');
-  const transformed = allItems.map((item, i) => transformZhihuItem(item, contentMap.get(i) || ''));
+  const transformed = allItems.map((item, i) => {
+    const result = transformZhihuItem(item, contentMap.get(i) || '');
+    result.isLiked = item.isLiked || false;
+    result.isFavorite = item.isFavorite || false;
+    return result;
+  });
   const result = await batchWriteItems(transformed, getToken);
   console.log(`  📊 知乎: 成功 ${result.success} / 失败 ${result.failed}\n`);
   return result;
@@ -467,7 +603,7 @@ async function crawlGitHub(getToken) {
   let repos = [];
   try {
     repos = await withRetry(
-      () => gh.fetchStarredRepos(client, { limit: config.MAX_ITEMS_PER_RUN }),
+      () => gh.fetchStarredRepos(client, { limit: limitPerPlatform }),
       'GitHub-Star'
     );
     console.log(`  ✓ Starred ${repos.length} 个仓库`);
