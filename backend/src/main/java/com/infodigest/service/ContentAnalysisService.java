@@ -116,16 +116,18 @@ public class ContentAnalysisService {
             try {
                 AnalysisResultDTO result = aiService.analyze(config, "", userPrompt);
 
-                itemRepository.updateAnalysisFields(
-                        itemId,
-                        result.getProtein(),
-                        result.getCarbs(),
-                        result.getVitamins(),
-                        result.getFats(),
-                        result.getFiber(),
-                        result.getReasoning(),
-                        LocalDateTime.now()
-                );
+            // 保存营养成分分析结果
+            item.setNutritionProtein(result.getProtein());
+            item.setNutritionCarbs(result.getCarbs());
+            item.setNutritionVitamins(result.getVitamins());
+            item.setNutritionFats(result.getFats());
+            item.setNutritionFiber(result.getFiber());
+            item.setNutritionReasoning(result.getReasoning());
+            item.setAiSummary(result.getSummary());
+            item.setAnalyzedAt(LocalDateTime.now());
+            // 分析完成后设置为 PROCESSED 状态
+            item.setProcessStatus("PROCESSED");
+            // isPremium 由用户手动标记，与 AI 分析无关
 
                 log.info("Nutrition analysis completed for item {}: protein={}, carbs={}, vitamins={}, fats={}, fiber={}",
                         itemId, result.getProtein(), result.getCarbs(), result.getVitamins(),

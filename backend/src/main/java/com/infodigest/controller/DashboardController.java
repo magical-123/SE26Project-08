@@ -40,12 +40,74 @@ public class DashboardController {
 
     /**
      * 返回 weeklyPieData 格式（前端 Dashboard 营养分析组件使用）
-     * 当前返回 mock 数据，后续可从 UserReport 表中查询真实数据
+     * 从已分析的视频中统计真实营养成分数据
      */
     @GetMapping("/nutrition")
-    public ResponseEntity<List<Map<String, Object>>> getNutrition() {
-        // TODO: 从 UserReport 表查询真实数据，当前返回 mock
-        return ResponseEntity.ok(buildWeeklyPieData());
+    public ResponseEntity<Map<String, Object>> getNutrition() {
+        Long userId = getCurrentUserId();
+
+        // 查询已分析的视频（process_status = 'PROCESSED'）
+        List<InformationItem> analyzedItems = informationItemRepository.findByUserIdAndProcessStatus(userId, "PROCESSED");
+
+        if (analyzedItems.isEmpty()) {
+            // 没有已分析的数据，返回空数组或 mock 数据
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("data", buildWeeklyPieData());
+            response.put("totalHours", 0.0);
+            return ResponseEntity.ok(response);
+        }
+
+        // 计算各营养成分的总和
+        int totalProtein = 0;
+        int totalCarbs = 0;
+        int totalVitamins = 0;
+        int totalFats = 0;
+        int totalFiber = 0;
+
+        for (InformationItem item : analyzedItems) {
+            if (item.getNutritionProtein() != null) totalProtein += item.getNutritionProtein();
+            if (item.getNutritionCarbs() != null) totalCarbs += item.getNutritionCarbs();
+            if (item.getNutritionVitamins() != null) totalVitamins += item.getNutritionVitamins();
+            if (item.getNutritionFats() != null) totalFats += item.getNutritionFats();
+            if (item.getNutritionFiber() != null) totalFiber += item.getNutritionFiber();
+        }
+
+        int total = totalProtein + totalCarbs + totalVitamins + totalFats + totalFiber;
+
+        if (total == 0) {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("data", buildWeeklyPieData());
+            response.put("totalHours", 0.0);
+            return ResponseEntity.ok(response);
+        }
+
+        // 计算百分比（保持总和为100）
+        int proteinPercent = Math.round((float) totalProtein * 100 / total);
+        int carbsPercent = Math.round((float) totalCarbs * 100 / total);
+        int vitaminsPercent = Math.round((float) totalVitamins * 100 / total);
+        int fatsPercent = Math.round((float) totalFats * 100 / total);
+        int fiberPercent = Math.round((float) totalFiber * 100 / total);
+
+        // 计算总时长（小时，保留两位小数）
+        double totalHours = analyzedItems.stream()
+                .filter(item -> item.getDurationMinutes() != null)
+                .mapToInt(InformationItem::getDurationMinutes)
+                .sum() / 60.0;
+        totalHours = Math.round(totalHours * 100.0) / 100.0;
+
+        // 构建返回数据（名称需要包含关键词以便前端解析）
+        List<Map<String, Object>> nutritionData = new ArrayList<>();
+        nutritionData.add(buildPieItem(proteinPercent, "蛋白质（深度知识）", "#0EA5E9"));
+        nutritionData.add(buildPieItem(carbsPercent, "碳水（实用技能）", "#F59E0B"));
+        nutritionData.add(buildPieItem(vitaminsPercent, "维生素（创意灵感）", "#10B981"));
+        nutritionData.add(buildPieItem(fatsPercent, "脂肪（纯娱乐）", "#F43F5E"));
+        nutritionData.add(buildPieItem(fiberPercent, "纤维（哲思冥想）", "#8B5CF6"));
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("data", nutritionData);
+        response.put("totalHours", totalHours);
+
+        return ResponseEntity.ok(response);
     }
 
     // ==================== 词云相关 ====================
@@ -136,6 +198,9 @@ public class DashboardController {
                 .filter(item -> item.getDurationMinutes() != null)
                 .mapToInt(InformationItem::getDurationMinutes)
                 .sum() / 60.0;
+
+        // 保留最多两位小数
+        immersionHours = Math.round(immersionHours * 100.0) / 100.0;
 
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("todayViews", todayViews);

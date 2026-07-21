@@ -91,7 +91,7 @@ export function Dashboard() {
         const reviews = await reviewsRes.json();
         const summaryData = await summaryRes.json();
 
-        setNutritionData(nutrition);
+        setNutritionData(nutrition.data || nutrition);
         setWordCloudData(wordcloud);
         setAiQuotes(insights);
         setReviewCards(reviews);
@@ -144,12 +144,14 @@ export function Dashboard() {
     }]
   }), [realWordCloudData, wordCloudData]);
 
-  // Transform nutrition API data: {value, name, itemStyle:{color}} → {name, value, color}
+  // Transform nutrition API data: keep original format for NutritionLabel
   const transformedNutritionData = useMemo(() => {
     return nutritionData.map(item => ({
       name: item.name,
       value: item.value,
-      color: item.itemStyle?.color,
+      itemStyle: {
+        color: item.itemStyle?.color
+      }
     }));
   }, [nutritionData]);
 
