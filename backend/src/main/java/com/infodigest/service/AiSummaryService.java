@@ -107,14 +107,15 @@ public class AiSummaryService {
                 Optional<AIConfig> userConfig = aiConfigRepository.findByUserId(item.getUserId());
                 if (userConfig.isPresent()) {
                     AIConfig config = userConfig.get();
+                    // 兼容旧数据：读取时去除首尾空格，避免 DeepSeek/LiteLLM 鉴权失败
                     if (config.getApiEndpoint() != null && !config.getApiEndpoint().isEmpty()) {
-                        apiUrl = config.getApiEndpoint();
+                        apiUrl = config.getApiEndpoint().trim();
                     }
                     if (config.getApiKey() != null && !config.getApiKey().isEmpty()) {
-                        apiKey = config.getApiKey();
+                        apiKey = config.getApiKey().trim();
                     }
                     if (config.getCustomModelName() != null && !config.getCustomModelName().isEmpty()) {
-                        model = config.getCustomModelName();
+                        model = config.getCustomModelName().trim();
                     }
                     System.out.println("[AiSummary] 使用用户 " + item.getUserId() + " 的 AI 配置: model=" + model);
                 } else {

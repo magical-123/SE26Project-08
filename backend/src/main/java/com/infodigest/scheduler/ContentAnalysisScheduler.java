@@ -31,8 +31,8 @@ public class ContentAnalysisScheduler {
     @Autowired
     private AIConfigRepository aiConfigRepository;
 
-    // 每 30 秒扫描一次，每次最多处理 20 条（异步并发）
-    private static final int BATCH_SIZE = 20;
+    // 每 60 秒扫描一次，每次最多处理 10 条（异步并发）
+    private static final int BATCH_SIZE = 10;
 
     @PostConstruct
     public void logDiagnosticStats() {

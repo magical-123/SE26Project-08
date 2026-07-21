@@ -57,7 +57,7 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     Optional<InformationItem> findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(Long userId, String title, String platform);
 
     // 局部更新：仅更新营养分析相关字段，不影响 aiSummary 等由 AI 摘要服务维护的字段
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET " +
             "i.nutritionProtein = COALESCE(:protein, i.nutritionProtein), " +
             "i.nutritionCarbs = COALESCE(:carbs, i.nutritionCarbs), " +
@@ -78,7 +78,8 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
                               @Param("analyzedAt") LocalDateTime analyzedAt);
 
     // 局部更新：仅更新 AI 摘要相关字段（null 值不覆盖数据库现有值）
-    @Modifying
+    // clearAutomatically=true 防止 Hibernate 脏检查在事务提交时误覆盖 isPremium 等用户手动标记
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET " +
             "i.aiSummary = CASE WHEN :summary IS NULL THEN i.aiSummary ELSE :summary END, " +
             "i.knowledgeScore = CASE WHEN :score IS NULL THEN i.knowledgeScore ELSE :score END, " +
@@ -95,17 +96,17 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
                                @Param("analyzedAt") LocalDateTime analyzedAt);
 
     // 局部更新：仅更新 processStatus
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET i.processStatus = :status WHERE i.id = :id")
     void updateProcessStatus(@Param("id") Long id, @Param("status") String status);
 
     // 切换点赞状态
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET i.isLiked = :liked WHERE i.id = :id")
     void updateIsLiked(@Param("id") Long id, @Param("liked") Boolean liked);
 
     // 切换收藏状态
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET i.isFavorite = :favorite WHERE i.id = :id")
     void updateIsFavorite(@Param("id") Long id, @Param("favorite") Boolean favorite);
 }
