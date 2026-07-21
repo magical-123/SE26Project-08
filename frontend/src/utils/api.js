@@ -300,6 +300,15 @@ export const aiConfigApi = {
     return res.json();
   },
 
+  /** 测试 AI 配置连通性 */
+  async testConfig(config) {
+    const res = await apiFetch('/api/ai-config/test', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+    return res.json();
+  },
+
   /** 删除当前用户的 AI 配置 */
   async deleteConfig() {
     const res = await apiFetch('/api/ai-config/me', {

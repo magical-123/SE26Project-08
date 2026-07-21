@@ -40,6 +40,10 @@ public class AIService {
         AIConfig config = aiConfigRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("用户未配置 AI 模型"));
 
+        return generateInsightWithConfig(prompt, config);
+    }
+
+    public String generateInsightWithConfig(String prompt, AIConfig config) throws Exception {
         String modelType = config.getModelType();
 
         if (modelType.startsWith("GPT")) {

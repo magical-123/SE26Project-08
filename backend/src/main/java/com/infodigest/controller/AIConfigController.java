@@ -24,6 +24,9 @@ public class AIConfigController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private com.infodigest.service.AIService aiService;
+
     @PostMapping("/save")
     public ResponseEntity<?> saveAIConfig(@RequestBody AIConfigRequest request) {
         try {
@@ -122,6 +125,51 @@ public class AIConfigController {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "删除失败: " + e.getMessage()
+            ));
+        }
+    }
+
+    @PostMapping("/test")
+    public ResponseEntity<?> testAIConfig(@RequestBody AIConfigRequest request) {
+        try {
+            Long userId = getCurrentUserId();
+            AIConfig savedConfig = configRepository.findByUserId(userId).orElse(null);
+
+            AIConfig tempConfig = new AIConfig();
+            tempConfig.setModelType(request.getModelType());
+
+            if (request.getApiKey() != null && !request.getApiKey().trim().isEmpty()) {
+                tempConfig.setApiKey(request.getApiKey().trim());
+            } else if (savedConfig != null) {
+                tempConfig.setApiKey(savedConfig.getApiKey());
+            }
+
+            // Similarly for Endpoint and Model Name, although the frontend usually passes them
+            if (request.getApiEndpoint() != null && !request.getApiEndpoint().trim().isEmpty()) {
+                tempConfig.setApiEndpoint(request.getApiEndpoint().trim());
+            } else if (savedConfig != null) {
+                tempConfig.setApiEndpoint(savedConfig.getApiEndpoint());
+            }
+
+            if (request.getCustomModelName() != null && !request.getCustomModelName().trim().isEmpty()) {
+                tempConfig.setCustomModelName(request.getCustomModelName().trim());
+            } else if (savedConfig != null) {
+                tempConfig.setCustomModelName(savedConfig.getCustomModelName());
+            }
+
+            tempConfig.setMaxTokens(request.getMaxTokens());
+
+            String result = aiService.generateInsightWithConfig("Reply with 'Hello' to verify connection.", tempConfig);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "连接成功！AI响应: " + result
+            ));
+        } catch (Exception e) {
+            log.error("AI API test failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "连接失败: " + e.getMessage()
             ));
         }
     }

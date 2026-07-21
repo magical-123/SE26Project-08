@@ -313,17 +313,58 @@ input:checked + .slider:before {
   color: var(--text-muted);
 }
 
-.save-config-btn {
-  align-self: flex-start;
-  padding: 10px 24px;
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
+.ai-actions-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.test-config-btn {
+  flex: 1;
+  padding: 10px 16px;
+  background-color: #fff;
+  color: var(--text-main);
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+}
+
+.test-config-btn:hover:not(:disabled) {
+  background-color: rgba(0,0,0,0.04);
+  border-color: var(--primary);
+}
+
+.test-config-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.test-config-btn.testing {
+  background: linear-gradient(90deg, #fff, rgba(0,0,0,0.04), #fff);
+  background-size: 200% 100%;
+  animation: pulse-bg 1.5s infinite linear;
+  border-color: var(--primary);
+}
+
+@keyframes pulse-bg {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.save-config-btn {
+  flex: 2;
+  padding: 10px 16px;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
   margin-top: 8px;
 }
 
