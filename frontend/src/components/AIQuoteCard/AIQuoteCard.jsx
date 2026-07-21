@@ -1,12 +1,48 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ExternalLink, X, Tag } from 'lucide-react';
+import { ExternalLink, X, Tag, RefreshCw } from 'lucide-react';
 import { GlassCard } from '../GlassCard/GlassCard';
 import './AIQuoteCard.css';
 
-export function AIQuoteCard({ quote }) {
+const API_BASE = 'http://localhost:8080';
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+export function AIQuoteCard({ quote, onRefresh }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  const handleRegenerate = async (e) => {
+    e.stopPropagation(); // 防止触发卡片点击
+    setIsRegenerating(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/dashboard/insights/generate`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+
+      if (response.ok) {
+        // 重新生成成功，触发父组件刷新数据
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } else {
+        console.error('Failed to regenerate insight');
+      }
+    } catch (error) {
+      console.error('Error regenerating insight:', error);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   return (
     <>
@@ -20,8 +56,18 @@ export function AIQuoteCard({ quote }) {
         whileHover={{ y: -4 }}
       >
         <GlassCard className={`ai-quote-card ${isHovered ? 'hovered' : ''}`}>
-          <motion.h3 layout="position">💡 AI 洞察金句</motion.h3>
-          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <motion.h3 layout="position">💡 AI 洞察金句</motion.h3>
+            <button
+              className="regenerate-btn"
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+              title="重新生成洞察"
+            >
+              <RefreshCw size={16} className={isRegenerating ? 'spinning' : ''} />
+            </button>
+          </div>
+
           <motion.p layout="position" className="quote-text">
             {isHovered ? quote.fullText : quote.summary}
           </motion.p>

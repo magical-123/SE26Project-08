@@ -47,8 +47,7 @@ export function Settings() {
   const [customConfig, setCustomConfig] = useState({
     modelName: '',
     apiEndpoint: '',
-    apiKey: '',
-    maxTokens: ''
+    apiKey: ''
   });
   const [saveStatus, setSaveStatus] = useState(''); // 'success' | 'error' | ''
   const [isLoadingAI, setIsLoadingAI] = useState(false);
@@ -153,8 +152,7 @@ export function Settings() {
         setCustomConfig({
           modelName: config.customModelName || '',
           apiEndpoint: config.apiEndpoint || '',
-          apiKey: '',
-          maxTokens: config.maxTokens || ''
+          apiKey: ''
         });
       }
     } catch (error) {
@@ -195,9 +193,6 @@ export function Settings() {
         modelType: modelTypeMap[selectedModel],
         apiKey: selectedModel === 'custom' ? customConfig.apiKey : null,
         apiEndpoint: selectedModel === 'custom' ? customConfig.apiEndpoint : null,
-        maxTokens: selectedModel === 'custom' && customConfig.maxTokens
-          ? parseInt(customConfig.maxTokens)
-          : null,
         customModelName: selectedModel === 'custom' ? customConfig.modelName : null
       };
 
@@ -599,17 +594,6 @@ export function Settings() {
                     onChange={(e) => handleCustomConfigChange('apiKey', e.target.value)}
                   />
                   <p className="config-hint">您的 API Key 将被安全加密存储，仅用于 AI 分析</p>
-                </div>
-
-                <div className="input-group">
-                  <label htmlFor="max-tokens">最大 Token 数</label>
-                  <input
-                    id="max-tokens"
-                    type="number"
-                    placeholder="例如：2000"
-                    value={customConfig.maxTokens}
-                    onChange={(e) => handleCustomConfigChange('maxTokens', e.target.value)}
-                  />
                 </div>
 
                 <button

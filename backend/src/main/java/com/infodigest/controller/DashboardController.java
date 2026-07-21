@@ -7,6 +7,8 @@ import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.ReviewCardRepository;
 import com.infodigest.repository.UserReportRepository;
 import com.infodigest.repository.UserRepository;
+import com.infodigest.service.DashboardInsightService;
+import com.infodigest.service.ReviewCardGenerationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -35,6 +37,12 @@ public class DashboardController {
 
     @Autowired
     private AIConfigRepository aiConfigRepository;
+
+    @Autowired
+    private DashboardInsightService dashboardInsightService;
+
+    @Autowired
+    private ReviewCardGenerationService reviewCardGenerationService;
 
     // ==================== 营养饼图 ====================
 
@@ -143,40 +151,70 @@ public class DashboardController {
 
     /**
      * AI 洞察列表（aiQuotes 格式）
+     * 从 UserReport 表查询真实洞察数据
      */
     @GetMapping("/insights")
     public ResponseEntity<List<Map<String, Object>>> getInsights() {
-        // TODO: 从 UserReport 表查询 insight 数据
-        return ResponseEntity.ok(buildMockAiQuotes());
+        Long userId = getCurrentUserId();
+        Map<String, Object> insight = dashboardInsightService.getDashboardInsight(userId);
+
+        // 返回单个洞察的列表格式（前端期望数组）
+        return ResponseEntity.ok(List.of(insight));
+    }
+
+    /**
+     * 手动触发生成仪表盘洞察
+     */
+    @PostMapping("/insights/generate")
+    public ResponseEntity<Map<String, Object>> generateInsight() {
+        Long userId = getCurrentUserId();
+
+        try {
+            dashboardInsightService.generateDashboardInsight(userId);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("message", "洞察生成成功");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "洞察生成失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
+        }
     }
 
     // ==================== 今日复习卡片 ====================
 
     /**
      * 今日复习卡片（reviewCards 格式）
-     * 优先从 ReviewCard 表查询；表为空时返回 mock 数据
+     * 从 ReviewCardGenerationService 获取真实数据，返回1-5张卡片
      */
     @GetMapping("/reviews/today")
     public ResponseEntity<List<Map<String, Object>>> getTodayReviews() {
         Long userId = getCurrentUserId();
-        LocalDate today = LocalDate.now();
+        List<Map<String, Object>> reviewCards = reviewCardGenerationService.getTodayReviewCards(userId);
+        return ResponseEntity.ok(reviewCards);
+    }
 
-        List<com.infodigest.entity.ReviewCard> cards =
-                reviewCardRepository.findByUserIdAndScheduledReviewDate(userId, today);
+    /**
+     * 手动触发生成今日复习卡片
+     */
+    @PostMapping("/reviews/generate")
+    public ResponseEntity<Map<String, Object>> generateReviewCard() {
+        Long userId = getCurrentUserId();
 
-        if (!cards.isEmpty()) {
-            List<Map<String, Object>> result = cards.stream().map(card -> {
-                Map<String, Object> map = new LinkedHashMap<>();
-                map.put("title", card.getTitle());
-                map.put("content", card.getContent());
-                map.put("source", card.getSourcePlatform());
-                return map;
-            }).collect(Collectors.toList());
+        try {
+            reviewCardGenerationService.generateTodayReviewCard(userId);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("message", "复习卡片生成成功");
             return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "复习卡片生成失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
         }
-
-        // 数据库为空，返回 mock 数据
-        return ResponseEntity.ok(buildMockReviewCards());
     }
 
     // ==================== 今日统计摘要 ====================
