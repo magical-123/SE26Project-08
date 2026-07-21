@@ -49,18 +49,21 @@ export function PosterModal({ onClose, pieOption, insight, activeTab }) {
     ...pieOption,
     animation: false,
     legend: {
-      ...pieOption.legend,
       orient: 'horizontal',
-      bottom: '0',
+      bottom: '5%',
       left: 'center',
-      right: undefined,
-      top: undefined
+      itemWidth: 12,
+      itemHeight: 12,
+      itemGap: 15,
+      textStyle: {
+        fontSize: 11
+      }
     },
     series: [
       {
         ...pieOption.series[0],
-        radius: ['40%', '55%'],
-        center: ['50%', '45%']
+        radius: ['35%', '50%'],
+        center: ['50%', '35%']
       }
     ]
   };

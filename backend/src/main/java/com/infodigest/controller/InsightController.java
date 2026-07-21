@@ -1,11 +1,15 @@
 package com.infodigest.controller;
 
 import com.infodigest.entity.ReportType;
+import com.infodigest.entity.User;
 import com.infodigest.entity.UserReport;
+import com.infodigest.repository.UserRepository;
 import com.infodigest.service.InsightService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -25,16 +29,19 @@ public class InsightController {
     @Autowired
     private InsightService insightService;
 
+    @Autowired
+    private UserRepository userRepository;
+
     /**
      * 生成或重新生成洞察
      */
     @PostMapping("/generate")
     public ResponseEntity<?> generateInsight(
-            @RequestParam Long userId,
             @RequestParam String type, // "DAILY" or "WEEKLY"
             @RequestParam(required = false) String date // 格式: "2026-07-16"，不传则使用今天
     ) {
         try {
+            Long userId = getCurrentUserId();
             ReportType reportType = ReportType.valueOf(type.toUpperCase());
             LocalDate reportDate = date != null ? LocalDate.parse(date) : LocalDate.now();
 
@@ -63,11 +70,11 @@ public class InsightController {
      */
     @GetMapping("/latest")
     public ResponseEntity<?> getLatestInsight(
-            @RequestParam Long userId,
             @RequestParam String type,
             @RequestParam(required = false) String date
     ) {
         try {
+            Long userId = getCurrentUserId();
             ReportType reportType = ReportType.valueOf(type.toUpperCase());
             LocalDate reportDate = date != null ? LocalDate.parse(date) : LocalDate.now();
 
@@ -101,11 +108,11 @@ public class InsightController {
      */
     @GetMapping("/history")
     public ResponseEntity<?> getHistoryInsights(
-            @RequestParam Long userId,
             @RequestParam String type,
             @RequestParam String date
     ) {
         try {
+            Long userId = getCurrentUserId();
             ReportType reportType = ReportType.valueOf(type.toUpperCase());
             LocalDate reportDate = LocalDate.parse(date);
 
@@ -131,10 +138,10 @@ public class InsightController {
      */
     @GetMapping("/all-history")
     public ResponseEntity<?> getAllHistoryReports(
-            @RequestParam Long userId,
             @RequestParam String type
     ) {
         try {
+            Long userId = getCurrentUserId();
             ReportType reportType = ReportType.valueOf(type.toUpperCase());
 
             List<UserReport> reports = insightService.getAllHistoryReports(userId, reportType);
@@ -152,6 +159,15 @@ public class InsightController {
                     "error", "获取所有历史报告失败: " + e.getMessage()
             ));
         }
+    }
+
+    // 获取当前登录用户的ID
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return user.getId();
     }
 
     /**
