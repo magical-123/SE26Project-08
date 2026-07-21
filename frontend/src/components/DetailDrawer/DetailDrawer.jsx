@@ -50,46 +50,15 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
     ];
   }, [d.nutritionProtein, d.nutritionCarbs, d.nutritionVitamins, d.nutritionFats, d.nutritionFiber, d.id]);
 
-  // 营养饼图配置
-  const nutritionPieOption = useMemo(() => {
+  // 营养成分横条配置
+  const nutritionBars = useMemo(() => {
     if (!nutritionData) return null;
 
-    return {
-      backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'item',
-        formatter: '{b}: {c}%'
-      },
-      legend: {
-        show: false
-      },
-      series: [
-        {
-          type: 'pie',
-          radius: ['30%', '55%'],
-          center: ['50%', '50%'],
-          avoidLabelOverlap: true,
-          label: {
-            show: true,
-            position: 'outside',
-            formatter: '{c}%',
-            fontSize: 10,
-            color: '#666'
-          },
-          labelLine: {
-            show: true,
-            length: 5,
-            length2: 5
-          },
-          itemStyle: {
-            borderRadius: 4,
-            borderColor: '#fff',
-            borderWidth: 1
-          },
-          data: nutritionData
-        }
-      ]
-    };
+    return nutritionData.map(item => ({
+      name: item.name,
+      value: item.value,
+      color: item.itemStyle.color
+    }));
   }, [nutritionData]);
 
   // 打开抽屉时锁定 body 滚动，防止滚动栏影响抽屉显示
@@ -240,17 +209,30 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
                 </button>
               </div>
 
-              {/* Nutrition Chart */}
-              {nutritionData && nutritionPieOption && (
+              {/* Nutrition Bars */}
+              {nutritionBars && (
                 <div className="nutrition-chart-section">
                   <div className="nutrition-chart-label">
                     <Sparkles size={12} /> 数字营养成分
                   </div>
-                  <div className="nutrition-chart-container">
-                    <ReactECharts
-                      option={nutritionPieOption}
-                      style={{ height: '150px', width: '100%' }}
-                    />
+                  <div className="nutrition-bars-container">
+                    {nutritionBars.map((item, index) => (
+                      <div key={index} className="nutrition-bar-item">
+                        <div className="nutrition-bar-header">
+                          <span className="nutrition-bar-label">{item.name}</span>
+                          <span className="nutrition-bar-value">{item.value}%</span>
+                        </div>
+                        <div className="nutrition-bar-track">
+                          <div
+                            className="nutrition-bar-fill"
+                            style={{
+                              width: `${item.value}%`,
+                              backgroundColor: item.color
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   {d.nutritionReasoning && (
                     <div className="nutrition-reasoning">
