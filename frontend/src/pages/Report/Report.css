@@ -243,7 +243,8 @@
   border: 2px solid rgba(139, 94, 52, 0.4);
   background: rgba(255, 255, 255, 0.3);
   border-radius: 6px;
-  padding: 12px 16px;
+  padding: 12px 16px 12px 16px;
+  padding-right: 160px; /* 为右侧饼图预留空间 */
   color: var(--text-main);
   position: relative;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -297,6 +298,11 @@
   width: 100%;
 }
 
+.nl-full-width {
+  margin-right: -160px; /* 抵消容器的padding-right，占满全宽 */
+  padding-right: 160px; /* 保持边距 */
+}
+
 .nl-amount-row {
   display: flex;
   justify-content: space-between;
@@ -325,14 +331,14 @@
 .nl-amount-right {
   font-size: 28px;
   font-weight: 900;
-  margin-right: 140px; /* Space for donut chart */
 }
 
 .nl-donut-wrapper {
   position: absolute;
-  right: -10px;
-  top: -70px; /* Hover over the thick bar and header */
+  right: 20px; /* 移到容器右侧预留空间内 */
+  top: 20px; /* 对齐到卡片顶部 */
   pointer-events: none;
+  z-index: 2;
 }
 
 .nl-donut-bg {
@@ -342,7 +348,7 @@
   transform: translate(-50%, -50%);
   width: 110px;
   height: 110px;
-  background: rgba(253, 250, 246, 1); /* Opaque warm white to mask the line */
+  background: transparent; /* 不需要遮罩了，因为现在有独立空间 */
   border-radius: 50%;
   z-index: 0;
 }
@@ -360,18 +366,22 @@
   padding: 4px 0;
   border-bottom: 1px solid rgba(139, 94, 52, 0.3);
   color: var(--text-secondary);
+  margin-right: -160px; /* 抵消容器的padding-right，占满全宽 */
+  padding-right: 80px; /* 居中：(160 / 2) */
+  padding-left: 80px; /* 居中：左右对称 */
 }
 
 .nl-rows {
   display: flex;
   flex-direction: column;
+  margin-right: -160px; /* 抵消容器的padding-right，占满全宽 */
 }
 
 .nl-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
+  padding: 6px 80px; /* 居中：左右对称padding */
   border-bottom: 1px solid rgba(139, 94, 52, 0.2);
 }
 
@@ -417,6 +427,9 @@
   color: #666;
   margin-top: 8px;
   line-height: 1.4;
+  margin-right: -160px; /* 抵消容器的padding-right，占满全宽 */
+  padding-left: 80px; /* 居中：左右对称 */
+  padding-right: 80px; /* 居中：左右对称 */
 }
 
 .insight-card {
@@ -463,6 +476,90 @@
   height: 4px;
   background: rgba(14, 165, 233, 0.2);
   border-radius: 2px;
+}
+
+.insight-empty {
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 32px 16px;
+  flex: 1;
+}
+
+.insight-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.insight-detail-btn,
+.insight-regenerate-btn,
+.insight-generate-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.insight-detail-btn {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8B5CF6;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.insight-detail-btn:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.insight-regenerate-btn {
+  background: rgba(255, 255, 255, 0.3);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-glass);
+}
+
+.insight-regenerate-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.insight-generate-btn {
+  background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+  color: white;
+  border: none;
+}
+
+.insight-generate-btn:hover {
+  background: linear-gradient(135deg, #7C3AED, #8B5CF6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.insight-regenerate-btn:disabled,
+.insight-generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .topics-card {
