@@ -234,6 +234,10 @@ export function Report() {
             setWeeklyWordCloudHistory(wordCloudData || []);
           }
         }
+        // 通知Dashboard刷新词云数据
+        const timestamp = Date.now().toString();
+        sessionStorage.setItem('dashboard:wordcloudUpdated', timestamp);
+        console.log('[Report] 词云生成完成，已设置通知标记:', timestamp);
         alert('词云生成成功！');
       } else {
         // 显示后端返回的详细错误信息

@@ -94,7 +94,12 @@ public class ContentAnalysisService {
                 .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
 
         boolean hasFullData = item.getAiSummary() != null && !item.getAiSummary().isEmpty();
-        boolean hasNutrition = "PROCESSED".equals(item.getProcessStatus());
+        // 检查营养评分字段是否存在，而不是只看status
+        boolean hasNutrition = item.getNutritionProtein() != null &&
+                               item.getNutritionCarbs() != null &&
+                               item.getNutritionVitamins() != null &&
+                               item.getNutritionFats() != null &&
+                               item.getNutritionFiber() != null;
         boolean hasSummary = hasFullData;
 
         // 如果营养分析和 AI 摘要都有了，跳过
@@ -106,8 +111,8 @@ public class ContentAnalysisService {
         AIConfig config = configRepository.findByUserId(item.getUserId())
                 .orElseThrow(() -> new RuntimeException("AI config not found for user: " + item.getUserId()));
 
-        log.info("Starting full analysis for item {} (status={}, hasSummary={})",
-                itemId, item.getProcessStatus(), item.getAiSummary() != null);
+        log.info("Starting full analysis for item {} (status={}, hasSummary={}, hasNutrition={})",
+                itemId, item.getProcessStatus(), item.getAiSummary() != null, hasNutrition);
 
         // 1. 营养分析（如果还没做）
         if (!hasNutrition) {
