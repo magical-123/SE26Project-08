@@ -1,7 +1,7 @@
 /**
  * InfoDigest 多平台爬虫 —— 主入口
  * 
- * 支持平台：B 站 (bilibili) | 知乎 (zhihu) | 小红书 (xiaohongshu, TODO)
+ * 支持平台：B 站 (bilibili) | 知乎 (zhihu) | 小红书 (xiaohongshu) | GitHub (github)
  * 
  * 使用方式：
  *   node index.js                          # 单次抓取所有启用平台
@@ -236,6 +236,7 @@ function transformBilibiliItem(historyItem, subtitleText = '', isLiked = false, 
     title: historyItem.title || '无标题',
     url: url,
     platform: 'BILIBILI',
+    author: historyItem.author || historyItem.history?.author || historyItem.up_name || historyItem.history?.up_name || '',
     category: classifyBilibili(historyItem.tag_name),
     durationMinutes: Math.round(duration / 60) || 1,
     contentRaw: subtitleText
@@ -253,6 +254,7 @@ function transformZhihuItem(item, fullText = '') {
     title: item.title || '无标题',
     url: item.url || '',
     platform: 'ZHIHU',
+    author: item.author || '',
     category: classifyByText(item.title, item.excerpt),
     durationMinutes: Math.max(1, Math.ceil((fullText.length || item.excerpt?.length || 100) / 500)),
     contentRaw: fullText ? fullText.substring(0, 4000) : (item.excerpt || '').substring(0, 4000),
@@ -272,6 +274,7 @@ function transformGitHubItem(item, readmeText = '', topics = []) {
     title: item.title || '未知仓库',
     url: item.url || '',
     platform: 'GITHUB',
+    author: item.author || '',
     category: classifyByText(item.description || '', topicText),
     durationMinutes: Math.max(1, Math.ceil((contentRaw.length || 100) / 500)),
     contentRaw: contentRaw.substring(0, 4000),
@@ -453,94 +456,110 @@ async function crawlZhihu(getToken) {
   console.log('📘 【知乎】开始抓取...\n');
 
   const cookie = await getCredential('zhihu', 'ZHIHU_COOKIE');
-  if (!cookie) {
-    console.log('  ⏭ 未配置知乎 Cookie，跳过');
-    return;
+  const hasCookie = cookie && cookie.trim();
+  const client = zh.createZhihuClient(cookie || '');
+
+  let isLoggedIn = false;
+
+  if (hasCookie) {
+    // 有 Cookie → 尝试登录
+    console.log('  🔍 验证 Cookie（Playwright）...');
+    try {
+      const loggedIn = await zh.loginWithCookie(cookie);
+      if (!loggedIn) {
+        console.log('  ⚠ Cookie 无效，降级为无登录模式抓取公共内容\n');
+      } else {
+        const check = await zh.validateCookie();
+        if (!check.valid) {
+          console.log(`  ⚠ Cookie 验证失败: ${check.reason}，降级为无登录模式\n`);
+        } else {
+          isLoggedIn = true;
+          console.log(`  ✓ 登录用户: ${check.name}`);
+        }
+      }
+    } catch (err) {
+      console.log(`  ⚠ Playwright 登录异常: ${err.message}，降级为无登录模式\n`);
+    }
+  } else {
+    console.log('  ℹ 未配置知乎 Cookie，使用无登录模式抓取公共发现页\n');
   }
 
-  const client = zh.createZhihuClient(cookie);
-
-  // 验证 Cookie（通过 Playwright 登录 + 实际访问个人页）
-  console.log('  🔍 验证 Cookie（Playwright）...');
-  try {
-    const loggedIn = await zh.loginWithCookie(cookie);
-    if (!loggedIn) {
-      console.error('  ❌ Cookie 无效或缺少 z_c0，跳过\n');
-      return;
-    }
-    // 进一步实际验证：检查访问个人页是否被重定向
-    const check = await zh.validateCookie();
-    if (!check.valid) {
-      console.error(`  ❌ Cookie 实际验证失败: ${check.reason}，跳过\n`);
-      return;
-    }
-    console.log(`  ✓ 登录用户: ${check.name}`);
-  } catch (err) {
-    console.error(`  ❌ Playwright 登录异常: ${err.message}，跳过\n`);
-    return;
-  }
-
-  // 1. 抓取浏览历史（主力数据源，v4 API）
-  console.log('  📥 拉取浏览历史...');
+  // 1. 抓取内容
   let allItems = [];
   const seenUrls = new Set();
-  try {
-    // 翻页直到达到 limitPerPlatform 或没有更多
-    let offset = 0;
-    while (allItems.length < limitPerPlatform) {
-      const histResult = await withRetry(
-        () => zh.fetchHistory(client, { limit: 20, offset }),
-        '知乎-历史'
+
+  if (isLoggedIn) {
+    // 登录模式：从首页 DOM 抓取
+    console.log('  📥 从首页 DOM 抓取推荐内容...');
+    try {
+      const domResult = await withRetry(
+        () => zh.fetchFromDOM(client, { limit: limitPerPlatform }),
+        '知乎-DOM'
       );
-      const items = histResult.items || [];
-      if (items.length === 0) break;
-      for (const item of items) {
+      for (const item of (domResult.items || [])) {
         if (item.url && !seenUrls.has(item.url)) {
           seenUrls.add(item.url);
           allItems.push(item);
         }
       }
-      if (!histResult.hasMore) break;
-      offset = histResult.nextOffset;
+      console.log(`  ✓ 推荐内容: ${allItems.length} 条`);
+    } catch (err) {
+      console.error(`  ❌ DOM 抓取失败: ${err.message}`);
     }
-    console.log(`  ✓ 历史记录: ${allItems.length} 条`);
-  } catch (err) {
-    console.error(`  ❌ 历史抓取失败: ${err.message}`);
+  } else {
+    // 无登录模式：从公开发现页 /explore 抓取
+    console.log('  📥 从发现页 /explore 抓取公共内容...');
+    try {
+      const exploreResult = await withRetry(
+        () => zh.fetchExplore(client, { limit: limitPerPlatform }),
+        '知乎-发现页'
+      );
+      for (const item of (exploreResult.items || [])) {
+        if (item.url && !seenUrls.has(item.url)) {
+          seenUrls.add(item.url);
+          allItems.push(item);
+        }
+      }
+      console.log(`  ✓ 公共内容: ${allItems.length} 条`);
+    } catch (err) {
+      console.error(`  ❌ 发现页抓取失败: ${err.message}`);
+    }
   }
 
-  // 2. 抓取点赞内容 → 用于标记 isLiked
+  // 2. 点赞/收藏标记（仅登录模式）
   const likedUrls = new Set();
-  try {
-    console.log('  👍 拉取赞同内容...');
-    const voteResult = await withRetry(
-      () => zh.fetchVotedContent(client, { limit: limitPerPlatform }),
-      '知乎-赞同'
-    );
-    for (const item of (voteResult.items || [])) {
-      if (item.url) likedUrls.add(item.url);
-    }
-    console.log(`  ✓ 赞同: ${likedUrls.size} 条`);
-  } catch (err) {
-    console.error(`  ❌ 赞同抓取失败: ${err.message}`);
-  }
-
-  // 3. 抓取收藏内容 → 用于标记 isFavorite
   const favedUrls = new Set();
-  try {
-    console.log('  ⭐ 拉取收藏夹...');
-    const colResult = await withRetry(
-      () => zh.fetchCollections(client, { limit: limitPerPlatform }),
-      '知乎-收藏夹'
-    );
-    for (const item of (colResult.items || [])) {
-      if (item.url) favedUrls.add(item.url);
+  if (isLoggedIn) {
+    try {
+      console.log('  👍 拉取赞同内容...');
+      const voteResult = await withRetry(
+        () => zh.fetchVotedContent(client, { limit: limitPerPlatform }),
+        '知乎-赞同'
+      );
+      for (const item of (voteResult.items || [])) {
+        if (item.url) likedUrls.add(item.url);
+      }
+      console.log(`  ✓ 赞同: ${likedUrls.size} 条`);
+    } catch (err) {
+      console.error(`  ❌ 赞同抓取失败: ${err.message}`);
     }
-    console.log(`  ✓ 收藏: ${favedUrls.size} 条`);
-  } catch (err) {
-    console.error(`  ❌ 收藏抓取失败: ${err.message}`);
+
+    try {
+      console.log('  ⭐ 拉取收藏夹...');
+      const colResult = await withRetry(
+        () => zh.fetchCollections(client, { limit: limitPerPlatform }),
+        '知乎-收藏夹'
+      );
+      for (const item of (colResult.items || [])) {
+        if (item.url) favedUrls.add(item.url);
+      }
+      console.log(`  ✓ 收藏: ${favedUrls.size} 条`);
+    } catch (err) {
+      console.error(`  ❌ 收藏抓取失败: ${err.message}`);
+    }
   }
 
-  // 4. 标记现有历史条目的点赞/收藏标识（不作为新数据源）
+  // 3. 标记
   for (const item of allItems) {
     item.isLiked = likedUrls.has(item.url);
     item.isFavorite = favedUrls.has(item.url);
@@ -551,9 +570,9 @@ async function crawlZhihu(getToken) {
   const favedCount = allItems.filter(i => i.isFavorite).length;
   console.log(`  📊 历史记录共 ${allItems.length} 条 (其中点赞${likedCount} 收藏${favedCount})`);
 
-  // 5. 提取全文（前 N 条并行）
+  // 5. 提取全文（前 N 条，通过 page.goto 打开页面抓 DOM）
   const extractCount = Math.min(allItems.length, config.SUBTITLE_EXTRACT_COUNT || 3);
-  console.log(`  📝 提取全文内容（前${extractCount}条，并行）...`);
+  console.log(`  📝 提取全文内容（前${extractCount}条，通过浏览器打开页面）...`);
   const contentMap = new Map();
 
   const contentPromises = [];
@@ -563,7 +582,7 @@ async function crawlZhihu(getToken) {
       (async () => {
         try {
           await withRetry(async () => {
-            const text = await zh.fetchContentDetail(client, item);
+            const text = await zh.fetchContentDetailFromDOM(client, item);
             if (text) contentMap.set(i, text);
           }, `知乎-全文-${item.title}`);
         } catch { /* skip */ }
@@ -642,10 +661,40 @@ async function crawlGitHub(getToken) {
   return result;
 }
 
-// ===== 小红书抓取（TODO） =====
+// ===== 小红书抓取 =====
 async function crawlXiaohongshu(getToken) {
   const xhs = loadXiaohongshu();
-  // ... 结构同其他平台
+  console.log('📕 【小红书】开始抓取...\n');
+
+  const cookie = await getCredential('xiaohongshu', 'XIAOHONGSHU_COOKIE');
+  if (cookie) {
+    console.log('  ✓ 已配置小红书 Cookie，将尝试个性化推荐');
+  } else {
+    console.log('  ℹ 未配置小红书 Cookie，使用公开发现页');
+  }
+
+  let items = [];
+  try {
+    items = await withRetry(
+      () => xhs.fetchXiaohongshuItems(cookie, limitPerPlatform),
+      '小红书-发现页'
+    );
+    console.log(`  ✓ 共获取 ${items.length} 条内容`);
+  } catch (err) {
+    console.error(`  ❌ 抓取失败: ${err.message}`);
+    return;
+  }
+
+  if (items.length === 0) {
+    console.log('  ⚠ 没有获取到内容，跳过\n');
+    return;
+  }
+
+  // 写入后端
+  console.log('  💾 写入后端...');
+  const result = await batchWriteItems(items, getToken);
+  console.log(`  📊 小红书: 成功 ${result.success} / 失败 ${result.failed}\n`);
+  return result;
 }
 
 // ===== 主流程 =====

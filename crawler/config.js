@@ -32,7 +32,7 @@ module.exports = {
   /** GitHub 用户名（可选，不填则自动从 Token 获取） */
   GITHUB_USERNAME: process.env.GITHUB_USERNAME || '',
 
-  // ===== 小红书配置（TODO） =====
+  // ===== 小红书配置 =====
   XIAOHONGSHU_COOKIE: process.env.XIAOHONGSHU_COOKIE || '',
 
   // ===== 后端配置 =====

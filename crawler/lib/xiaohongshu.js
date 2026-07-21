@@ -179,6 +179,7 @@ function transformXiaohongshuItem(item) {
     title,
     url: item.url,
     platform: 'XIAOHONGSHU',
+    author: item.author || '',
     category: classifyByText(title),
     durationMinutes: Math.max(1, Math.ceil(contentRaw.length / 500)),
     contentRaw: contentRaw.substring(0, 4000),
