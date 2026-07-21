@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface ReviewCardRepository extends JpaRepository<ReviewCard, Long> {
     List<ReviewCard> findByUserIdAndScheduledReviewDate(Long userId, LocalDate scheduledReviewDate);
+
+    void deleteByUserIdAndScheduledReviewDate(Long userId, LocalDate scheduledReviewDate);
 }
