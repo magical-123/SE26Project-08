@@ -70,8 +70,16 @@ public class ReportController {
             List<Map<String, Object>> clusters;
             if ("daily".equalsIgnoreCase(type)) {
                 log.info("获取用户 {} 的日报话题聚类", userId);
-                clusters = topicClusterService.generateDailyTopicClusters(userId, today);
+                // 日报：优先从数据库读取
+                try {
+                    clusters = topicClusterService.getTopicClusters(userId, today);
+                } catch (Exception e) {
+                    // 数据库中没有，返回空列表（前端显示"暂无数据"）
+                    log.warn("用户 {} 今日话题聚类数据不存在: {}", userId, e.getMessage());
+                    return ResponseEntity.ok(new ArrayList<>());
+                }
             } else {
+                // 周报：实时生成
                 log.info("获取用户 {} 的周报话题聚类", userId);
                 clusters = topicClusterService.generateWeeklyTopicClusters(userId, today);
             }
