@@ -8,16 +8,7 @@ const STORAGE_KEY = 'infodigest_inbox_cache_v2';
  * 格式化后端的 InformationItem 为前端需要的格式
  */
 function formatItem(item) {
-  // 后端字段名到前端字段名的映射
-  const categoryColors = {
-    '深度知识': '#10B981',
-    '娱乐短剧': '#F43F5E',
-    '行业资讯': '#F59E0B',
-    '创意灵感': '#3B82F6',
-    '实用技巧': '#0EA5E9',
-    '效率与认知': '#EC4899',
-    '娱乐科普': '#F43F5E',
-  };
+
 
   return {
     id: item.id,
@@ -25,15 +16,13 @@ function formatItem(item) {
     platform: formatPlatform(item.platform),
     author: item.platform || '未知来源',
     duration: (item.durationMinutes || 1) + ' 分钟',
-    category: item.category || '深度知识',
-    color: categoryColors[item.category] || '#10B981',
     date: formatTimeAgo(item.crawledAt),
-    isFavorite: false,
-    isLiked: false,
+    isFavorite: item.isFavorite === true,
+    isLiked: item.isLiked === true,
     hasNote: item.isPremium === true,
     opened: true,
     note: '',
-    tags: [],
+    keywords: [],
     processStatus: item.processStatus,
     isPremium: item.isPremium === true,
     url: item.url,
@@ -137,7 +126,7 @@ export function useInboxItems() {
     }
   }, []);
 
-  // 合并 API 数据与本地缓存：保留本地修改的 hasNote/note/tags 状态
+  // 合并 API 数据与本地缓存：API 数据为权威来源，缓存仅补充 API 不返回的字段（note/tags）
   const mergeWithCache = useCallback((apiItems) => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -151,13 +140,15 @@ export function useInboxItems() {
       return apiItems.map(apiItem => {
         const cachedItem = cacheMap.get(apiItem.id);
         if (!cachedItem) return apiItem;
-        if (cachedItem.hasNote !== apiItem.hasNote) {
-          return { ...apiItem, hasNote: cachedItem.hasNote, processStatus: cachedItem.processStatus || apiItem.processStatus };
+        // 只从缓存补充 note/tags，hasNote 以 API 返回为准
+        const result = { ...apiItem };
+        if (cachedItem.note !== undefined) {
+          result.note = cachedItem.note;
         }
-        if (cachedItem.note !== undefined && cachedItem.note !== apiItem.note) {
-          return { ...apiItem, note: cachedItem.note, hasNote: cachedItem.hasNote };
+        if (cachedItem.keywords !== undefined) {
+          result.keywords = cachedItem.keywords;
         }
-        return apiItem;
+        return result;
       });
     } catch {
       return apiItems;
@@ -212,26 +203,25 @@ export function useInboxItems() {
     }
   }, [loadInitial, refetching, initialized]);
 
-  // 实时更新：每 5 分钟静默拉取最新 30 条数据，替换当前列表
+  // 实时更新：每 30 秒静默拉取最新数据，替换当前列表
   useEffect(() => {
     if (!initialized) return;
     const timer = setInterval(async () => {
       try {
-        const data = await inboxApi.getItems(0, pageSize);
+        const data = await inboxApi.getItems(0, pageSize, true); // silent=true 不触发 auth:expired
         if (data.items && data.items.length > 0) {
           const formatted = (data.items || []).map(formatItem);
-          // 直接替换为最新 30 条数据
-          setItems(formatted);
+          const merged = mergeWithCache(formatted);
+          setItems(merged);
           setHasMore(data.hasMore ?? false);
-          // 更新缓存
           try {
-            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
           } catch {}
         }
       } catch { /* silent */ }
-    }, 300000);
+    }, 30000);
     return () => clearInterval(timer);
-  }, [initialized, pageSize]);
+  }, [initialized, pageSize, mergeWithCache]);
 
   // 加载更多（无限滚动）
   const loadMore = useCallback(async () => {
@@ -263,7 +253,6 @@ export function useInboxItems() {
         title: item.title,
         url: item.url || '',
         platform: item.platform === 'Bilibili' ? 'BILIBILI' : item.platform?.toUpperCase() || 'BILIBILI',
-        category: item.category || '深度知识',
         durationMinutes: parseInt(item.duration) || 1,
         contentRaw: item.contentRaw || '',
       };
@@ -279,7 +268,6 @@ export function useInboxItems() {
 
   // togglePremium（标记/取消优质信息源，同步到后端）
   const togglePremium = useCallback(async (id) => {
-    // 先读取当前状态，决定要设置为什么
     setItems((prev) => {
       const current = prev.find(i => i.id === id);
       const newIsPremium = current && current.hasNote ? false : true;
@@ -291,30 +279,36 @@ export function useInboxItems() {
           : item
       );
 
+      // 同步更新 localStorage 缓存，防止离开页面再回来时丢失状态
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+
       // 同步到后端
       inboxApi.updateItem(id, { isPremium: newIsPremium }).catch((err) => {
         console.error('更新优质信息源状态失败:', err);
-        // 失败则回滚本地状态
-        setItems((old) =>
-          old.map((item) =>
-            item.id === id
-              ? { ...item, hasNote: !newIsPremium, isPremium: !newIsPremium }
-              : item
-          )
+        // 失败则回滚本地状态和缓存
+        const rolledBack = updated.map((item) =>
+          item.id === id
+            ? { ...item, hasNote: !newIsPremium, isPremium: !newIsPremium }
+            : item
         );
+        setItems(rolledBack);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rolledBack));
+        } catch {}
       });
 
       return updated;
     });
   }, []);
 
-  // 保存笔记（调 real API）
-  const saveNote = useCallback(async (id, note, tags) => {
+  const saveNote = useCallback(async (id, note, keywords) => {
     // 本地先更新
     setItems((prev) =>
       prev.map((item) =>
         item.id === id
-          ? { ...item, hasNote: true, isPremium: true, note, tags }
+          ? { ...item, hasNote: true, isPremium: true, note, keywords }
           : item
       )
     );
@@ -348,6 +342,84 @@ export function useInboxItems() {
     }
   }, []);
 
+  // 切换点赞
+  const toggleLike = useCallback(async (id) => {
+    setItems((prev) => {
+      const current = prev.find(i => i.id === id);
+      const newLiked = current ? !current.isLiked : true;
+
+      const updated = prev.map((item) =>
+        item.id === id ? { ...item, isLiked: newLiked } : item
+      );
+
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+
+      inboxApi.toggleLike(id).catch((err) => {
+        console.error('点赞更新失败:', err);
+        const rolledBack = updated.map((item) =>
+          item.id === id ? { ...item, isLiked: !newLiked } : item
+        );
+        setItems(rolledBack);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rolledBack));
+        } catch {}
+      });
+
+      return updated;
+    });
+  }, []);
+
+  // 重新生成单条卡片的 AI 摘要
+  const regenerateSummary = useCallback(async (id) => {
+    try {
+      await inboxApi.regenerateSummary(id);
+      // 本地先标记为分析中（去掉旧的空摘要/失败状态提示）
+      setItems((prev) => {
+        const updated = prev.map((item) =>
+          item.id === id ? { ...item, aiSummary: null, processStatus: 'UNPROCESSED' } : item
+        );
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+    } catch (err) {
+      console.error('重新生成摘要失败:', err);
+      throw err;
+    }
+  }, []);
+
+  // 切换收藏
+  const toggleFavorite = useCallback(async (id) => {
+    setItems((prev) => {
+      const current = prev.find(i => i.id === id);
+      const newFav = current ? !current.isFavorite : true;
+
+      const updated = prev.map((item) =>
+        item.id === id ? { ...item, isFavorite: newFav } : item
+      );
+
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+
+      inboxApi.toggleFavorite(id).catch((err) => {
+        console.error('收藏更新失败:', err);
+        const rolledBack = updated.map((item) =>
+          item.id === id ? { ...item, isFavorite: !newFav } : item
+        );
+        setItems(rolledBack);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rolledBack));
+        } catch {}
+      });
+
+      return updated;
+    });
+  }, []);
+
   return {
     items,
     setItems,
@@ -357,6 +429,9 @@ export function useInboxItems() {
     loadMore,
     createItem,
     togglePremium,
+    toggleLike,
+    toggleFavorite,
+    regenerateSummary,
     saveNote,
     updateItem,
     refetching,

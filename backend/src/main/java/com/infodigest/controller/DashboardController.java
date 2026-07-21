@@ -2,6 +2,7 @@ package com.infodigest.controller;
 
 import com.infodigest.entity.InformationItem;
 import com.infodigest.entity.User;
+import com.infodigest.repository.AIConfigRepository;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.ReviewCardRepository;
 import com.infodigest.repository.UserReportRepository;
@@ -31,6 +32,9 @@ public class DashboardController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AIConfigRepository aiConfigRepository;
 
     // ==================== 营养饼图 ====================
 
@@ -391,6 +395,91 @@ public class DashboardController {
             if (lower.contains(g)) return true;
         }
         return false;
+    }
+
+    /**
+     * 诊断端点：返回各用户卡片的 AI 摘要状态统计及 AI 配置摘要
+     */
+    @GetMapping("/diagnostic")
+    public ResponseEntity<List<Map<String, Object>>> getDiagnostic() {
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        try {
+            // 对所有有数据的用户生成统计
+            List<User> allUsers = userRepository.findAll();
+            for (User user : allUsers) {
+                Map<String, Object> userStats = buildUserStats(user.getId());
+                userStats.put("username", user.getUsername());
+                result.add(userStats);
+            }
+        } catch (Exception e) {
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", e.getMessage());
+            result.add(error);
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
+    private Map<String, Object> buildUserStats(Long userId) {
+        List<InformationItem> allItems = informationItemRepository.findByUserId(userId);
+
+        Map<String, Long> statusCounts = allItems.stream()
+                .collect(Collectors.groupingBy(InformationItem::getProcessStatus, Collectors.counting()));
+
+        long withSummary = allItems.stream()
+                .filter(i -> i.getAiSummary() != null && !i.getAiSummary().isEmpty())
+                .count();
+        long withoutSummary = allItems.size() - withSummary;
+
+        long unprocessedWithSummary = allItems.stream()
+                .filter(i -> "UNPROCESSED".equals(i.getProcessStatus()) && i.getAiSummary() != null && !i.getAiSummary().isEmpty())
+                .count();
+        long processedWithoutSummary = allItems.stream()
+                .filter(i -> "PROCESSED".equals(i.getProcessStatus()) && (i.getAiSummary() == null || i.getAiSummary().isEmpty()))
+                .count();
+        long failedWithSummary = allItems.stream()
+                .filter(i -> "FAILED".equals(i.getProcessStatus()) && i.getAiSummary() != null && !i.getAiSummary().isEmpty())
+                .count();
+        long failedWithoutSummary = allItems.stream()
+                .filter(i -> "FAILED".equals(i.getProcessStatus()) && (i.getAiSummary() == null || i.getAiSummary().isEmpty()))
+                .count();
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("userId", userId);
+        stats.put("totalItems", (long) allItems.size());
+        stats.put("withAiSummary", withSummary);
+        stats.put("withoutAiSummary", withoutSummary);
+        stats.put("unprocessedWithSummary", unprocessedWithSummary);
+        stats.put("processedWithoutSummary", processedWithoutSummary);
+        stats.put("failedWithSummary", failedWithSummary);
+        stats.put("failedWithoutSummary", failedWithoutSummary);
+        stats.put("statusCounts", statusCounts);
+
+        // 添加 AI 配置信息
+        var aiConfig = aiConfigRepository.findByUserId(userId);
+        Map<String, Object> aiConfigInfo = new LinkedHashMap<>();
+        if (aiConfig.isPresent()) {
+            var config = aiConfig.get();
+            aiConfigInfo.put("configured", true);
+            aiConfigInfo.put("model", config.getCustomModelName() != null ? config.getCustomModelName() : "default");
+            String endpoint = config.getApiEndpoint();
+            if (endpoint != null && endpoint.length() > 30) {
+                endpoint = endpoint.substring(0, 27) + "...";
+            }
+            aiConfigInfo.put("endpoint", endpoint != null ? endpoint : "default");
+            aiConfigInfo.put("hasApiKey", config.getApiKey() != null && !config.getApiKey().isEmpty());
+            // 安全展示 ApiKey 的前后几位
+            if (config.getApiKey() != null && config.getApiKey().length() > 8) {
+                String key = config.getApiKey();
+                aiConfigInfo.put("apiKeyPreview", key.substring(0, 4) + "..." + key.substring(key.length() - 4));
+            }
+        } else {
+            aiConfigInfo.put("configured", false);
+        }
+        stats.put("aiConfig", aiConfigInfo);
+
+        return stats;
     }
 
     // ==================== 鉴权辅助 ====================
