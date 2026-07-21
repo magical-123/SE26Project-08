@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { reportData } from '../../mock/reportData';
 import {
-  historicalWordCloudData,
-  sourceMapping,
   weeklyPieData,
   dailyPieData,
   weeklyAiInsight,
@@ -17,10 +15,20 @@ import { PosterModal } from '../../components/PosterModal/PosterModal';
 import { InsightDrawer } from '../../components/InsightDrawer/InsightDrawer';
 import './Report.css';
 
+const API_BASE = 'http://localhost:8080';
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+}
+
 export function Report() {
   const [activeTab, setActiveTab] = useState('weekly');
   const [selectedWord, setSelectedWord] = useState(null);
-  const [timeIndex, setTimeIndex] = useState(historicalWordCloudData.length - 1);
+  const [timeIndex, setTimeIndex] = useState(6); // 默认显示最后一天（第7天，索引6）
   const [showPoster, setShowPoster] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [insight, setInsight] = useState(null);
@@ -30,16 +38,17 @@ export function Report() {
   const [nutritionData, setNutritionData] = useState([]);
   const [totalHours, setTotalHours] = useState(0);
 
+  // 词云相关状态
+  const [dailyWordCloud, setDailyWordCloud] = useState([]);
+  const [weeklyWordCloudHistory, setWeeklyWordCloudHistory] = useState([]);
+  const [wordSources, setWordSources] = useState([]);
+
   // 获取营养数据
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchNutritionData = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8080/api/dashboard/nutrition', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        const response = await fetch(`${API_BASE}/api/dashboard/nutrition`, {
+          headers: getAuthHeaders()
         });
         if (response.ok) {
           const result = await response.json();
@@ -56,17 +65,47 @@ export function Report() {
     fetchNutritionData();
   }, []);
 
+  // 获取词云数据
+  useEffect(() => {
+    const fetchWordCloudData = async () => {
+      try {
+        if (activeTab === 'daily') {
+          // 获取今日词云
+          const response = await fetch(`${API_BASE}/api/dashboard/wordcloud`, {
+            headers: getAuthHeaders()
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setDailyWordCloud(data || []);
+          }
+        } else {
+          // 获取近7天词云历史
+          const response = await fetch(`${API_BASE}/api/dashboard/wordcloud/history`, {
+            headers: getAuthHeaders()
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setWeeklyWordCloudHistory(data || []);
+            // 默认显示最后一天
+            if (data.length > 0) {
+              setTimeIndex(data.length - 1);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('获取词云数据失败:', error);
+      }
+    };
+    fetchWordCloudData();
+  }, [activeTab]);
+
   // 获取洞察数据
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchInsight = async () => {
       try {
-        const token = localStorage.getItem('token');
         const type = activeTab.toUpperCase();
-        const response = await fetch(`http://localhost:8080/api/insights/latest?type=${type}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        const response = await fetch(`${API_BASE}/api/insights/latest?type=${type}`, {
+          headers: getAuthHeaders()
         });
         if (response.ok) {
           const data = await response.json();
@@ -79,13 +118,35 @@ export function Report() {
           }
         }
       } catch (error) {
-        console.error('获取洞察数据失败:', error);
-        setInsight(null);
-        setHasInsight(false);
+        console.error('获取洞察失败:', error);
       }
     };
     fetchInsight();
   }, [activeTab]);
+
+  // 获取词云溯源数据
+  useEffect(() => {
+    const fetchWordSources = async () => {
+      if (!selectedWord) {
+        setWordSources([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/api/dashboard/wordcloud/${encodeURIComponent(selectedWord)}/sources`, {
+          headers: getAuthHeaders()
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setWordSources(data || []);
+        }
+      } catch (error) {
+        console.error('获取词云溯源数据失败:', error);
+        setWordSources([]);
+      }
+    };
+    fetchWordSources();
+  }, [selectedWord]);
 
   // 生成/重新生成洞察
   const handleGenerateInsight = async () => {
@@ -139,45 +200,64 @@ export function Report() {
     ]
   }), [activeTab, nutritionData]);
 
-  const wordCloudOption = React.useMemo(() => ({
-    backgroundColor: 'transparent',
-    tooltip: { show: true },
-    series: [{
-      type: 'wordCloud',
-      shape: 'circle',
-      keepAspect: false,
-      left: 'center',
-      top: 'center',
-      width: '100%',
-      height: '100%',
-      right: null,
-      bottom: null,
-      sizeRange: [14, 50],
-      rotationRange: [-45, 45],
-      rotationStep: 45,
-      gridSize: 10,
-      drawOutOfBound: false,
-      layoutAnimation: true,
-      textStyle: {
-        fontFamily: 'Inter, sans-serif',
-        fontWeight: 'bold',
-        color: function () {
-          return 'rgb(' + [
-            Math.round(Math.random() * 100),
-            Math.round(Math.random() * 100),
-            Math.round(Math.random() * 150 + 50)
-          ].join(',') + ')';
-        }
-      },
-      emphasis: {
-        focus: 'self',
-        textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
-      },
-      data: activeTab === 'weekly' 
-              ? historicalWordCloudData[timeIndex].data 
-              : historicalWordCloudData[historicalWordCloudData.length - 1].data
-    }]
-  }), [timeIndex, activeTab]);
+  const wordCloudOption = React.useMemo(() => {
+    let cloudData = [];
+
+    if (activeTab === 'weekly') {
+      // 周报：使用滑块选择的那一天的数据
+      if (weeklyWordCloudHistory.length > 0 && weeklyWordCloudHistory[timeIndex]) {
+        const dayData = weeklyWordCloudHistory[timeIndex];
+        cloudData = (dayData.keywords || []).map(item => ({
+          name: item.word,
+          value: item.value
+        }));
+      }
+    } else {
+      // 日报：使用今日数据
+      cloudData = dailyWordCloud.map(item => ({
+        name: item.word,
+        value: item.value
+      }));
+    }
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: { show: true },
+      series: [{
+        type: 'wordCloud',
+        shape: 'circle',
+        keepAspect: false,
+        left: 'center',
+        top: 'center',
+        width: '100%',
+        height: '100%',
+        right: null,
+        bottom: null,
+        sizeRange: [14, 50],
+        rotationRange: [-45, 45],
+        rotationStep: 45,
+        gridSize: 10,
+        drawOutOfBound: false,
+        layoutAnimation: true,
+        textStyle: {
+          fontFamily: 'Inter, sans-serif',
+          fontWeight: 'bold',
+          color: function () {
+            return 'rgb(' + [
+              Math.round(Math.random() * 100),
+              Math.round(Math.random() * 100),
+              Math.round(Math.random() * 150 + 50)
+            ].join(',') + ')';
+          }
+        },
+        emphasis: {
+          focus: 'self',
+          textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
+        },
+        data: cloudData
+      }]
+    };
+  }, [timeIndex, activeTab, dailyWordCloud, weeklyWordCloudHistory]);
 
   const onChartClick = (e) => {
     if (e.name) {
@@ -185,7 +265,6 @@ export function Report() {
     }
   };
 
-  const currentSources = selectedWord ? (sourceMapping[selectedWord] || []) : [];
   const currentTopics = activeTab === 'weekly' ? reportData.weeklyTopicClusters : reportData.dailyTopicClusters;
 
   return (
@@ -327,20 +406,20 @@ export function Report() {
               />
             </div>
             
-            {activeTab === 'weekly' && (
+            {activeTab === 'weekly' && weeklyWordCloudHistory.length > 0 && (
               <div className="timeline-slider-container">
-                <input 
-                  type="range" 
-                  min="0" 
-                  max={historicalWordCloudData.length - 1} 
+                <input
+                  type="range"
+                  min="0"
+                  max={weeklyWordCloudHistory.length - 1}
                   value={timeIndex}
                   onChange={(e) => setTimeIndex(Number(e.target.value))}
                   className="timeline-slider"
                 />
                 <div className="timeline-labels">
-                  {historicalWordCloudData.map((t, idx) => (
+                  {weeklyWordCloudHistory.map((day, idx) => (
                     <span key={idx} className={idx === timeIndex ? 'active' : ''}>
-                      {t.date}
+                      {day.reportDate ? new Date(day.reportDate).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) : ''}
                     </span>
                   ))}
                 </div>
@@ -352,20 +431,23 @@ export function Report() {
             <GlassCard className="report-card source-list-card">
               <div className="sl-header">
                 <h3>🔍 溯源: {selectedWord}</h3>
-                <span className="sl-count">找到 {currentSources.length} 条记录</span>
+                <span className="sl-count">找到 {wordSources.length} 条记录</span>
               </div>
-              
-              {currentSources.length > 0 ? (
+
+              {wordSources.length > 0 ? (
                 <div className="sl-items">
-                  {currentSources.map((src, idx) => (
+                  {wordSources.map((src, idx) => (
                     <div key={idx} className="sl-item">
                       <div className="sl-item-main">
                         <span className="sl-platform">{src.platform}</span>
                         <h4>{src.title}</h4>
+                        {src.summary && <p className="sl-summary">{src.summary}</p>}
                       </div>
                       <div className="sl-item-meta">
-                        <span className="sl-time">{src.time}</span>
-                        <button className="sl-go-btn"><ArrowRight size={14}/></button>
+                        {src.completionRate && <span className="sl-completion">完播率: {(src.completionRate * 100).toFixed(0)}%</span>}
+                        <a href={src.link} target="_blank" rel="noreferrer" className="sl-go-btn">
+                          <ArrowRight size={14}/>
+                        </a>
                       </div>
                     </div>
                   ))}
