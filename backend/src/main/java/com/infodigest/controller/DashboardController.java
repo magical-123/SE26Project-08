@@ -223,16 +223,21 @@ public class DashboardController {
         LocalDate today = LocalDate.now();
 
         try {
+            log.info("开始为用户 {} 生成词云数据 ({})", userId, today);
             wordCloudService.generateWordCloud(userId, today);
+            log.info("用户 {} 词云生成成功", userId);
+
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("success", true);
             result.put("message", "词云生成成功");
             return ResponseEntity.ok(result);
         } catch (Exception e) {
+            log.error("用户 {} 词云生成失败: {}", userId, e.getMessage(), e);
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("success", false);
             result.put("message", "词云生成失败: " + e.getMessage());
-            return ResponseEntity.status(500).body(result);
+            // 返回200状态码，让前端根据success字段判断，避免被当作网络错误
+            return ResponseEntity.ok(result);
         }
     }
 

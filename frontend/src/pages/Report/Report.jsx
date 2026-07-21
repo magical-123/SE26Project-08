@@ -215,37 +215,35 @@ export function Report() {
         headers: getAuthHeaders()
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          // 重新获取词云数据
-          if (activeTab === 'daily') {
-            const res = await fetch(`${API_BASE}/api/dashboard/wordcloud`, {
-              headers: getAuthHeaders()
-            });
-            if (res.ok) {
-              const wordCloudData = await res.json();
-              setDailyWordCloud(wordCloudData || []);
-            }
-          } else {
-            const res = await fetch(`${API_BASE}/api/dashboard/wordcloud/history`, {
-              headers: getAuthHeaders()
-            });
-            if (res.ok) {
-              const wordCloudData = await res.json();
-              setWeeklyWordCloudHistory(wordCloudData || []);
-            }
+      const data = await response.json();
+
+      if (data.success) {
+        // 重新获取词云数据
+        if (activeTab === 'daily') {
+          const res = await fetch(`${API_BASE}/api/dashboard/wordcloud`, {
+            headers: getAuthHeaders()
+          });
+          if (res.ok) {
+            const wordCloudData = await res.json();
+            setDailyWordCloud(wordCloudData || []);
           }
-          alert('词云生成成功！');
         } else {
-          alert('生成失败: ' + (data.message || '未知错误'));
+          const res = await fetch(`${API_BASE}/api/dashboard/wordcloud/history`, {
+            headers: getAuthHeaders()
+          });
+          if (res.ok) {
+            const wordCloudData = await res.json();
+            setWeeklyWordCloudHistory(wordCloudData || []);
+          }
         }
+        alert('词云生成成功！');
       } else {
-        alert('生成失败: 服务器错误');
+        // 显示后端返回的详细错误信息
+        alert('生成失败: ' + (data.message || '未知错误'));
       }
     } catch (error) {
       console.error('重新生成词云失败:', error);
-      alert('生成失败: ' + error.message);
+      alert('生成失败: 网络错误或服务器异常，请稍后重试');
     } finally {
       setIsRegeneratingWordCloud(false);
     }
@@ -261,21 +259,19 @@ export function Report() {
         headers: getAuthHeaders()
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setTopicClusters(data.data);
-          // 显示成功提示
-          alert('话题聚类生成成功！');
-        } else {
-          alert('生成失败: ' + (data.message || '未知错误'));
-        }
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        setTopicClusters(data.data);
+        // 显示成功提示
+        alert('话题聚类生成成功！');
       } else {
-        alert('生成失败: 服务器错误');
+        // 显示后端返回的详细错误信息
+        alert('生成失败: ' + (data.message || '未知错误'));
       }
     } catch (error) {
       console.error('重新生成话题聚类失败:', error);
-      alert('生成失败: ' + error.message);
+      alert('生成失败: 网络错误或服务器异常，请稍后重试');
     } finally {
       setIsRegeneratingTopics(false);
     }
