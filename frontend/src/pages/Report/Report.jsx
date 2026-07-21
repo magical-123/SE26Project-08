@@ -4,16 +4,17 @@ import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { reportData } from '../../mock/reportData';
-import { 
-  historicalWordCloudData, 
+import {
+  historicalWordCloudData,
   sourceMapping,
   weeklyPieData,
   dailyPieData,
   weeklyAiInsight,
   dailyAiInsight
 } from '../../mock/dashboardData';
-import { Download, ExternalLink, ArrowRight, Sparkles, Info } from 'lucide-react';
+import { Download, ExternalLink, ArrowRight, Sparkles, Info, RefreshCw, Eye } from 'lucide-react';
 import { PosterModal } from '../../components/PosterModal/PosterModal';
+import { InsightDrawer } from '../../components/InsightDrawer/InsightDrawer';
 import './Report.css';
 
 export function Report() {
@@ -22,6 +23,100 @@ export function Report() {
   const [timeIndex, setTimeIndex] = useState(historicalWordCloudData.length - 1);
   const [showPoster, setShowPoster] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [insight, setInsight] = useState(null);
+  const [hasInsight, setHasInsight] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showInsightDrawer, setShowInsightDrawer] = useState(false);
+  const [nutritionData, setNutritionData] = useState([]);
+  const [totalHours, setTotalHours] = useState(0);
+
+  // 获取营养数据
+  React.useEffect(() => {
+    const fetchNutritionData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:8080/api/dashboard/nutrition', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Nutrition API response:', result);
+          setNutritionData(result.data || []);
+          setTotalHours(result.totalHours || 0);
+        } else {
+          console.error('Nutrition API error:', response.status);
+        }
+      } catch (error) {
+        console.error('获取营养数据失败:', error);
+      }
+    };
+    fetchNutritionData();
+  }, []);
+
+  // 获取洞察数据
+  React.useEffect(() => {
+    const fetchInsight = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const type = activeTab.toUpperCase();
+        const response = await fetch(`http://localhost:8080/api/insights/latest?type=${type}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.hasReport) {
+            setInsight(data.report);
+            setHasInsight(true);
+          } else {
+            setInsight(null);
+            setHasInsight(false);
+          }
+        }
+      } catch (error) {
+        console.error('获取洞察数据失败:', error);
+        setInsight(null);
+        setHasInsight(false);
+      }
+    };
+    fetchInsight();
+  }, [activeTab]);
+
+  // 生成/重新生成洞察
+  const handleGenerateInsight = async () => {
+    setIsGenerating(true);
+    try {
+      const token = localStorage.getItem('token');
+      const type = activeTab.toUpperCase();
+      const response = await fetch(`http://localhost:8080/api/insights/generate?type=${type}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setInsight(data.report);
+        setHasInsight(true);
+        alert('洞察生成成功！');
+      } else {
+        alert(`生成失败: ${data.error || '未知错误'}`);
+      }
+    } catch (error) {
+      console.error('生成洞察失败:', error);
+      alert(`生成洞察失败: ${error.message}`);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const pieOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
@@ -39,10 +134,10 @@ export function Report() {
           borderColor: '#fff',
           borderWidth: 2
         },
-        data: activeTab === 'weekly' ? weeklyPieData : dailyPieData
+        data: nutritionData.length > 0 ? nutritionData : (activeTab === 'weekly' ? weeklyPieData : dailyPieData)
       }
     ]
-  }), [activeTab]);
+  }), [activeTab, nutritionData]);
 
   const wordCloudOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
@@ -92,7 +187,6 @@ export function Report() {
 
   const currentSources = selectedWord ? (sourceMapping[selectedWord] || []) : [];
   const currentTopics = activeTab === 'weekly' ? reportData.weeklyTopicClusters : reportData.dailyTopicClusters;
-  const currentInsight = activeTab === 'weekly' ? weeklyAiInsight : dailyAiInsight;
 
   return (
     <div className="report-page">
@@ -119,48 +213,46 @@ export function Report() {
           <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>营养分类占比</h3>
           
           <div className="nutrition-label-container">
+            <div className="nl-donut-wrapper">
+              <div className="nl-donut-bg"></div>
+              <div className="nl-donut-chart-inner">
+                <ReactECharts option={pieOption} style={{ height: '140px', width: '140px' }} />
+              </div>
+            </div>
+
             <div className="nl-header" style={{ position: 'relative' }}>
               <h2>营养成分表</h2>
               <Info className="nl-info-icon" size={20} onClick={() => setShowInfo(true)} />
             </div>
-            
+
             <div className="nl-period">统计周期: {activeTab === 'weekly' ? '1周 (7天)' : '今天'}</div>
-            
+
             <div className="nl-thick-bar"></div>
-            
+
             <div className="nl-amount-row">
               <div className="nl-amount-left">
                 <span className="nl-amount-title">摄入量</span>
                 <span className="nl-amount-subtitle">总耗时 (小时)</span>
               </div>
               <div className="nl-amount-right">
-                {(() => {
-                  const data = activeTab === 'weekly' ? weeklyPieData : dailyPieData;
-                  return data.reduce((acc, curr) => acc + (curr.hours || 0), 0).toFixed(1) + 'h';
-                })()}
-              </div>
-              <div className="nl-donut-wrapper">
-                <div className="nl-donut-bg"></div>
-                <div className="nl-donut-chart-inner">
-                  <ReactECharts option={pieOption} style={{ height: '140px', width: '140px' }} />
-                </div>
+                {totalHours.toFixed(2)}h
               </div>
             </div>
-            
-            <div className="nl-medium-bar"></div>
-            
+
+            <div className="nl-medium-bar nl-full-width"></div>
+
             <div className="nl-percent-header">
               <span>占比 %*</span>
             </div>
-            
+
             <div className="nl-rows">
-              {(activeTab === 'weekly' ? weeklyPieData : dailyPieData).map((item, idx) => (
+              {(nutritionData.length > 0 ? nutritionData : (activeTab === 'weekly' ? weeklyPieData : dailyPieData)).map((item, idx) => (
                 <div className="nl-row" key={idx}>
                   <div className="nl-row-left">
                     <span className="nl-color-block" style={{ backgroundColor: item.itemStyle.color }}></span>
                     <span className="nl-row-name">{item.name}</span>
-                    <span className="nl-row-sub">({item.subName})</span>
-                    <span className="nl-row-hours">{item.hours}h</span>
+                    <span className="nl-row-sub">({item.subName || ''})</span>
+                    <span className="nl-row-hours">{item.hours || 0}h</span>
                   </div>
                   <div className="nl-row-right">
                     {item.value}%
@@ -168,8 +260,8 @@ export function Report() {
                 </div>
               ))}
             </div>
-            
-            <div className="nl-thick-bar" style={{ marginTop: '4px' }}></div>
+
+            <div className="nl-thick-bar nl-full-width" style={{ marginTop: '4px' }}></div>
             
             <div className="nl-footer-note">
               * 占比表示该营养成分在您当前的数字饮食摄入周期中所占的比重。保持高蛋白低脂肪有助于数字健康。
@@ -180,13 +272,47 @@ export function Report() {
         <GlassCard className="report-card insight-card">
           <div className="insight-header">
             <Sparkles className="insight-icon" size={18} />
-            <h3>{currentInsight.title}</h3>
+            <h3>{hasInsight ? insight.insightTitle : '数字饮食洞察'}</h3>
           </div>
-          <div className="insight-content">
-            {currentInsight.summary.split(/\*\*(.*?)\*\*/g).map((part, i) => 
-              i % 2 === 1 ? <strong key={i}>{part}</strong> : part
-            )}
-          </div>
+          {hasInsight ? (
+            <>
+              <div className="insight-content">
+                {insight.insightSummary.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+                  i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+                )}
+              </div>
+              <div className="insight-actions">
+                <button className="insight-detail-btn" onClick={() => setShowInsightDrawer(true)}>
+                  <Eye size={14} />
+                  查看洞察详情
+                </button>
+                <button
+                  className="insight-regenerate-btn"
+                  onClick={handleGenerateInsight}
+                  disabled={isGenerating}
+                >
+                  <RefreshCw size={14} className={isGenerating ? 'spinning' : ''} />
+                  {isGenerating ? '生成中...' : '重新生成'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="insight-empty">
+                还未有洞察，快去生成吧
+              </div>
+              <div className="insight-actions">
+                <button
+                  className="insight-generate-btn"
+                  onClick={handleGenerateInsight}
+                  disabled={isGenerating}
+                >
+                  <Sparkles size={14} />
+                  {isGenerating ? '生成中...' : '生成洞察'}
+                </button>
+              </div>
+            </>
+          )}
         </GlassCard>
 
         <div className="report-trend-container">
@@ -277,11 +403,20 @@ export function Report() {
       </div>
       
       {showPoster && (
-        <PosterModal 
+        <PosterModal
           onClose={() => setShowPoster(false)}
           pieOption={pieOption}
-          insight={currentInsight}
+          insight={insight}
           activeTab={activeTab}
+        />
+      )}
+
+      {showInsightDrawer && (
+        <InsightDrawer
+          isOpen={showInsightDrawer}
+          onClose={() => setShowInsightDrawer(false)}
+          insight={insight}
+          reportType={activeTab}
         />
       )}
 
