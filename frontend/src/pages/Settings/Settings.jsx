@@ -42,6 +42,9 @@ export function Settings() {
   const [hideEntertainment, setHideEntertainment] = useState(false);
   const [togglingHide, setTogglingHide] = useState(false);
 
+  // 自定义输入弹窗状态
+  const [promptConfig, setPromptConfig] = useState(null);
+
   // AI 配置状态
   const [selectedModel, setSelectedModel] = useState('gpt-4');
   const [customConfig, setCustomConfig] = useState({
@@ -385,24 +388,45 @@ export function Settings() {
       openBilibiliQrModal();
       return;
     }
-    let credential = '';
-    let promptMsg = '';
 
     if (platform === 'github') {
-      promptMsg = '请输入 GitHub Personal Access Token\n\n获取方式：\n1. 打开 GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)\n2. 点击 Generate new token，勾选 repo 和 user 权限\n3. 生成后复制 Token 粘贴到此处';
+      setPromptConfig({
+        platform,
+        title: '配置 GitHub 访问令牌',
+        desc: '请输入 GitHub Personal Access Token\n\n获取方式：\n1. 打开 GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)\n2. 点击 Generate new token，勾选 repo 和 user 权限\n3. 生成后复制 Token 粘贴到此处',
+        placeholder: 'ghp_...',
+        value: ''
+      });
     } else if (platform === 'xiaohongshu') {
-      promptMsg = '请输入小红书 Cookie（可选，不填则使用公开发现页）\n\n📌 获取方式：\n1. 浏览器打开 xiaohongshu.com 并登录\n2. 按 F12 打开开发者工具 → 切换到 Console（控制台）标签\n3. 输入 document.cookie 并回车\n4. 复制输出的完整字符串，粘贴到此处';
+      setPromptConfig({
+        platform,
+        title: '配置小红书 Cookie',
+        desc: '请输入小红书 Cookie（可选，不填则使用公开发现页）\n\n📌 获取方式：\n1. 浏览器打开 xiaohongshu.com 并登录\n2. 按 F12 打开开发者工具 → 切换到 Console（控制台）标签\n3. 输入 document.cookie 并回车\n4. 复制输出的完整字符串，粘贴到此处',
+        placeholder: 'a1=...; webId=...',
+        value: ''
+      });
     } else if (platform === 'zhihu') {
-      promptMsg = '请输入知乎完整 Cookie（必须包含 z_c0=... 字段！）\n\n📌 获取方式：\n1. 浏览器打开 zhihu.com 并登录\n2. 按 F12 打开开发者工具 → 切换到 Console（控制台）标签\n3. 输入 document.cookie 并回车\n4. 复制输出的完整字符串，粘贴到此处\n\n💡 提示：也可使用顶部的「知乎扫码登录」免手动复制';
+      setPromptConfig({
+        platform,
+        title: '配置知乎 Cookie',
+        desc: '请输入知乎完整 Cookie（必须包含 z_c0=... 字段！）\n\n📌 获取方式：\n1. 浏览器打开 zhihu.com 并登录\n2. 按 F12 打开开发者工具 → 切换到 Console（控制台）标签\n3. 输入 document.cookie 并回车\n4. 复制输出的完整字符串，粘贴到此处\n\n💡 提示：也可使用顶部的「知乎扫码登录」免手动复制',
+        placeholder: 'z_c0=...; d_c0=...',
+        value: ''
+      });
     }
+  };
 
-    credential = window.prompt(promptMsg);
-    if (!credential && credential !== '') return;
+  const submitPrompt = async () => {
+    if (!promptConfig) return;
+    const { platform, value } = promptConfig;
+    const credential = value ? value.trim() : '';
 
+    setPromptConfig(null);
     setSaving(true);
+
     try {
       // 1. 保存凭证
-      await settingsApi.saveCredential(platform, credential ? credential.trim() : '');
+      await settingsApi.saveCredential(platform, credential);
 
       // 2. 刷新平台状态
       await refreshPlatformStatus();
@@ -417,7 +441,7 @@ export function Settings() {
       });
 
       // 5. 提示用户
-      alert(platform === 'xiaohongshu' && !credential?.trim()
+      alert(platform === 'xiaohongshu' && !credential
         ? '已保存公开模式。爬虫已启动，即将为您抓取数据...'
         : '授权成功！凭证已安全保存。爬虫已启动，即将为您抓取数据...');
 
@@ -731,6 +755,35 @@ export function Settings() {
               ) : (
                 <p>{zhihuQrLoading ? '正在获取二维码...' : '二维码加载失败'}</p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 自定义凭证输入弹窗 */}
+      {promptConfig && (
+        <div className="qr-modal-overlay" onClick={() => setPromptConfig(null)}>
+          <div className="qr-modal custom-prompt-modal" onClick={e => e.stopPropagation()}>
+            <div className="qr-modal-header">
+              <h3>{promptConfig.title}</h3>
+              <button className="qr-close-btn" onClick={() => setPromptConfig(null)}>×</button>
+            </div>
+            <div className="qr-modal-body prompt-body">
+              <div className="prompt-desc">
+                {promptConfig.desc.split('\n').map((line, i) => (
+                  <p key={i}>{line}</p>
+                ))}
+              </div>
+              <textarea
+                className="prompt-input"
+                placeholder={promptConfig.placeholder}
+                value={promptConfig.value}
+                onChange={e => setPromptConfig({ ...promptConfig, value: e.target.value })}
+                rows={4}
+              />
+              <div className="prompt-actions">
+                <button className="prompt-cancel-btn" onClick={() => setPromptConfig(null)}>取消</button>
+                <button className="prompt-submit-btn" onClick={submitPrompt}>确定</button>
+              </div>
             </div>
           </div>
         </div>
