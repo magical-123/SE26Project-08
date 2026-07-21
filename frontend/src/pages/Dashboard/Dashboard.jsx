@@ -10,7 +10,6 @@ import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { BookOpen, Zap, Clock, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { nutritionData, wordCloudData, aiQuotes, reviewCards } from '../../mock/dashboardData';
-import { wordCloudApi } from '../../utils/api';
 import './Dashboard.css';
 
 const API_BASE = 'http://localhost:8080';
@@ -36,29 +35,26 @@ export function Dashboard() {
   const [loadingWordCloud, setLoadingWordCloud] = useState(true);
   const [isRegeneratingReview, setIsRegeneratingReview] = useState(false);
 
-  // 获取今日词云数据（从增强的 report 后端 API）
+  // 获取今日词云数据
   useEffect(() => {
     const fetchWordCloud = async () => {
       try {
-        const username = localStorage.getItem('username');
-        if (!username) return;
+        const token = localStorage.getItem('token');
+        if (!token) return;
 
-        const userId = 1; // TODO: 从用户信息中获取真实的userId
-        const today = new Date().toISOString().split('T')[0];
+        const response = await fetch('http://localhost:8080/api/dashboard/wordcloud', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-        const response = await wordCloudApi.getDaily(userId, today);
-
-        if (response.success && response.data && response.data.keywords) {
-          const keywords = Array.isArray(response.data.keywords)
-            ? response.data.keywords
-            : JSON.parse(response.data.keywords);
-
-          const formattedData = keywords.map(item => ({
-            name: item.word,
-            value: item.value
-          }));
-
-          setRealWordCloudData(formattedData);
+        if (response.ok) {
+          const wordCloudData = await response.json();
+          if (wordCloudData && wordCloudData.length > 0) {
+            // 后端返回的格式已经是 [{name, value}]
+            setRealWordCloudData(wordCloudData);
+          }
         }
       } catch (error) {
         console.error('[词云] 获取失败:', error);
