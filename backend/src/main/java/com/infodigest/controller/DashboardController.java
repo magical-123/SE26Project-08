@@ -7,6 +7,10 @@ import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.ReviewCardRepository;
 import com.infodigest.repository.UserReportRepository;
 import com.infodigest.repository.UserRepository;
+import com.infodigest.service.DashboardInsightService;
+import com.infodigest.service.ReviewCardGenerationService;
+import com.infodigest.service.WordCloudService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -17,6 +21,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/dashboard")
 public class DashboardController {
@@ -35,6 +40,15 @@ public class DashboardController {
 
     @Autowired
     private AIConfigRepository aiConfigRepository;
+
+    @Autowired
+    private DashboardInsightService dashboardInsightService;
+
+    @Autowired
+    private ReviewCardGenerationService reviewCardGenerationService;
+
+    @Autowired
+    private WordCloudService wordCloudService;
 
     // ==================== 营养饼图 ====================
 
@@ -113,21 +127,39 @@ public class DashboardController {
     // ==================== 词云相关 ====================
 
     /**
-     * 当前词云数据
+     * 当前词云数据（今日词云，与日报相同）
      */
     @GetMapping("/wordcloud")
     public ResponseEntity<List<Map<String, Object>>> getWordCloud() {
-        // TODO: 从 UserReport 表查询真实 wordCloudData
-        return ResponseEntity.ok(buildMockWordCloudData());
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            Map<String, Object> wordCloudData = wordCloudService.getWordCloud(userId, today);
+            List<Map<String, Object>> keywords = (List<Map<String, Object>>) wordCloudData.get("keywords");
+            return ResponseEntity.ok(keywords != null ? keywords : new ArrayList<>());
+        } catch (Exception e) {
+            log.warn("获取今日词云失败: {}", e.getMessage());
+            // 返回空列表而不是错误，前端会显示"暂无数据"
+            return ResponseEntity.ok(new ArrayList<>());
+        }
     }
 
     /**
-     * 历史词云数据（近7天）
+     * 历史词云数据（近7天，用于周报滑动查看）
      */
     @GetMapping("/wordcloud/history")
     public ResponseEntity<List<Map<String, Object>>> getWordCloudHistory() {
-        // TODO: 从 UserReport 表查询历史 wordCloudData
-        return ResponseEntity.ok(buildMockHistoricalWordCloudData());
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            List<Map<String, Object>> weeklyData = wordCloudService.getWeeklyWordClouds(userId, today);
+            return ResponseEntity.ok(weeklyData);
+        } catch (Exception e) {
+            log.error("获取历史词云失败: {}", e.getMessage());
+            return ResponseEntity.ok(new ArrayList<>());
+        }
     }
 
     /**
@@ -135,48 +167,143 @@ public class DashboardController {
      */
     @GetMapping("/wordcloud/{word}/sources")
     public ResponseEntity<List<Map<String, Object>>> getWordSources(@PathVariable String word) {
-        // TODO: 从 information_items 表查询与 word 相关的源数据
-        return ResponseEntity.ok(buildMockSources(word));
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            // 获取今日词云数据
+            Map<String, Object> wordCloudData = wordCloudService.getWordCloud(userId, today);
+            List<Map<String, Object>> keywords = (List<Map<String, Object>>) wordCloudData.get("keywords");
+
+            if (keywords == null) {
+                return ResponseEntity.ok(new ArrayList<>());
+            }
+
+            // 查找指定关键词的相关视频ID
+            List<Long> relatedVideoIds = null;
+            for (Map<String, Object> keyword : keywords) {
+                if (word.equals(keyword.get("word"))) {
+                    relatedVideoIds = (List<Long>) keyword.get("relatedVideos");
+                    break;
+                }
+            }
+
+            if (relatedVideoIds == null || relatedVideoIds.isEmpty()) {
+                return ResponseEntity.ok(new ArrayList<>());
+            }
+
+            // 查询相关视频的详细信息
+            List<Map<String, Object>> sources = new ArrayList<>();
+            for (Long videoId : relatedVideoIds) {
+                informationItemRepository.findById(videoId).ifPresent(item -> {
+                    Map<String, Object> source = new LinkedHashMap<>();
+                    source.put("id", item.getId());
+                    source.put("title", item.getTitle());
+                    source.put("platform", item.getPlatform());
+                    source.put("link", item.getUrl());
+                    source.put("summary", item.getAiSummary());
+                    source.put("completionRate", item.getCompletionRate());
+                    sources.add(source);
+                });
+            }
+
+            return ResponseEntity.ok(sources);
+        } catch (Exception e) {
+            log.error("获取词云溯源数据失败: {}", e.getMessage());
+            return ResponseEntity.ok(new ArrayList<>());
+        }
+    }
+
+    /**
+     * 手动触发生成今日词云
+     */
+    @PostMapping("/wordcloud/generate")
+    public ResponseEntity<Map<String, Object>> generateWordCloud() {
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            wordCloudService.generateWordCloud(userId, today);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("message", "词云生成成功");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "词云生成失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
+        }
     }
 
     // ==================== AI 洞察 ====================
 
     /**
      * AI 洞察列表（aiQuotes 格式）
+     * 从 UserReport 表查询真实洞察数据
      */
     @GetMapping("/insights")
     public ResponseEntity<List<Map<String, Object>>> getInsights() {
-        // TODO: 从 UserReport 表查询 insight 数据
-        return ResponseEntity.ok(buildMockAiQuotes());
+        Long userId = getCurrentUserId();
+        Map<String, Object> insight = dashboardInsightService.getDashboardInsight(userId);
+
+        // 返回单个洞察的列表格式（前端期望数组）
+        return ResponseEntity.ok(List.of(insight));
+    }
+
+    /**
+     * 手动触发生成仪表盘洞察
+     */
+    @PostMapping("/insights/generate")
+    public ResponseEntity<Map<String, Object>> generateInsight() {
+        Long userId = getCurrentUserId();
+
+        try {
+            dashboardInsightService.generateDashboardInsight(userId);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("message", "洞察生成成功");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "洞察生成失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
+        }
     }
 
     // ==================== 今日复习卡片 ====================
 
     /**
      * 今日复习卡片（reviewCards 格式）
-     * 优先从 ReviewCard 表查询；表为空时返回 mock 数据
+     * 从 ReviewCardGenerationService 获取真实数据，返回1-5张卡片
      */
     @GetMapping("/reviews/today")
     public ResponseEntity<List<Map<String, Object>>> getTodayReviews() {
         Long userId = getCurrentUserId();
-        LocalDate today = LocalDate.now();
+        List<Map<String, Object>> reviewCards = reviewCardGenerationService.getTodayReviewCards(userId);
+        return ResponseEntity.ok(reviewCards);
+    }
 
-        List<com.infodigest.entity.ReviewCard> cards =
-                reviewCardRepository.findByUserIdAndScheduledReviewDate(userId, today);
+    /**
+     * 手动触发生成今日复习卡片
+     */
+    @PostMapping("/reviews/generate")
+    public ResponseEntity<Map<String, Object>> generateReviewCard() {
+        Long userId = getCurrentUserId();
 
-        if (!cards.isEmpty()) {
-            List<Map<String, Object>> result = cards.stream().map(card -> {
-                Map<String, Object> map = new LinkedHashMap<>();
-                map.put("title", card.getTitle());
-                map.put("content", card.getContent());
-                map.put("source", card.getSourcePlatform());
-                return map;
-            }).collect(Collectors.toList());
+        try {
+            reviewCardGenerationService.generateTodayReviewCard(userId);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("message", "复习卡片生成成功");
             return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "复习卡片生成失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
         }
-
-        // 数据库为空，返回 mock 数据
-        return ResponseEntity.ok(buildMockReviewCards());
     }
 
     // ==================== 今日统计摘要 ====================

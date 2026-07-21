@@ -3,11 +3,6 @@
   height: 100%;
   width: 100%;
   position: relative;
-  z-index: 1;
-}
-
-.ai-quote-wrapper.hover-active {
-  z-index: 20; /* Elevate above other grid items when hovering */
 }
 
 .ai-quote-card {
@@ -15,13 +10,7 @@
   flex-direction: column;
   padding: 24px;
   transition: all 0.3s ease;
-  
-  /* Absolute positioning to prevent pushing grid rows */
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  min-height: 100%;
+  height: 100%;
 }
 
 .ai-quote-card h3 {
@@ -31,42 +20,48 @@
   color: var(--text-main);
 }
 
+.regenerate-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.regenerate-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-main);
+}
+
+.regenerate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.regenerate-btn .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .quote-text {
   font-size: 14px;
   line-height: 1.6;
   color: var(--text-secondary);
   margin: 0;
   flex: 1;
-}
-
-.quote-hover-details {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow: hidden;
-}
-
-.quote-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.quote-tag {
-  display: flex;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 8px;
-  background: rgba(0,0,0,0.04);
-  border-radius: 4px;
-  color: var(--text-muted);
-}
-
-.quote-source-mini {
-  font-size: 11px;
-  font-weight: 600;
-  color: #0EA5E9;
 }
 
 /* Modal */
