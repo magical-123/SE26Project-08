@@ -7,7 +7,7 @@ import { NutritionLabel } from '../../components/NutritionLabel/NutritionLabel';
 import { StatBadge } from '../../components/StatBadge/StatBadge';
 import { AIQuoteCard } from '../../components/AIQuoteCard/AIQuoteCard';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
-import { BookOpen, Zap, Clock } from 'lucide-react';
+import { BookOpen, Zap, Clock, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { nutritionData, wordCloudData, aiQuotes, reviewCards } from '../../mock/dashboardData';
 import { wordCloudApi } from '../../utils/api';
@@ -34,6 +34,7 @@ export function Dashboard() {
   const [summary, setSummary] = useState({ todayViews: 0, premiumCount: 0, immersionHours: 0 });
   const [realWordCloudData, setRealWordCloudData] = useState(null);
   const [loadingWordCloud, setLoadingWordCloud] = useState(true);
+  const [isRegeneratingReview, setIsRegeneratingReview] = useState(false);
 
   // 获取今日词云数据（从增强的 report 后端 API）
   useEffect(() => {
@@ -92,7 +93,17 @@ export function Dashboard() {
         const summaryData = await summaryRes.json();
 
         setNutritionData(nutrition.data || nutrition);
-        setWordCloudData(wordcloud);
+
+        // 转换词云数据格式: {word, value} -> {name, value}
+        const formattedWordCloud = Array.isArray(wordcloud)
+          ? wordcloud.map(item => ({
+              name: item.word || item.name,
+              value: item.value
+            }))
+          : [];
+        console.log('[Dashboard] 词云数据:', formattedWordCloud);
+        setWordCloudData(formattedWordCloud);
+
         setAiQuotes(insights);
         setReviewCards(reviews);
         setSummary(summaryData);
@@ -106,43 +117,99 @@ export function Dashboard() {
     fetchData();
   }, []);
 
-  const wordCloudOption = useMemo(() => ({
-    backgroundColor: 'transparent',
-    tooltip: { show: true },
-    series: [{
-      type: 'wordCloud',
-      shape: 'circle',
-      keepAspect: false,
-      left: 'center',
-      top: 'center',
-      width: '100%',
-      height: '100%',
-      right: null,
-      bottom: null,
-      sizeRange: [12, 40],
-      rotationRange: [-45, 45],
-      rotationStep: 45,
-      gridSize: 8,
-      drawOutOfBound: false,
-      layoutAnimation: true,
-      textStyle: {
-        fontFamily: 'Inter, sans-serif',
-        fontWeight: 'bold',
-        color: function () {
-          return 'rgb(' + [
-            Math.round(Math.random() * 100),
-            Math.round(Math.random() * 100),
-            Math.round(Math.random() * 150 + 50)
-          ].join(',') + ')';
-        }
-      },
-      emphasis: {
-        focus: 'self',
-        textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
-      },
-      data: realWordCloudData || wordCloudData
-    }]
-  }), [realWordCloudData, wordCloudData]);
+  // 刷新洞察数据
+  const refreshInsights = async () => {
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`${API_BASE}/api/dashboard/insights`, { headers });
+      if (response.ok) {
+        const insights = await response.json();
+        setAiQuotes(insights);
+      }
+    } catch (error) {
+      console.error('Failed to refresh insights:', error);
+    }
+  };
+
+  // 刷新复习卡片
+  const refreshReviewCards = async () => {
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`${API_BASE}/api/dashboard/reviews/today`, { headers });
+      if (response.ok) {
+        const reviews = await response.json();
+        setReviewCards(reviews);
+      }
+    } catch (error) {
+      console.error('Failed to refresh review cards:', error);
+    }
+  };
+
+  // 重新生成复习卡片
+  const handleRegenerateReview = async (e) => {
+    e.stopPropagation(); // 防止触发卡片点击
+    setIsRegeneratingReview(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/dashboard/reviews/generate`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+
+      if (response.ok) {
+        await refreshReviewCards();
+      } else {
+        console.error('Failed to regenerate review card');
+      }
+    } catch (error) {
+      console.error('Error regenerating review card:', error);
+    } finally {
+      setIsRegeneratingReview(false);
+    }
+  };
+
+  const wordCloudOption = useMemo(() => {
+    const cloudData = realWordCloudData || wordCloudData;
+    const hasData = cloudData && cloudData.length > 0;
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: { show: hasData },
+      series: [{
+        type: 'wordCloud',
+        shape: 'circle',
+        keepAspect: false,
+        left: 'center',
+        top: 'center',
+        width: '100%',
+        height: '100%',
+        right: null,
+        bottom: null,
+        sizeRange: [12, 40],
+        rotationRange: [-45, 45],
+        rotationStep: 45,
+        gridSize: 8,
+        drawOutOfBound: false,
+        layoutAnimation: true,
+        textStyle: {
+          fontFamily: 'Inter, sans-serif',
+          fontWeight: 'bold',
+          color: function () {
+            return 'rgb(' + [
+              Math.round(Math.random() * 100),
+              Math.round(Math.random() * 100),
+              Math.round(Math.random() * 150 + 50)
+            ].join(',') + ')';
+          }
+        },
+        emphasis: {
+          focus: 'self',
+          textStyle: { textShadowBlur: 10, textShadowColor: '#333' }
+        },
+        data: hasData ? cloudData : []
+      }]
+    };
+  }, [realWordCloudData, wordCloudData]);
 
   // Transform nutrition API data: keep original format for NutritionLabel
   const transformedNutritionData = useMemo(() => {
@@ -188,26 +255,49 @@ export function Dashboard() {
         <GlassCard className="bento-trend" onClick={() => navigate('/report')} style={{ cursor: 'pointer' }}>
           <h3>近期关注点流变</h3>
           <div className="chart-container">
-            <ReactECharts option={wordCloudOption} style={{ height: '100%', width: '100%' }} />
+            {(realWordCloudData && realWordCloudData.length > 0) || (wordCloudData && wordCloudData.length > 0) ? (
+              <ReactECharts option={wordCloudOption} style={{ height: '100%', width: '100%' }} />
+            ) : (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                color: 'var(--text-muted)',
+                fontSize: '14px'
+              }}>
+                暂无词云数据
+              </div>
+            )}
           </div>
         </GlassCard>
 
         <div className="bento-quote">
-          {aiQuotes.length > 0 && <AIQuoteCard quote={aiQuotes[0]} />}
+          {aiQuotes.length > 0 && <AIQuoteCard quote={aiQuotes[0]} onRefresh={refreshInsights} />}
         </div>
 
-        <motion.div whileHover={{ y: -4 }} className="bento-review" onClick={() => setIsReviewOpen(true)}>
-          <GlassCard className="review-card" style={{ cursor: 'pointer' }}>
+        <motion.div whileHover={{ y: -4 }} className="bento-review">
+          <GlassCard className="review-card" style={{ cursor: 'pointer', position: 'relative' }}>
             <div className="rc-header">
-              <h3>待复习卡片</h3>
-              <span className="rc-badge">记忆曲线</span>
+              <h3 onClick={() => setIsReviewOpen(true)}>待复习卡片</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="rc-badge">记忆曲线</span>
+                <button
+                  className="regenerate-btn-review"
+                  onClick={handleRegenerateReview}
+                  disabled={isRegeneratingReview}
+                  title="重新生成复习卡片"
+                >
+                  <RefreshCw size={16} className={isRegeneratingReview ? 'spinning' : ''} />
+                </button>
+              </div>
             </div>
             {reviewCards.length > 0 && (
-              <>
+              <div onClick={() => setIsReviewOpen(true)}>
                 <h4>{reviewCards[0].title}</h4>
                 <p>{reviewCards[0].content}</p>
                 <div className="rc-footer">{reviewCards[0].source}</div>
-              </>
+              </div>
             )}
           </GlassCard>
         </motion.div>

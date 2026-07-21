@@ -33,11 +33,23 @@ public class AIConfigController {
 
             config.setUserId(userId);
             config.setModelType(request.getModelType());
-            // 保存时去除首尾空格，避免 DeepSeek/LiteLLM 鉴权失败
-            config.setApiKey(request.getApiKey() != null ? request.getApiKey().trim() : null);
-            config.setApiEndpoint(request.getApiEndpoint() != null ? request.getApiEndpoint().trim() : null);
+
+            // 只有当传入的 API Key 不为 null 时才更新（保存时去除首尾空格，避免 DeepSeek/LiteLLM 鉴权失败）
+            if (request.getApiKey() != null) {
+                config.setApiKey(request.getApiKey().trim());
+            }
+
+            // 只有当传入的 API Endpoint 不为 null 时才更新
+            if (request.getApiEndpoint() != null) {
+                config.setApiEndpoint(request.getApiEndpoint().trim());
+            }
+
             config.setMaxTokens(request.getMaxTokens());
-            config.setCustomModelName(request.getCustomModelName() != null ? request.getCustomModelName().trim() : null);
+
+            // 只有当传入的自定义模型名不为 null 时才更新
+            if (request.getCustomModelName() != null) {
+                config.setCustomModelName(request.getCustomModelName().trim());
+            }
 
             configRepository.save(config);
 

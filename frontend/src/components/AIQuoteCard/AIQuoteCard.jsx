@@ -1,66 +1,89 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ExternalLink, X, Tag } from 'lucide-react';
+import { ExternalLink, X, Tag, RefreshCw } from 'lucide-react';
 import { GlassCard } from '../GlassCard/GlassCard';
 import './AIQuoteCard.css';
 
-export function AIQuoteCard({ quote }) {
-  const [isHovered, setIsHovered] = useState(false);
+const API_BASE = 'http://localhost:8080';
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+export function AIQuoteCard({ quote, onRefresh }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  const handleRegenerate = async (e) => {
+    e.stopPropagation(); // 防止触发卡片点击
+    setIsRegenerating(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/dashboard/insights/generate`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+
+      if (response.ok) {
+        // 重新生成成功，触发父组件刷新数据
+        if (onRefresh) {
+          await onRefresh();
+        }
+      } else {
+        console.error('Failed to regenerate insight');
+      }
+    } catch (error) {
+      console.error('Error regenerating insight:', error);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   return (
     <>
-      {/* Level 1 & 2: The Card in the Bento Grid */}
+      {/* The Card in the Bento Grid - 只显示摘要 */}
       <motion.div
-        layoutId={`quote-${quote.id}`}
-        className={`ai-quote-wrapper ${isHovered ? 'hover-active' : ''}`}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={() => setIsModalOpen(true)}
         whileHover={{ y: -4 }}
+        className="ai-quote-wrapper"
+        onClick={() => setIsModalOpen(true)}
+        style={{ cursor: 'pointer' }}
       >
-        <GlassCard className={`ai-quote-card ${isHovered ? 'hovered' : ''}`}>
-          <motion.h3 layout="position">💡 AI 洞察金句</motion.h3>
-          
-          <motion.p layout="position" className="quote-text">
-            {isHovered ? quote.fullText : quote.summary}
-          </motion.p>
+        <GlassCard className="ai-quote-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <h3>💡 AI 洞察金句</h3>
+            <button
+              className="regenerate-btn"
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+              title="重新生成洞察"
+            >
+              <RefreshCw size={16} className={isRegenerating ? 'spinning' : ''} />
+            </button>
+          </div>
 
-          <AnimatePresence>
-            {isHovered && (
-              <motion.div
-                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
-                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                className="quote-hover-details"
-              >
-                <div className="quote-tags">
-                  {quote.tags.map(tag => (
-                    <span key={tag} className="quote-tag"><Tag size={10} style={{marginRight: 4}}/> {tag}</span>
-                  ))}
-                </div>
-                <div className="quote-source-mini">
-                  {quote.sourcePlatform}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <p className="quote-text">{quote.summary}</p>
         </GlassCard>
       </motion.div>
 
-      {/* Level 3: The Full Modal */}
+      {/* Full Modal - 点击卡片时显示 */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="ai-quote-modal-overlay" onClick={() => setIsModalOpen(false)}>
             <motion.div
-              layoutId={`quote-${quote.id}`}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               className="ai-quote-modal-content"
               onClick={(e) => e.stopPropagation()}
             >
               <button className="close-btn" onClick={() => setIsModalOpen(false)}>
                 <X size={24} />
               </button>
-              
+
               <div className="modal-header">
                 <h2>💡 深度洞察笔记</h2>
                 <div className="modal-tags">
@@ -72,7 +95,7 @@ export function AIQuoteCard({ quote }) {
 
               <div className="modal-body">
                 <p className="modal-full-text">{quote.fullText}</p>
-                
+
                 <div className="modal-source-card">
                   <div className="ms-info">
                     <span className="ms-label">信息溯源</span>

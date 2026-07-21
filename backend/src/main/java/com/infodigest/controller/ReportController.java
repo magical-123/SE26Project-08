@@ -3,14 +3,18 @@ package com.infodigest.controller;
 import com.infodigest.entity.User;
 import com.infodigest.repository.UserReportRepository;
 import com.infodigest.repository.UserRepository;
+import com.infodigest.service.TopicClusterService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/report")
 public class ReportController {
@@ -20,6 +24,9 @@ public class ReportController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private TopicClusterService topicClusterService;
 
     // ==================== 报告摘要 ====================
 
@@ -56,11 +63,65 @@ public class ReportController {
      */
     @GetMapping("/topics")
     public ResponseEntity<List<Map<String, Object>>> getTopics(@RequestParam String type) {
-        getCurrentUserId(); // 仅用于鉴权
-        if ("daily".equalsIgnoreCase(type)) {
-            return ResponseEntity.ok(buildDailyTopicClusters());
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            List<Map<String, Object>> clusters;
+            if ("daily".equalsIgnoreCase(type)) {
+                log.info("获取用户 {} 的日报话题聚类", userId);
+                // 日报：优先从数据库读取
+                try {
+                    clusters = topicClusterService.getTopicClusters(userId, today);
+                } catch (Exception e) {
+                    // 数据库中没有，返回空列表（前端显示"暂无数据"）
+                    log.warn("用户 {} 今日话题聚类数据不存在: {}", userId, e.getMessage());
+                    return ResponseEntity.ok(new ArrayList<>());
+                }
+            } else {
+                // 周报：实时生成
+                log.info("获取用户 {} 的周报话题聚类", userId);
+                clusters = topicClusterService.generateWeeklyTopicClusters(userId, today);
+            }
+            return ResponseEntity.ok(clusters != null ? clusters : new ArrayList<>());
+        } catch (Exception e) {
+            log.error("获取话题聚类失败 (type={}): {}", type, e.getMessage());
+            // 返回空列表而不是错误，前端显示"暂无数据"
+            return ResponseEntity.ok(new ArrayList<>());
         }
-        return ResponseEntity.ok(buildWeeklyTopicClusters());
+    }
+
+    /**
+     * 手动触发话题聚类生成
+     * @param type weekly 或 daily
+     */
+    @PostMapping("/topics/generate")
+    public ResponseEntity<Map<String, Object>> generateTopics(@RequestParam String type) {
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            List<Map<String, Object>> clusters;
+            if ("daily".equalsIgnoreCase(type)) {
+                log.info("手动生成用户 {} 的日报话题聚类", userId);
+                clusters = topicClusterService.generateDailyTopicClusters(userId, today);
+            } else {
+                log.info("手动生成用户 {} 的周报话题聚类", userId);
+                clusters = topicClusterService.generateWeeklyTopicClusters(userId, today);
+            }
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("message", "话题聚类生成成功");
+            response.put("data", clusters);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("生成话题聚类失败 (type={}): {}", type, e.getMessage());
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", false);
+            response.put("message", "生成失败: " + e.getMessage());
+            return ResponseEntity.ok(response);
+        }
     }
 
     // ==================== 营养饼图 ====================
