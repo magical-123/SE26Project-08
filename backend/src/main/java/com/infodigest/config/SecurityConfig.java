@@ -33,11 +33,12 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/ai-config/**").permitAll()
                 .requestMatchers("/api/analysis/**").permitAll()
                 .requestMatchers("/api/insights/**").permitAll()
                 .requestMatchers("/api/wordcloud/**").permitAll()
                 .requestMatchers("/api/inbox/test/**").permitAll()
+                .requestMatchers("/api/dashboard/diagnostic/**", "/api/dashboard/diagnostic/ai-configs").permitAll()
+                .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

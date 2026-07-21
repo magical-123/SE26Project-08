@@ -15,7 +15,7 @@ public class JwtUtil {
 
     // In a real application, inject this from application.yml
     private final String SECRET = "A_Very_Long_Secret_Key_For_InfoDigest_Application_1234567890!";
-    private final long EXPIRATION_TIME = 86400000; // 24 hours in ms
+    private final long EXPIRATION_TIME = 30L * 24 * 60 * 60 * 1000; // 30 days in ms
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(SECRET.getBytes());

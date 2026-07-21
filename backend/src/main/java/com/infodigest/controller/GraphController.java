@@ -11,6 +11,8 @@ import com.infodigest.repository.ItemConceptRepository;
 import com.infodigest.repository.NodePositionRepository;
 import com.infodigest.repository.UserRepository;
 import com.infodigest.service.AiSummaryService;
+import com.infodigest.service.KeywordService;
+import com.infodigest.service.KeywordService.KeywordSuggestion;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -31,6 +33,7 @@ public class GraphController {
     private final NodePositionRepository nodePositionRepository;
     private final UserRepository userRepository;
     private final AiSummaryService aiSummaryService;
+    private final KeywordService keywordService;
 
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -110,37 +113,9 @@ public class GraphController {
                 : itemConceptRepository.findByItemIdIn(premiumItemIds);
 
         Map<Long, List<Long>> itemToConcepts = new HashMap<>();
-        Set<Long> mappedItemIds = new HashSet<>();
         for (ItemConcept mapping : mappings) {
             itemToConcepts.computeIfAbsent(mapping.getItemId(), k -> new ArrayList<>())
                     .add(mapping.getConceptId());
-            mappedItemIds.add(mapping.getItemId());
-        }
-
-        // 2. 对还没有映射的 premium 条目，根据 category 动态匹配 concept
-        //    concept.name = "cat-" + category  <->  item.category 匹配
-        Map<String, Long> categoryConceptMap = new HashMap<>();
-        for (Concept c : concepts) {
-            String name = c.getName();
-            if (name != null && name.startsWith("cat-")) {
-                categoryConceptMap.put(name.substring(4), c.getId());
-            }
-            // 也按 label 匹配（中文名直接等于 category）
-            if (c.getLabel() != null) {
-                categoryConceptMap.putIfAbsent(c.getLabel(), c.getId());
-            }
-        }
-
-        for (InformationItem item : premiumItems) {
-            if (mappedItemIds.contains(item.getId())) continue;
-            String category = item.getCategory();
-            if (category == null || category.isEmpty()) continue;
-
-            Long conceptId = categoryConceptMap.get(category);
-            if (conceptId != null) {
-                itemToConcepts.computeIfAbsent(item.getId(), k -> new ArrayList<>())
-                        .add(conceptId);
-            }
         }
 
         Map<String, Object> result = new HashMap<>();
@@ -181,38 +156,42 @@ public class GraphController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * 一键自动映射：遍历当前用户所有有分类的信息项，
-     * 根据 category 自动创建概念和 ItemConcept 映射
-     */
-    @PostMapping("/auto-map")
-    public ResponseEntity<Map<String, Object>> autoMapAll() {
+    @GetMapping("/item-keywords/{itemId}")
+    public ResponseEntity<List<Concept>> getItemKeywords(@PathVariable Long itemId) {
         Long userId = getCurrentUserId();
-        List<InformationItem> allItems = informationItemRepository.findByUserId(userId);
-
-        int mappedCount = 0;
-        int skippedCount = 0;
-
-        for (InformationItem item : allItems) {
-            String category = item.getCategory();
-            if (category == null || category.isEmpty()) {
-                skippedCount++;
-                continue;
-            }
-            try {
-                aiSummaryService.ensureConceptMapping(item);
-                mappedCount++;
-            } catch (Exception e) {
-                skippedCount++;
-            }
+        
+        List<ItemConcept> mappings = itemConceptRepository.findByItemId(itemId);
+        if (mappings.isEmpty()) {
+            return ResponseEntity.ok(Collections.emptyList());
         }
+        
+        List<Long> conceptIds = mappings.stream().map(ItemConcept::getConceptId).collect(Collectors.toList());
+        List<Concept> userConcepts = conceptRepository.findByUserId(userId);
+        
+        List<Concept> itemConcepts = userConcepts.stream()
+                .filter(c -> conceptIds.contains(c.getId()))
+                .collect(Collectors.toList());
+                
+        return ResponseEntity.ok(itemConcepts);
+    }
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("success", true);
-        result.put("mappedCount", mappedCount);
-        result.put("skippedCount", skippedCount);
-        result.put("totalItems", allItems.size());
-        result.put("message", "已为 " + mappedCount + " 条信息创建概念映射，跳过 " + skippedCount + " 条（无分类）");
-        return ResponseEntity.ok(result);
+    @PutMapping("/item-keywords/{itemId}")
+    public ResponseEntity<List<Concept>> updateItemKeywords(@PathVariable Long itemId, @RequestBody List<KeywordSuggestion> keywords) {
+        Long userId = getCurrentUserId();
+        
+        keywordService.applyKeywords(itemId, userId, keywords);
+        
+        return getItemKeywords(itemId);
+    }
+
+    @DeleteMapping("/keyword/{label}")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> deleteKeyword(@PathVariable String label) {
+        Long userId = getCurrentUserId();
+        conceptRepository.findByUserIdAndLabel(userId, label).ifPresent(concept -> {
+            itemConceptRepository.deleteByConceptId(concept.getId());
+            conceptRepository.delete(concept);
+        });
+        return ResponseEntity.noContent().build();
     }
 }

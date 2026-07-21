@@ -27,7 +27,8 @@ public class InformationItem {
 
     private String platform; // Bilibili, Zhihu, etc.
 
-    private String category; // 深度知识, 娱乐短剧, etc.
+    @Deprecated
+    private String category; // 深度知识, 娱乐短剧, etc. (Deprecated, use ItemConcept)
 
     private Integer durationMinutes;
 
@@ -72,4 +73,8 @@ public class InformationItem {
     // 用户行为数据字段
     private Integer watchDurationSeconds;  // 实际观看时长（秒）
     private Double completionRate;         // 完播率（0.0-1.0）
+
+    // 点赞/收藏
+    private Boolean isLiked = false;
+    private Boolean isFavorite = false;
 }

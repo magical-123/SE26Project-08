@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -24,6 +25,9 @@ public class ContentAnalysisService {
 
     @Autowired
     private AIService aiService;
+
+    @Autowired
+    private AiSummaryService aiSummaryService;
 
     private static final int MAX_CONTENT_LENGTH = 4000;
 
@@ -89,20 +93,28 @@ public class ContentAnalysisService {
         InformationItem item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
 
-        if ("PROCESSED".equals(item.getProcessStatus())) {
-            log.info("Item {} already processed, skipping", itemId);
+        boolean hasFullData = item.getAiSummary() != null && !item.getAiSummary().isEmpty();
+        boolean hasNutrition = "PROCESSED".equals(item.getProcessStatus());
+        boolean hasSummary = hasFullData;
+
+        // 如果营养分析和 AI 摘要都有了，跳过
+        if (hasNutrition && hasSummary) {
+            log.info("Item {} already fully processed, skipping", itemId);
             return;
         }
 
         AIConfig config = configRepository.findByUserId(item.getUserId())
                 .orElseThrow(() -> new RuntimeException("AI config not found for user: " + item.getUserId()));
 
-        String userPrompt = buildContentPrompt(item, SYSTEM_PROMPT);
+        log.info("Starting full analysis for item {} (status={}, hasSummary={})",
+                itemId, item.getProcessStatus(), item.getAiSummary() != null);
 
-        log.info("Starting analysis for item {}", itemId);
+        // 1. 营养分析（如果还没做）
+        if (!hasNutrition) {
+            String userPrompt = buildContentPrompt(item, SYSTEM_PROMPT);
 
-        try {
-            AnalysisResultDTO result = aiService.analyze(config, "", userPrompt);
+            try {
+                AnalysisResultDTO result = aiService.analyze(config, "", userPrompt);
 
             // 保存营养成分分析结果
             item.setNutritionProtein(result.getProtein());
@@ -117,17 +129,47 @@ public class ContentAnalysisService {
             item.setProcessStatus("PROCESSED");
             // isPremium 由用户手动标记，与 AI 分析无关
 
-            itemRepository.save(item);
+                log.info("Nutrition analysis completed for item {}: protein={}, carbs={}, vitamins={}, fats={}, fiber={}",
+                        itemId, result.getProtein(), result.getCarbs(), result.getVitamins(),
+                        result.getFats(), result.getFiber());
 
-            log.info("Analysis completed for item {}: protein={}, carbs={}, vitamins={}, fats={}, fiber={}",
-                    itemId, result.getProtein(), result.getCarbs(), result.getVitamins(),
-                    result.getFats(), result.getFiber());
+                // 标记营养分析完成（设为 PROCESSED 表示营养分析已完成）
+                itemRepository.updateProcessStatus(itemId, "PROCESSED");
 
-        } catch (Exception e) {
-            log.error("Analysis failed for item {}: {}", itemId, e.getMessage(), e);
-            item.setProcessStatus("FAILED");
-            itemRepository.save(item);
-            throw e;
+            } catch (Exception e) {
+                log.error("Nutrition analysis failed for item {}: {}", itemId, e.getMessage(), e);
+                itemRepository.updateProcessStatus(itemId, "FAILED");
+                throw e;
+            }
+        }
+
+        // 2. AI 摘要生成（如果还没有摘要）
+        if (!hasSummary) {
+            try {
+                // 重新从数据库加载最新的 item 状态（营养分析可能刚完成）
+                Optional<InformationItem> freshItem = itemRepository.findById(itemId);
+                if (freshItem.isPresent()) {
+                    boolean ok = aiSummaryService.generateSummary(freshItem.get());
+                    if (ok) {
+                        InformationItem updated = freshItem.get();
+                        itemRepository.updateAiSummaryFields(
+                                itemId,
+                                updated.getAiSummary(),
+                                updated.getKnowledgeScore(),
+                                updated.getScoreReasoning(),
+                                updated.getCategory(),
+                                LocalDateTime.now()
+                        );
+                        log.info("✅ AI summary generated for item {}: score={}, category={}",
+                                itemId, updated.getKnowledgeScore(), updated.getCategory());
+                    } else {
+                        log.warn("AI summary generation returned false for item {}", itemId);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("AI summary generation failed for item {}: {}", itemId, e.getMessage());
+                // 不抛异常：营养分析已经成功，摘要可以下次调度重试
+            }
         }
     }
 

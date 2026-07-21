@@ -5,6 +5,7 @@ import com.infodigest.entity.User;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.UserRepository;
 import com.infodigest.service.AiSummaryService;
+import com.infodigest.service.KeywordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -12,7 +13,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,6 +27,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/inbox")
+@Slf4j
 public class InboxController {
 
     @Autowired
@@ -33,6 +38,9 @@ public class InboxController {
 
     @Autowired
     private AiSummaryService aiSummaryService;
+
+    @Autowired
+    private KeywordService keywordService;
 
     // 获取当前登录用户的信息项（支持分页 + 小红书限流，总上限 1000 条）
     @GetMapping("/items")
@@ -56,8 +64,8 @@ public class InboxController {
         List<InformationItem> filteredItems = new ArrayList<>();
         int xhsCount = 0;
         for (InformationItem item : recentItems) {
-            // 跳过被隐藏的娱乐类信息（娱乐短剧 + 娱乐科普）
-            if (hideEntertainment && ("娱乐短剧".equals(item.getCategory()) || "娱乐科普".equals(item.getCategory()))) {
+            // 跳过被隐藏的娱乐类信息（基于 knowledgeScore < 20）
+            if (hideEntertainment && item.getKnowledgeScore() != null && item.getKnowledgeScore() < 20) {
                 continue;
             }
             if ("XIAOHONGSHU".equalsIgnoreCase(item.getPlatform())) {
@@ -141,12 +149,20 @@ public class InboxController {
             if (itemDetails.getTitle() != null) item.setTitle(itemDetails.getTitle());
             if (itemDetails.getUrl() != null) item.setUrl(itemDetails.getUrl());
             if (itemDetails.getPlatform() != null) item.setPlatform(itemDetails.getPlatform());
-            if (itemDetails.getCategory() != null) item.setCategory(itemDetails.getCategory());
             if (itemDetails.getDurationMinutes() != null) item.setDurationMinutes(itemDetails.getDurationMinutes());
             if (itemDetails.getContentRaw() != null) item.setContentRaw(itemDetails.getContentRaw());
             if (itemDetails.getProcessStatus() != null) item.setProcessStatus(itemDetails.getProcessStatus());
+            
+            boolean premiumTriggered = Boolean.TRUE.equals(itemDetails.getIsPremium()) && !Boolean.TRUE.equals(item.getIsPremium());
             if (itemDetails.getIsPremium() != null) item.setIsPremium(itemDetails.getIsPremium());
+            
             InformationItem updatedItem = informationItemRepository.save(item);
+            
+            if (premiumTriggered) {
+                String note = itemDetails.getContentRaw() != null ? itemDetails.getContentRaw() : item.getContentRaw();
+                keywordService.analyzeAndApplyKeywordsAsync(updatedItem, note);
+            }
+            
             return ResponseEntity.ok(updatedItem);
         } else {
             return ResponseEntity.notFound().build();
@@ -167,6 +183,119 @@ public class InboxController {
         }
     }
 
+    // 切换点赞
+    @Transactional
+    @PostMapping("/items/{id}/like")
+    public ResponseEntity<Map<String, Object>> toggleLike(@PathVariable Long id) {
+        Long userId = getCurrentUserId();
+        log.info("[Like] userId={}, itemId={}", userId, id);
+        Optional<InformationItem> opt = informationItemRepository.findByIdAndUserId(id, userId);
+        if (opt.isEmpty()) {
+            log.warn("[Like] Item {} not found for user {}", id, userId);
+            return ResponseEntity.notFound().build();
+        }
+        InformationItem item = opt.get();
+        boolean newLiked = !Boolean.TRUE.equals(item.getIsLiked());
+        try {
+            informationItemRepository.updateIsLiked(id, newLiked);
+            log.info("[Like] Success: itemId={}, newLiked={}", id, newLiked);
+        } catch (Exception e) {
+            log.error("[Like] DB update failed for item {}: {}", id, e.getMessage(), e);
+            throw new RuntimeException("点赞操作失败: " + e.getMessage(), e);
+        }
+        item.setIsLiked(newLiked);
+        return ResponseEntity.ok(Map.of("id", id, "isLiked", newLiked));
+    }
+
+    // 切换收藏
+    @Transactional
+    @PostMapping("/items/{id}/favorite")
+    public ResponseEntity<Map<String, Object>> toggleFavorite(@PathVariable Long id) {
+        Long userId = getCurrentUserId();
+        log.info("[Favorite] userId={}, itemId={}", userId, id);
+        Optional<InformationItem> opt = informationItemRepository.findByIdAndUserId(id, userId);
+        if (opt.isEmpty()) {
+            log.warn("[Favorite] Item {} not found for user {}", id, userId);
+            return ResponseEntity.notFound().build();
+        }
+        InformationItem item = opt.get();
+        boolean newFav = !Boolean.TRUE.equals(item.getIsFavorite());
+        try {
+            informationItemRepository.updateIsFavorite(id, newFav);
+            log.info("[Favorite] Success: itemId={}, newFav={}", id, newFav);
+        } catch (Exception e) {
+            log.error("[Favorite] DB update failed for item {}: {}", id, e.getMessage(), e);
+            throw new RuntimeException("收藏操作失败: " + e.getMessage(), e);
+        }
+        item.setIsFavorite(newFav);
+        return ResponseEntity.ok(Map.of("id", id, "isFavorite", newFav));
+    }
+
+    /**
+     * 为单条卡片重新触发 AI 摘要生成。
+     */
+    @PostMapping("/items/{id}/regenerate-summary")
+    public ResponseEntity<Map<String, Object>> regenerateSummary(@PathVariable Long id) {
+        Long userId = getCurrentUserId();
+        Optional<InformationItem> opt = informationItemRepository.findByIdAndUserId(id, userId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+
+        InformationItem item = opt.get();
+        if ("FAILED".equals(item.getProcessStatus())) {
+            informationItemRepository.updateProcessStatus(id, "UNPROCESSED");
+        }
+        aiSummaryService.generateSummaryAsync(item);
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "itemId", id,
+                "message", "已重新触发该卡片的 AI 摘要生成"
+        ));
+    }
+
+    /**
+     * 一次性修复：为当前用户所有缺少 AI 摘要的卡片触发摘要生成。
+     * 仅手动调用，不会周期性自动执行，避免浪费 API 配额。
+     * 同时会把之前 FAILED 的条目重置为 UNPROCESSED，方便调度器重新做营养分析。
+     */
+    @PostMapping("/fix-missing-summaries")
+    public ResponseEntity<Map<String, Object>> fixMissingSummaries() {
+        Long userId = getCurrentUserId();
+        log.info("[FixMissingSummaries] 开始修复用户 {} 的无摘要卡片", userId);
+        List<InformationItem> items = informationItemRepository.findByUserId(userId).stream()
+                .filter(i -> i.getAiSummary() == null || i.getAiSummary().isEmpty())
+                .toList();
+        log.info("[FixMissingSummaries] 用户 {} 共有 {} 条无摘要卡片待修复", userId, items.size());
+
+        int triggered = 0;
+        int resetFailed = 0;
+        for (InformationItem item : items) {
+            try {
+                // 重置 FAILED 状态，让营养分析调度器也能重新处理
+                if ("FAILED".equals(item.getProcessStatus())) {
+                    item.setProcessStatus("UNPROCESSED");
+                    informationItemRepository.updateProcessStatus(item.getId(), "UNPROCESSED");
+                    resetFailed++;
+                }
+                aiSummaryService.generateSummaryAsync(item);
+                triggered++;
+            } catch (Exception e) {
+                log.error("[FixMissingSummaries] 触发 item {} 摘要生成失败: {}", item.getId(), e.getMessage());
+            }
+        }
+
+        log.info("[FixMissingSummaries] 用户 {} 已触发 {} 条卡片摘要生成，重置 {} 条 FAILED 状态",
+                userId, triggered, resetFailed);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "userId", userId,
+                "missingCount", items.size(),
+                "triggered", triggered,
+                "resetFailed", resetFailed,
+                "message", "已为 " + triggered + " 条无摘要卡片触发 AI 摘要生成（重置 " + resetFailed + " 条失败状态）"
+        ));
+    }
+
     // 测试接口：无需认证直接插入（仅用于开发测试）
     @PostMapping("/test/items")
     public ResponseEntity<?> createTestItem(@RequestBody TestItemRequest request) {
@@ -176,7 +305,6 @@ public class InboxController {
             item.setTitle(request.getTitle());
             item.setUrl(request.getUrl());
             item.setPlatform(request.getPlatform());
-            item.setCategory(request.getCategory());
             item.setDurationMinutes(request.getDurationMinutes());
             item.setContentRaw(request.getContentRaw());
             item.setProcessStatus("UNPROCESSED");
@@ -203,7 +331,6 @@ public class InboxController {
         private String title;
         private String url;
         private String platform;
-        private String category;
         private Integer durationMinutes;
         private String contentRaw;
 
@@ -219,9 +346,6 @@ public class InboxController {
 
         public String getPlatform() { return platform; }
         public void setPlatform(String platform) { this.platform = platform; }
-
-        public String getCategory() { return category; }
-        public void setCategory(String category) { this.category = category; }
 
         public Integer getDurationMinutes() { return durationMinutes; }
         public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
