@@ -88,10 +88,20 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
                     <span className="ai-score-tag">知识评分：{d.knowledgeScore}</span>
                   )}
                 </div>
-                <p>
-                  {d.aiSummary || 'AI 正在分析中，稍后刷新即可查看...'}
-                </p>
-                {!d.aiSummary && onRegenerateSummary && (
+                {d.processStatus === 'UNPROCESSED' ? (
+                  <div className="drawer-skeleton-container">
+                    <div className="drawer-skeleton-line title"></div>
+                    <div className="drawer-skeleton-line full"></div>
+                    <div className="drawer-skeleton-line medium"></div>
+                    <div className="drawer-skeleton-line long"></div>
+                    <div className="drawer-skeleton-text">正在全力分析知识结构...</div>
+                  </div>
+                ) : (
+                  <p>
+                    {d.aiSummary || (d.processStatus === 'FAILED' ? '生成摘要失败' : '暂无摘要')}
+                  </p>
+                )}
+                {!d.aiSummary && d.processStatus !== 'UNPROCESSED' && onRegenerateSummary && (
                   <button
                     className="regenerate-summary-btn"
                     onClick={() => onRegenerateSummary(d.id)}

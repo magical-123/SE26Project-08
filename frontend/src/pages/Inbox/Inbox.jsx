@@ -31,6 +31,11 @@ export function Inbox() {
   const aiSummaryCount = items.filter(i => i.aiSummary).length;
   const totalCount = items.length;
 
+  const unprocessedCount = items.filter(i => i.processStatus === 'UNPROCESSED').length;
+  const processedCount = totalCount - unprocessedCount;
+  const processingPercent = totalCount === 0 ? 100 : Math.round((processedCount / totalCount) * 100);
+  const isProcessing = unprocessedCount > 0;
+
   // 切换平台筛选时，如果当前过滤结果为空且还有更多数据，自动加载更多
   useEffect(() => {
     if (filter === 'All') return;
@@ -156,22 +161,43 @@ export function Inbox() {
 
   return (
     <div className="inbox">
-      <header className="inbox-header">
-        <h1>捕获箱 (Inbox)</h1>
-        <div className="inbox-subtitle">
-          共捕获 <strong>{totalCount}</strong> 条内容，其中 <strong>{aiSummaryCount}</strong> 条已生成 AI 摘要
+      <header className="inbox-header-wrapper">
+        <div className="inbox-header-top">
+          <div>
+            <h1>捕获箱 (Inbox)</h1>
+            <div className="inbox-subtitle">
+              共捕获 <strong>{totalCount}</strong> 条内容，其中 <strong>{aiSummaryCount}</strong> 条已生成 AI 摘要
+            </div>
+          </div>
+          <div className="inbox-filters">
+            {['All', 'Bilibili', 'Zhihu', 'Xiaohongshu', 'GitHub'].map(f => (
+              <button
+                key={f}
+                className={`filter-btn ${filter === f ? 'active' : ''}`}
+                onClick={() => handleFilterChange(f)}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="inbox-filters">
-          {['All', 'Bilibili', 'Zhihu', 'Xiaohongshu', 'GitHub'].map(f => (
-            <button
-              key={f}
-              className={`filter-btn ${filter === f ? 'active' : ''}`}
-              onClick={() => handleFilterChange(f)}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
+        
+        {isProcessing && (
+          <div className="inbox-progress-container">
+            <div className="inbox-progress-header">
+              <span className="progress-label">✨ AI 正在努力分析中...</span>
+              <span className="progress-text">{processedCount} / {totalCount}</span>
+            </div>
+            <div className="inbox-progress-bar-bg">
+              <motion.div 
+                className="inbox-progress-bar-fill" 
+                initial={{ width: 0 }}
+                animate={{ width: `${processingPercent}%` }}
+                transition={{ duration: 0.5, ease: 'easeInOut' }}
+              />
+            </div>
+          </div>
+        )}
       </header>
 
       {/* 自动抓取提示 */}

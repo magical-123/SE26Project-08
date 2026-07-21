@@ -42,6 +42,12 @@ export function InfoSourceCard({ data, onClick, onTogglePremium, onToggleLike, o
           <span>{premiumLabel}</span>
         </div>
       )}
+      {data.processStatus === 'UNPROCESSED' && (
+        <div className="isc-processing-badge">
+          <div className="isc-spinner" />
+          <span>AI 分析中...</span>
+        </div>
+      )}
       <div className="isc-header">
         <div className="isc-platform">
           {platformIcon[data.platform] || <FileText size={14} />}
