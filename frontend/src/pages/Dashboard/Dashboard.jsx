@@ -15,7 +15,7 @@ import './Dashboard.css';
 const API_BASE = 'http://localhost:8080';
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   return {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
@@ -39,7 +39,7 @@ export function Dashboard() {
   useEffect(() => {
     const fetchWordCloud = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (!token) return;
 
         const response = await fetch('http://localhost:8080/api/dashboard/wordcloud', {

@@ -628,10 +628,11 @@ public class DashboardController {
 
     private List<Map<String, Object>> buildWeeklyPieData() {
         List<Map<String, Object>> list = new ArrayList<>();
-        list.add(buildPieItem(35, "深度知识", "#0EA5E9"));
-        list.add(buildPieItem(45, "娱乐短剧", "#F43F5E"));
-        list.add(buildPieItem(15, "行业资讯", "#F59E0B"));
-        list.add(buildPieItem(5, "创意灵感", "#10B981"));
+        list.add(buildPieItem(0, "蛋白质（深度知识）", "#0EA5E9"));
+        list.add(buildPieItem(0, "碳水（实用技能）", "#F59E0B"));
+        list.add(buildPieItem(0, "维生素（创意灵感）", "#10B981"));
+        list.add(buildPieItem(0, "脂肪（纯娱乐）", "#F43F5E"));
+        list.add(buildPieItem(0, "纤维（哲思冥想）", "#8B5CF6"));
         return list;
     }
 

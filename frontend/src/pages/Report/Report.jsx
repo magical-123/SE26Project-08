@@ -5,8 +5,6 @@ import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { reportData } from '../../mock/reportData';
 import {
-  weeklyPieData,
-  dailyPieData,
   weeklyAiInsight,
   dailyAiInsight
 } from '../../mock/dashboardData';
@@ -18,7 +16,7 @@ import './Report.css';
 const API_BASE = 'http://localhost:8080';
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   return {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
@@ -179,7 +177,7 @@ export function Report() {
   const handleGenerateInsight = async () => {
     setIsGenerating(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const type = activeTab.toUpperCase();
       const response = await fetch(`http://localhost:8080/api/insights/generate?type=${type}`, {
         method: 'POST',
@@ -293,7 +291,13 @@ export function Report() {
           borderColor: '#fff',
           borderWidth: 2
         },
-        data: nutritionData.length > 0 ? nutritionData : (activeTab === 'weekly' ? weeklyPieData : dailyPieData)
+        data: nutritionData.length > 0 ? nutritionData : [
+          { name: '技术', value: 0, itemStyle: { color: '#4A90E2' } },
+          { name: '科学', value: 0, itemStyle: { color: '#50C878' } },
+          { name: '艺术', value: 0, itemStyle: { color: '#F39C12' } },
+          { name: '商业', value: 0, itemStyle: { color: '#9B59B6' } },
+          { name: '娱乐', value: 0, itemStyle: { color: '#E74C3C' } }
+        ]
       }
     ]
   }), [activeTab, nutritionData]);
@@ -421,7 +425,13 @@ export function Report() {
             </div>
 
             <div className="nl-rows">
-              {(nutritionData.length > 0 ? nutritionData : (activeTab === 'weekly' ? weeklyPieData : dailyPieData)).map((item, idx) => (
+              {(nutritionData.length > 0 ? nutritionData : [
+                { name: '技术', value: 0, hours: 0, itemStyle: { color: '#4A90E2' } },
+                { name: '科学', value: 0, hours: 0, itemStyle: { color: '#50C878' } },
+                { name: '艺术', value: 0, hours: 0, itemStyle: { color: '#F39C12' } },
+                { name: '商业', value: 0, hours: 0, itemStyle: { color: '#9B59B6' } },
+                { name: '娱乐', value: 0, hours: 0, itemStyle: { color: '#E74C3C' } }
+              ]).map((item, idx) => (
                 <div className="nl-row" key={idx}>
                   <div className="nl-row-left">
                     <span className="nl-color-block" style={{ backgroundColor: item.itemStyle.color }}></span>
