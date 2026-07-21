@@ -23,6 +23,21 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
                          d.nutritionFiber != null;
 
     if (!hasNutrition) {
+      console.log('No nutrition data for item:', d.id, {
+        protein: d.nutritionProtein,
+        carbs: d.nutritionCarbs,
+        vitamins: d.nutritionVitamins,
+        fats: d.nutritionFats,
+        fiber: d.nutritionFiber
+      });
+      return null;
+    }
+
+    // 检查是否所有值都是0
+    const total = d.nutritionProtein + d.nutritionCarbs + d.nutritionVitamins +
+                  d.nutritionFats + d.nutritionFiber;
+    if (total === 0) {
+      console.log('All nutrition values are 0 for item:', d.id);
       return null;
     }
 
@@ -33,7 +48,7 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
       { name: '脂肪（纯娱乐）', value: d.nutritionFats, itemStyle: { color: '#F43F5E' } },
       { name: '纤维（哲思冥想）', value: d.nutritionFiber, itemStyle: { color: '#8B5CF6' } }
     ];
-  }, [d.nutritionProtein, d.nutritionCarbs, d.nutritionVitamins, d.nutritionFats, d.nutritionFiber]);
+  }, [d.nutritionProtein, d.nutritionCarbs, d.nutritionVitamins, d.nutritionFats, d.nutritionFiber, d.id]);
 
   // 营养饼图配置
   const nutritionPieOption = useMemo(() => {
@@ -51,25 +66,25 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
       series: [
         {
           type: 'pie',
-          radius: ['40%', '70%'],
+          radius: ['30%', '55%'],
           center: ['50%', '50%'],
           avoidLabelOverlap: true,
           label: {
             show: true,
             position: 'outside',
-            formatter: '{b}\n{c}%',
-            fontSize: 11,
+            formatter: '{c}%',
+            fontSize: 10,
             color: '#666'
           },
           labelLine: {
             show: true,
-            length: 10,
-            length2: 10
+            length: 5,
+            length2: 5
           },
           itemStyle: {
-            borderRadius: 6,
+            borderRadius: 4,
             borderColor: '#fff',
-            borderWidth: 2
+            borderWidth: 1
           },
           data: nutritionData
         }
@@ -229,17 +244,16 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
               {nutritionData && nutritionPieOption && (
                 <div className="nutrition-chart-section">
                   <div className="nutrition-chart-label">
-                    <Sparkles size={14} /> 数字营养成分
+                    <Sparkles size={12} /> 数字营养成分
                   </div>
                   <div className="nutrition-chart-container">
                     <ReactECharts
                       option={nutritionPieOption}
-                      style={{ height: '280px', width: '100%' }}
+                      style={{ height: '150px', width: '100%' }}
                     />
                   </div>
                   {d.nutritionReasoning && (
                     <div className="nutrition-reasoning">
-                      <span className="reasoning-label">评分理由：</span>
                       <span className="reasoning-text">{d.nutritionReasoning}</span>
                     </div>
                   )}
