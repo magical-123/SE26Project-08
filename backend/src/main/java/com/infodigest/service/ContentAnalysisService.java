@@ -138,7 +138,8 @@ public class ContentAnalysisService {
 
             } catch (Exception e) {
                 log.error("Nutrition analysis failed for item {}: {}", itemId, e.getMessage(), e);
-                itemRepository.updateProcessStatus(itemId, "FAILED");
+                // 失败后重置为 UNPROCESSED，让调度器在下一轮扫描中自动重试
+                itemRepository.updateProcessStatus(itemId, "UNPROCESSED");
                 throw e;
             }
         }

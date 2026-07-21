@@ -80,7 +80,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + config.getApiKey())
+                .header("Authorization", "Bearer " + (config.getApiKey() == null ? "" : config.getApiKey().trim()))
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
@@ -118,7 +118,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .header("Content-Type", "application/json")
-                .header("x-api-key", config.getApiKey())
+                .header("x-api-key", config.getApiKey() == null ? "" : config.getApiKey().trim())
                 .header("anthropic-version", "2023-06-01")
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -151,7 +151,7 @@ public class AIService {
         );
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(endpoint + "?key=" + config.getApiKey()))
+                .uri(URI.create(endpoint + "?key=" + (config.getApiKey() == null ? "" : config.getApiKey().trim())))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -187,7 +187,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(config.getApiEndpoint()))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + config.getApiKey())
+                .header("Authorization", "Bearer " + (config.getApiKey() == null ? "" : config.getApiKey().trim()))
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
@@ -249,7 +249,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + config.getApiKey())
+                .header("Authorization", "Bearer " + (config.getApiKey() == null ? "" : config.getApiKey().trim()))
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
@@ -291,7 +291,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .header("Content-Type", "application/json")
-                .header("x-api-key", config.getApiKey())
+                .header("x-api-key", config.getApiKey() == null ? "" : config.getApiKey().trim())
                 .header("anthropic-version", "2023-06-01")
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -328,7 +328,7 @@ public class AIService {
         );
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(endpoint + "?key=" + config.getApiKey()))
+                .uri(URI.create(endpoint + "?key=" + (config.getApiKey() == null ? "" : config.getApiKey().trim())))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -371,7 +371,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(config.getApiEndpoint()))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + config.getApiKey())
+                .header("Authorization", "Bearer " + (config.getApiKey() == null ? "" : config.getApiKey().trim()))
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();

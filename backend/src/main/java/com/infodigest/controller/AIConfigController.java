@@ -33,10 +33,11 @@ public class AIConfigController {
 
             config.setUserId(userId);
             config.setModelType(request.getModelType());
-            config.setApiKey(request.getApiKey());
-            config.setApiEndpoint(request.getApiEndpoint());
+            // 保存时去除首尾空格，避免 DeepSeek/LiteLLM 鉴权失败
+            config.setApiKey(request.getApiKey() != null ? request.getApiKey().trim() : null);
+            config.setApiEndpoint(request.getApiEndpoint() != null ? request.getApiEndpoint().trim() : null);
             config.setMaxTokens(request.getMaxTokens());
-            config.setCustomModelName(request.getCustomModelName());
+            config.setCustomModelName(request.getCustomModelName() != null ? request.getCustomModelName().trim() : null);
 
             configRepository.save(config);
 
