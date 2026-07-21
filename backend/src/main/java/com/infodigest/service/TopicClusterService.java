@@ -113,11 +113,21 @@ public class TopicClusterService {
     }
 
     /**
-     * 生成周报话题聚类（不存储，仅实时计算）
+     * 生成周报话题聚类（带缓存，优先从数据库读取今日生成的周报）
      */
     public List<Map<String, Object>> generateWeeklyTopicClusters(Long userId, LocalDate endDate) throws Exception {
         log.info("开始生成用户 {} 的周报话题聚类 (截止{})", userId, endDate);
 
+        // 尝试从数据库读取今日的周报缓存
+        try {
+            List<Map<String, Object>> cached = getTopicClusters(userId, endDate);
+            log.info("从缓存读取用户 {} 的周报话题聚类", userId);
+            return cached;
+        } catch (Exception e) {
+            log.info("缓存未命中，开始生成周报话题聚类");
+        }
+
+        // 缓存未命中，重新生成
         LocalDate startDate = endDate.minusDays(6);
         LocalDateTime startTime = startDate.atStartOfDay();
         LocalDateTime endTime = endDate.plusDays(1).atStartOfDay();
@@ -130,7 +140,12 @@ public class TopicClusterService {
             return Collections.emptyList();
         }
 
-        return clusterTopics(items, userId);
+        List<Map<String, Object>> clusters = clusterTopics(items, userId);
+
+        // 保存周报缓存（使用今天的日期作为key）
+        saveTopicClusters(userId, endDate, clusters);
+
+        return clusters;
     }
 
     /**
