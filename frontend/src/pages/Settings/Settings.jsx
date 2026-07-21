@@ -49,6 +49,7 @@ export function Settings() {
     apiEndpoint: '',
     apiKey: ''
   });
+  const [existingApiKey, setExistingApiKey] = useState(''); // 存储已有的屏蔽 API Key
   const [saveStatus, setSaveStatus] = useState(''); // 'success' | 'error' | ''
   const [isLoadingAI, setIsLoadingAI] = useState(false);
 
@@ -148,11 +149,16 @@ export function Settings() {
 
       setSelectedModel(modelTypeMap[config.modelType] || 'gpt-4');
 
+      // 保存已有的屏蔽 API Key 用于显示
+      if (config.apiKey) {
+        setExistingApiKey(config.apiKey);
+      }
+
       if (config.modelType === 'CUSTOM') {
         setCustomConfig({
           modelName: config.customModelName || '',
           apiEndpoint: config.apiEndpoint || '',
-          apiKey: ''
+          apiKey: '' // 不预填充 API Key，用户需要重新输入
         });
       }
     } catch (error) {
@@ -191,13 +197,19 @@ export function Settings() {
 
       const requestBody = {
         modelType: modelTypeMap[selectedModel],
-        apiKey: selectedModel === 'custom' ? customConfig.apiKey : null,
+        apiKey: selectedModel === 'custom'
+          ? (customConfig.apiKey || null)  // 空字符串传 null，后端保持原有值
+          : null,
         apiEndpoint: selectedModel === 'custom' ? customConfig.apiEndpoint : null,
         customModelName: selectedModel === 'custom' ? customConfig.modelName : null
       };
 
       await aiConfigApi.saveConfig(requestBody);
       setSaveStatus('success');
+
+      // 保存成功后重新加载配置，更新 existingApiKey
+      await loadAIConfig();
+
       setTimeout(() => setSaveStatus(''), 3000);
     } catch (error) {
       console.error('保存 AI 配置失败:', error);
@@ -589,11 +601,15 @@ export function Settings() {
                   <input
                     id="api-key"
                     type="password"
-                    placeholder="请输入您的 API Key"
+                    placeholder={existingApiKey ? `已存储: ${existingApiKey}` : "请输入您的 API Key"}
                     value={customConfig.apiKey}
                     onChange={(e) => handleCustomConfigChange('apiKey', e.target.value)}
                   />
-                  <p className="config-hint">您的 API Key 将被安全加密存储，仅用于 AI 分析</p>
+                  <p className="config-hint">
+                    {existingApiKey
+                      ? '留空表示保持原有 API Key 不变，输入新值将覆盖原有配置'
+                      : '您的 API Key 将被安全加密存储，仅用于 AI 分析'}
+                  </p>
                 </div>
 
                 <button
