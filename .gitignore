@@ -47,3 +47,6 @@ backend/.mvn/wrapper/maven-wrapper.jar
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Local-only docs (not for remote)
+会话上下文文档.md
