@@ -46,6 +46,10 @@ export function Report() {
   // 话题聚类状态
   const [topicClusters, setTopicClusters] = useState([]);
 
+  // 重新生成状态
+  const [isRegeneratingWordCloud, setIsRegeneratingWordCloud] = useState(false);
+  const [isRegeneratingTopics, setIsRegeneratingTopics] = useState(false);
+
   // 获取营养数据
   useEffect(() => {
     const fetchNutritionData = async () => {
@@ -199,6 +203,68 @@ export function Report() {
       alert(`生成洞察失败: ${error.message}`);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // 重新生成词云
+  const handleRegenerateWordCloud = async () => {
+    setIsRegeneratingWordCloud(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/dashboard/wordcloud/generate`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // 重新获取词云数据
+          if (activeTab === 'daily') {
+            const res = await fetch(`${API_BASE}/api/dashboard/wordcloud`, {
+              headers: getAuthHeaders()
+            });
+            if (res.ok) {
+              const wordCloudData = await res.json();
+              setDailyWordCloud(wordCloudData || []);
+            }
+          } else {
+            const res = await fetch(`${API_BASE}/api/dashboard/wordcloud/history`, {
+              headers: getAuthHeaders()
+            });
+            if (res.ok) {
+              const wordCloudData = await res.json();
+              setWeeklyWordCloudHistory(wordCloudData || []);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('重新生成词云失败:', error);
+    } finally {
+      setIsRegeneratingWordCloud(false);
+    }
+  };
+
+  // 重新生成话题聚类
+  const handleRegenerateTopics = async () => {
+    setIsRegeneratingTopics(true);
+    try {
+      const type = activeTab === 'daily' ? 'daily' : 'weekly';
+      const response = await fetch(`${API_BASE}/api/report/topics/generate?type=${type}`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setTopicClusters(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('重新生成话题聚类失败:', error);
+    } finally {
+      setIsRegeneratingTopics(false);
     }
   };
 
@@ -417,7 +483,28 @@ export function Report() {
 
         <div className="report-trend-container">
           <GlassCard className="report-card trend-card">
-            <h3>{activeTab === 'weekly' ? '近期关注点流变 (词云)' : '今日关注点 (词云)'}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h3>{activeTab === 'weekly' ? '近期关注点流变 (词云)' : '今日关注点 (词云)'}</h3>
+              <button
+                onClick={handleRegenerateWordCloud}
+                disabled={isRegeneratingWordCloud}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: isRegeneratingWordCloud ? 'not-allowed' : 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px',
+                  transition: 'all 0.2s ease'
+                }}
+                title="重新生成词云"
+              >
+                <RefreshCw size={16} className={isRegeneratingWordCloud ? 'spinning' : ''} />
+              </button>
+            </div>
             <p className="card-hint">点击词汇查看溯源 {activeTab === 'weekly' && '/ 拖动底部滑块查看历史流变'}</p>
             <div className="chart-box" style={{ height: '260px', position: 'relative' }}>
               <ReactECharts 
@@ -481,7 +568,28 @@ export function Report() {
         </div>
 
         <GlassCard className="report-card topics-card">
-          <h3>高频话题聚类</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3>高频话题聚类</h3>
+            <button
+              onClick={handleRegenerateTopics}
+              disabled={isRegeneratingTopics}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: isRegeneratingTopics ? 'not-allowed' : 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '4px',
+                transition: 'all 0.2s ease'
+              }}
+              title="重新生成话题聚类"
+            >
+              <RefreshCw size={16} className={isRegeneratingTopics ? 'spinning' : ''} />
+            </button>
+          </div>
           {topicClusters && topicClusters.length > 0 ? (
             <ul className="topic-list">
               {topicClusters.map((cluster, i) => (

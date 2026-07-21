@@ -83,6 +83,39 @@ public class ReportController {
         }
     }
 
+    /**
+     * 手动触发话题聚类生成
+     * @param type weekly 或 daily
+     */
+    @PostMapping("/topics/generate")
+    public ResponseEntity<Map<String, Object>> generateTopics(@RequestParam String type) {
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            List<Map<String, Object>> clusters;
+            if ("daily".equalsIgnoreCase(type)) {
+                log.info("手动生成用户 {} 的日报话题聚类", userId);
+                clusters = topicClusterService.generateDailyTopicClusters(userId, today);
+            } else {
+                log.info("手动生成用户 {} 的周报话题聚类", userId);
+                clusters = topicClusterService.generateWeeklyTopicClusters(userId, today);
+            }
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("message", "话题聚类生成成功");
+            response.put("data", clusters);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("生成话题聚类失败 (type={}): {}", type, e.getMessage());
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", false);
+            response.put("message", "生成失败: " + e.getMessage());
+            return ResponseEntity.ok(response);
+        }
+    }
+
     // ==================== 营养饼图 ====================
 
     /**
