@@ -29,6 +29,13 @@ function formatItem(item) {
     contentRaw: item.contentRaw,
     aiSummary: item.aiSummary || null,
     knowledgeScore: item.knowledgeScore || null,
+    // 营养评分字段
+    nutritionProtein: item.nutritionProtein,
+    nutritionCarbs: item.nutritionCarbs,
+    nutritionVitamins: item.nutritionVitamins,
+    nutritionFats: item.nutritionFats,
+    nutritionFiber: item.nutritionFiber,
+    nutritionReasoning: item.nutritionReasoning,
   };
 }
 
