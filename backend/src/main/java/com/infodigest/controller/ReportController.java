@@ -79,13 +79,13 @@ public class ReportController {
                     return ResponseEntity.ok(new ArrayList<>());
                 }
             } else {
-                // 周报：实时生成
+                // 周报：带缓存的生成（优先读取今日的周报缓存）
                 log.info("获取用户 {} 的周报话题聚类", userId);
                 clusters = topicClusterService.generateWeeklyTopicClusters(userId, today);
             }
             return ResponseEntity.ok(clusters != null ? clusters : new ArrayList<>());
         } catch (Exception e) {
-            log.error("获取话题聚类失败 (type={}): {}", type, e.getMessage());
+            log.error("获取话题聚类失败 (type={}): {}", type, e.getMessage(), e);
             // 返回空列表而不是错误，前端显示"暂无数据"
             return ResponseEntity.ok(new ArrayList<>());
         }
