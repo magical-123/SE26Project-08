@@ -17,13 +17,13 @@ export function RootLayout({ children }) {
     { path: "/profile", icon: UserCircle, label: "PROFILE" },
   ];
 
-  const [avatar, setAvatar] = useState(() => localStorage.getItem('avatarUrl'));
-  const [username, setUsername] = useState(() => localStorage.getItem('username') || 'User');
+  const [avatar, setAvatar] = useState(() => sessionStorage.getItem('avatarUrl'));
+  const [username, setUsername] = useState(() => sessionStorage.getItem('username') || 'User');
 
   useEffect(() => {
     const handleAvatarChange = () => {
-      setAvatar(localStorage.getItem('avatarUrl'));
-      setUsername(localStorage.getItem('username') || 'User');
+      setAvatar(sessionStorage.getItem('avatarUrl'));
+      setUsername(sessionStorage.getItem('username') || 'User');
     };
     window.addEventListener('avatarChanged', handleAvatarChange);
     window.addEventListener('storage', handleAvatarChange);

@@ -46,19 +46,19 @@ export function AuthPage() {
 
       const data = await response.json();
       
-      // Store token
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('username', data.username);
-      if (data.avatarUrl) {
-        localStorage.setItem('avatarUrl', data.avatarUrl);
-      } else {
-        localStorage.removeItem('avatarUrl');
-      }
-      window.dispatchEvent(new Event('avatarChanged'));
-      
-      // 清除旧缓存，确保使用全新 token 加载数据
+      // 先清除旧数据
       localStorage.removeItem('infodigest_inbox_cache_v2');
       sessionStorage.clear();
+      
+      // 再存入新 token
+      sessionStorage.setItem('token', data.token);
+      sessionStorage.setItem('username', data.username);
+      if (data.avatarUrl) {
+        sessionStorage.setItem('avatarUrl', data.avatarUrl);
+      } else {
+        sessionStorage.removeItem('avatarUrl');
+      }
+      window.dispatchEvent(new Event('avatarChanged'));
       
       // 硬刷新确保全新状态
       window.location.href = '/';

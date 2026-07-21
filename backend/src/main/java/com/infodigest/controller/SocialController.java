@@ -59,18 +59,33 @@ public class SocialController {
     }
 
     /**
-     * 返回 PENDING 的好友请求列表（当前用户为接收方）
+     * 返回 PENDING 的好友请求（收到的和已发送的）
+     * 返回格式：[{ id, requesterId, receiverId, username, direction: "received"|"sent", createdAt }]
      */
     @GetMapping("/requests")
-    public ResponseEntity<List<Friendship>> getRequests() {
+    public ResponseEntity<List<Map<String, Object>>> getRequests() {
         Long userId = getCurrentUserId();
 
         List<Friendship> all = friendshipRepository.findByRequesterIdOrReceiverId(userId, userId);
-        List<Friendship> pending = all.stream()
-                .filter(f -> f.getStatus() == FriendshipStatus.PENDING && f.getReceiverId().equals(userId))
+        List<Map<String, Object>> result = all.stream()
+                .filter(f -> f.getStatus() == FriendshipStatus.PENDING)
+                .map(f -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", f.getId());
+                    item.put("requesterId", f.getRequesterId());
+                    item.put("receiverId", f.getReceiverId());
+                    item.put("createdAt", f.getCreatedAt());
+                    boolean isReceived = f.getReceiverId().equals(userId);
+                    item.put("direction", isReceived ? "received" : "sent");
+                    // 拿到对方用户名
+                    Long otherId = isReceived ? f.getRequesterId() : f.getReceiverId();
+                    User other = userRepository.findById(otherId).orElse(null);
+                    item.put("username", other != null ? other.getUsername() : "Unknown");
+                    return item;
+                })
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(pending);
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -102,6 +117,34 @@ public class SocialController {
             friendshipRepository.save(friendship);
         });
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 拒绝好友请求（删除记录）
+     */
+    @DeleteMapping("/requests/{id}")
+    public ResponseEntity<Void> rejectRequest(@PathVariable Long id) {
+        friendshipRepository.deleteById(id);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 搜索用户（按用户名模糊匹配，排除自己）
+     */
+    @GetMapping("/users/search")
+    public ResponseEntity<List<Map<String, Object>>> searchUsers(@RequestParam String q) {
+        Long userId = getCurrentUserId();
+        List<User> users = userRepository.findByUsernameContainingIgnoreCase(q);
+        List<Map<String, Object>> result = users.stream()
+                .filter(u -> !u.getId().equals(userId))
+                .map(u -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", u.getId());
+                    item.put("username", u.getUsername());
+                    return item;
+                })
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
     }
 
     // ==================== 鉴权辅助 ====================

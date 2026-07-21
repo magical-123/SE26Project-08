@@ -23,7 +23,7 @@ export function ProfilePage() {
 
   const getAuthHeaders = () => ({
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('token')}`
+    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
   });
 
   const fetchProfile = async () => {
@@ -37,9 +37,9 @@ export function ProfilePage() {
       setUsername(data.username || '');
       setEmail(data.email || '');
       if (data.avatarUrl) {
-        localStorage.setItem('avatarUrl', data.avatarUrl);
+        sessionStorage.setItem('avatarUrl', data.avatarUrl);
       } else {
-        localStorage.removeItem('avatarUrl');
+        sessionStorage.removeItem('avatarUrl');
       }
       window.dispatchEvent(new Event('avatarChanged'));
     } catch (err) {
@@ -64,7 +64,7 @@ export function ProfilePage() {
       }
       const data = await res.json();
       setUser(data);
-      localStorage.setItem('username', data.username);
+      sessionStorage.setItem('username', data.username);
       setMessage({ type: 'success', text: 'Profile updated successfully' });
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
@@ -74,9 +74,9 @@ export function ProfilePage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
-    localStorage.removeItem('avatarUrl');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('username');
+    sessionStorage.removeItem('avatarUrl');
     window.dispatchEvent(new Event('avatarChanged'));
     navigate('/login');
   };
@@ -114,7 +114,7 @@ export function ProfilePage() {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
           },
           body: JSON.stringify({ avatarUrl: base64Url })
         });
@@ -126,7 +126,7 @@ export function ProfilePage() {
 
         const data = await res.json();
         setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
-        localStorage.setItem('avatarUrl', data.avatarUrl);
+        sessionStorage.setItem('avatarUrl', data.avatarUrl);
         window.dispatchEvent(new Event('avatarChanged'));
         setMessage({ type: 'success', text: 'Avatar updated!' });
       };

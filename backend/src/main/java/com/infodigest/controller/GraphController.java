@@ -1,11 +1,14 @@
 package com.infodigest.controller;
 
 import com.infodigest.entity.Concept;
+import com.infodigest.entity.Friendship;
+import com.infodigest.entity.FriendshipStatus;
 import com.infodigest.entity.InformationItem;
 import com.infodigest.entity.ItemConcept;
 import com.infodigest.entity.NodePosition;
 import com.infodigest.entity.User;
 import com.infodigest.repository.ConceptRepository;
+import com.infodigest.repository.FriendshipRepository;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.ItemConceptRepository;
 import com.infodigest.repository.NodePositionRepository;
@@ -32,6 +35,7 @@ public class GraphController {
     private final ItemConceptRepository itemConceptRepository;
     private final NodePositionRepository nodePositionRepository;
     private final UserRepository userRepository;
+    private final FriendshipRepository friendshipRepository;
     private final AiSummaryService aiSummaryService;
     private final KeywordService keywordService;
 
@@ -122,6 +126,67 @@ public class GraphController {
         result.put("concepts", concepts);
         result.put("items", premiumItems);
         result.put("itemToConcepts", itemToConcepts);
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 查看好友的知识图谱数据（需是已接受的好友关系）
+     */
+    @GetMapping("/data/user/{userId}")
+    public ResponseEntity<Map<String, Object>> getUserGraphData(@PathVariable Long userId) {
+        Long currentUserId = getCurrentUserId();
+
+        // 不能查看自己（用 /data 即可）
+        if (currentUserId.equals(userId)) {
+            return getGraphData();
+        }
+
+        // 检查是否是好友
+        List<Friendship> friendships = friendshipRepository.findByRequesterIdOrReceiverId(currentUserId, currentUserId);
+        boolean isFriend = friendships.stream().anyMatch(f ->
+                f.getStatus() == FriendshipStatus.ACCEPTED &&
+                (f.getRequesterId().equals(userId) || f.getReceiverId().equals(userId)));
+        if (!isFriend) {
+            return ResponseEntity.status(403).body(Map.of("error", "只能查看好友的知识图谱"));
+        }
+
+        // 获取目标用户的概念和优质信息源
+        List<Concept> concepts = conceptRepository.findByUserId(userId);
+        List<InformationItem> allItems = informationItemRepository.findByUserId(userId);
+        List<InformationItem> premiumItems = allItems.stream()
+                .filter(item -> Boolean.TRUE.equals(item.getHasNote()))
+                .collect(Collectors.toList());
+
+        List<Long> premiumItemIds = premiumItems.stream()
+                .map(InformationItem::getId)
+                .collect(Collectors.toList());
+
+        List<ItemConcept> mappings = premiumItemIds.isEmpty()
+                ? Collections.emptyList()
+                : itemConceptRepository.findByItemIdIn(premiumItemIds);
+
+        Map<Long, List<Long>> itemToConcepts = new HashMap<>();
+        for (ItemConcept mapping : mappings) {
+            itemToConcepts.computeIfAbsent(mapping.getItemId(), k -> new ArrayList<>())
+                    .add(mapping.getConceptId());
+        }
+
+        // 获取用户保存的节点位置
+        List<NodePosition> nodePositions = nodePositionRepository.findByUserId(userId);
+        Map<String, Map<String, Double>> positionsMap = new HashMap<>();
+        for (NodePosition np : nodePositions) {
+            Map<String, Double> pos = new HashMap<>();
+            pos.put("x", np.getPosX());
+            pos.put("y", np.getPosY());
+            positionsMap.put(np.getNodeId(), pos);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("concepts", concepts);
+        result.put("items", premiumItems);
+        result.put("itemToConcepts", itemToConcepts);
+        result.put("positions", positionsMap);
 
         return ResponseEntity.ok(result);
     }

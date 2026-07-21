@@ -17,6 +17,7 @@
     "echarts-for-react": "^3.0.6",
     "echarts-wordcloud": "^2.1.0",
     "framer-motion": "^12.42.2",
+    "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "lucide-react": "^1.23.0",
     "qrcode.react": "^4.2.0",
