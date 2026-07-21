@@ -9,6 +9,7 @@ import com.infodigest.repository.UserReportRepository;
 import com.infodigest.repository.UserRepository;
 import com.infodigest.service.DashboardInsightService;
 import com.infodigest.service.ReviewCardGenerationService;
+import com.infodigest.service.WordCloudService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -43,6 +44,9 @@ public class DashboardController {
 
     @Autowired
     private ReviewCardGenerationService reviewCardGenerationService;
+
+    @Autowired
+    private WordCloudService wordCloudService;
 
     // ==================== 营养饼图 ====================
 
@@ -121,21 +125,39 @@ public class DashboardController {
     // ==================== 词云相关 ====================
 
     /**
-     * 当前词云数据
+     * 当前词云数据（今日词云，与日报相同）
      */
     @GetMapping("/wordcloud")
     public ResponseEntity<List<Map<String, Object>>> getWordCloud() {
-        // TODO: 从 UserReport 表查询真实 wordCloudData
-        return ResponseEntity.ok(buildMockWordCloudData());
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            Map<String, Object> wordCloudData = wordCloudService.getWordCloud(userId, today);
+            List<Map<String, Object>> keywords = (List<Map<String, Object>>) wordCloudData.get("keywords");
+            return ResponseEntity.ok(keywords != null ? keywords : new ArrayList<>());
+        } catch (Exception e) {
+            log.warn("获取今日词云失败: {}", e.getMessage());
+            // 返回空列表而不是错误，前端会显示"暂无数据"
+            return ResponseEntity.ok(new ArrayList<>());
+        }
     }
 
     /**
-     * 历史词云数据（近7天）
+     * 历史词云数据（近7天，用于周报滑动查看）
      */
     @GetMapping("/wordcloud/history")
     public ResponseEntity<List<Map<String, Object>>> getWordCloudHistory() {
-        // TODO: 从 UserReport 表查询历史 wordCloudData
-        return ResponseEntity.ok(buildMockHistoricalWordCloudData());
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            List<Map<String, Object>> weeklyData = wordCloudService.getWeeklyWordClouds(userId, today);
+            return ResponseEntity.ok(weeklyData);
+        } catch (Exception e) {
+            log.error("获取历史词云失败: {}", e.getMessage());
+            return ResponseEntity.ok(new ArrayList<>());
+        }
     }
 
     /**
@@ -143,8 +165,73 @@ public class DashboardController {
      */
     @GetMapping("/wordcloud/{word}/sources")
     public ResponseEntity<List<Map<String, Object>>> getWordSources(@PathVariable String word) {
-        // TODO: 从 information_items 表查询与 word 相关的源数据
-        return ResponseEntity.ok(buildMockSources(word));
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            // 获取今日词云数据
+            Map<String, Object> wordCloudData = wordCloudService.getWordCloud(userId, today);
+            List<Map<String, Object>> keywords = (List<Map<String, Object>>) wordCloudData.get("keywords");
+
+            if (keywords == null) {
+                return ResponseEntity.ok(new ArrayList<>());
+            }
+
+            // 查找指定关键词的相关视频ID
+            List<Long> relatedVideoIds = null;
+            for (Map<String, Object> keyword : keywords) {
+                if (word.equals(keyword.get("word"))) {
+                    relatedVideoIds = (List<Long>) keyword.get("relatedVideos");
+                    break;
+                }
+            }
+
+            if (relatedVideoIds == null || relatedVideoIds.isEmpty()) {
+                return ResponseEntity.ok(new ArrayList<>());
+            }
+
+            // 查询相关视频的详细信息
+            List<Map<String, Object>> sources = new ArrayList<>();
+            for (Long videoId : relatedVideoIds) {
+                informationItemRepository.findById(videoId).ifPresent(item -> {
+                    Map<String, Object> source = new LinkedHashMap<>();
+                    source.put("id", item.getId());
+                    source.put("title", item.getTitle());
+                    source.put("platform", item.getPlatform());
+                    source.put("link", item.getLink());
+                    source.put("summary", item.getAiSummary());
+                    source.put("completionRate", item.getCompletionRate());
+                    sources.add(source);
+                });
+            }
+
+            return ResponseEntity.ok(sources);
+        } catch (Exception e) {
+            log.error("获取词云溯源数据失败: {}", e.getMessage());
+            return ResponseEntity.ok(new ArrayList<>());
+        }
+    }
+
+    /**
+     * 手动触发生成今日词云
+     */
+    @PostMapping("/wordcloud/generate")
+    public ResponseEntity<Map<String, Object>> generateWordCloud() {
+        Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
+
+        try {
+            wordCloudService.generateWordCloud(userId, today);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("message", "词云生成成功");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "词云生成失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
+        }
     }
 
     // ==================== AI 洞察 ====================
