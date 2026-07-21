@@ -12,7 +12,7 @@ import { AuthPage } from './pages/Auth/AuthPage';
 
 // ProtectedRoute component checks if the user is authenticated
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!token) {
     // If no token, redirect to login page
     return <Navigate to="/login" replace />;

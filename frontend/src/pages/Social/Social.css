@@ -125,12 +125,14 @@
   height: 100px;
   background: rgba(0,0,0,0.02);
   border-radius: 4px;
+  border: 1px dashed var(--border-glass);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px dashed var(--border-glass);
-  font-size: 12px;
-  font-weight: 600;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
@@ -141,4 +143,308 @@
   border-color: var(--glow);
   color: var(--glow);
   box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
+}
+
+/* ---- Add Friend Modal ---- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.af-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+
+.af-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 0;
+}
+
+.af-modal-header h2 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.af-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.af-close-btn:hover {
+  background: rgba(0,0,0,0.05);
+  color: #333;
+}
+
+.af-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 24px;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.03);
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+  color: #999;
+}
+
+.af-search-box input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.af-spin {
+  animation: af-rotate 0.8s linear infinite;
+}
+
+@keyframes af-rotate {
+  to { transform: rotate(360deg); }
+}
+
+.af-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 16px;
+}
+
+.af-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 24px 0;
+}
+
+.af-result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.af-result-item:hover {
+  background: rgba(0,0,0,0.03);
+}
+
+.af-result-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #111;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.af-result-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.af-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: var(--text-main);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.af-add-btn:hover:not(:disabled) {
+  background: var(--primary);
+  transform: translateY(-1px);
+}
+
+.af-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.af-message {
+  text-align: center;
+  padding: 0 24px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ---- Friend Requests Section ---- */
+.requests-section {
+  margin-bottom: 32px;
+}
+
+.requests-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 12px;
+}
+
+.requests-title-row:hover {
+  opacity: 0.7;
+}
+
+.requests-title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.requests-collapse-icon {
+  color: var(--text-muted);
+  transition: transform 0.25s ease;
+}
+
+.requests-collapse-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.request-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+}
+
+.request-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #111;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.request-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.request-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.request-accept-btn,
+.request-reject-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.request-accept-btn {
+  background: #10B981;
+  color: #fff;
+}
+
+.request-accept-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.request-reject-btn {
+  background: rgba(0,0,0,0.05);
+  color: #666;
+}
+
+.request-reject-btn:hover {
+  background: rgba(244,63,94,0.1);
+  color: #F43F5E;
+}
+
+.request-pending-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  background: rgba(0,0,0,0.03);
+  border-radius: 4px;
+}
+
+.request-withdraw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: transparent;
+  color: #999;
+}
+
+.request-withdraw-btn:hover {
+  background: rgba(244,63,94,0.08);
+  border-color: rgba(244,63,94,0.3);
+  color: #F43F5E;
 }

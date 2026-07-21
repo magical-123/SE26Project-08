@@ -11,7 +11,7 @@ const API_BASE = 'http://localhost:8080';
 
 function getToken() {
   if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem('token');
+  return window.sessionStorage.getItem('token');
 }
 
 /**
@@ -61,8 +61,8 @@ async function apiFetch(path, options = {}) {
   // Token 过期或未授权 → 静默模式下只报错不跳转
   if (response.status === 401 || response.status === 403) {
     if (!silent) {
-      window.localStorage.removeItem('token');
-      window.localStorage.removeItem('username');
+      window.sessionStorage.removeItem('token');
+      window.sessionStorage.removeItem('username');
       window.dispatchEvent(new CustomEvent('auth:expired'));
     }
     throw new Error('Authentication required');
