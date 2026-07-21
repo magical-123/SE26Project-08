@@ -93,9 +93,10 @@ public class KeywordService {
                 Optional<AIConfig> userConfig = aiConfigRepository.findByUserId(item.getUserId());
                 if (userConfig.isPresent()) {
                     AIConfig config = userConfig.get();
-                    if (config.getApiEndpoint() != null && !config.getApiEndpoint().isEmpty()) apiUrl = config.getApiEndpoint();
-                    if (config.getApiKey() != null && !config.getApiKey().isEmpty()) apiKey = config.getApiKey();
-                    if (config.getCustomModelName() != null && !config.getCustomModelName().isEmpty()) model = config.getCustomModelName();
+                    // 兼容旧数据：读取时去除首尾空格
+                    if (config.getApiEndpoint() != null && !config.getApiEndpoint().isEmpty()) apiUrl = config.getApiEndpoint().trim();
+                    if (config.getApiKey() != null && !config.getApiKey().isEmpty()) apiKey = config.getApiKey().trim();
+                    if (config.getCustomModelName() != null && !config.getCustomModelName().isEmpty()) model = config.getCustomModelName().trim();
                 }
             }
 
