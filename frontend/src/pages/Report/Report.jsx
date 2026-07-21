@@ -236,10 +236,16 @@ export function Report() {
               setWeeklyWordCloudHistory(wordCloudData || []);
             }
           }
+          alert('词云生成成功！');
+        } else {
+          alert('生成失败: ' + (data.message || '未知错误'));
         }
+      } else {
+        alert('生成失败: 服务器错误');
       }
     } catch (error) {
       console.error('重新生成词云失败:', error);
+      alert('生成失败: ' + error.message);
     } finally {
       setIsRegeneratingWordCloud(false);
     }
@@ -259,10 +265,17 @@ export function Report() {
         const data = await response.json();
         if (data.success && data.data) {
           setTopicClusters(data.data);
+          // 显示成功提示
+          alert('话题聚类生成成功！');
+        } else {
+          alert('生成失败: ' + (data.message || '未知错误'));
         }
+      } else {
+        alert('生成失败: 服务器错误');
       }
     } catch (error) {
       console.error('重新生成话题聚类失败:', error);
+      alert('生成失败: ' + error.message);
     } finally {
       setIsRegeneratingTopics(false);
     }
@@ -485,25 +498,32 @@ export function Report() {
           <GlassCard className="report-card trend-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <h3>{activeTab === 'weekly' ? '近期关注点流变 (词云)' : '今日关注点 (词云)'}</h3>
-              <button
-                onClick={handleRegenerateWordCloud}
-                disabled={isRegeneratingWordCloud}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: isRegeneratingWordCloud ? 'not-allowed' : 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '4px',
-                  transition: 'all 0.2s ease'
-                }}
-                title="重新生成词云"
-              >
-                <RefreshCw size={16} className={isRegeneratingWordCloud ? 'spinning' : ''} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {isRegeneratingWordCloud && (
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    生成中，请稍候...
+                  </span>
+                )}
+                <button
+                  onClick={handleRegenerateWordCloud}
+                  disabled={isRegeneratingWordCloud}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: isRegeneratingWordCloud ? 'not-allowed' : 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '4px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="重新生成词云"
+                >
+                  <RefreshCw size={16} className={isRegeneratingWordCloud ? 'spinning' : ''} />
+                </button>
+              </div>
             </div>
             <p className="card-hint">点击词汇查看溯源 {activeTab === 'weekly' && '/ 拖动底部滑块查看历史流变'}</p>
             <div className="chart-box" style={{ height: '260px', position: 'relative' }}>
@@ -570,25 +590,32 @@ export function Report() {
         <GlassCard className="report-card topics-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3>高频话题聚类</h3>
-            <button
-              onClick={handleRegenerateTopics}
-              disabled={isRegeneratingTopics}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-muted)',
-                cursor: isRegeneratingTopics ? 'not-allowed' : 'pointer',
-                padding: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                transition: 'all 0.2s ease'
-              }}
-              title="重新生成话题聚类"
-            >
-              <RefreshCw size={16} className={isRegeneratingTopics ? 'spinning' : ''} />
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {isRegeneratingTopics && (
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  生成中，请稍候...
+                </span>
+              )}
+              <button
+                onClick={handleRegenerateTopics}
+                disabled={isRegeneratingTopics}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: isRegeneratingTopics ? 'not-allowed' : 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px',
+                  transition: 'all 0.2s ease'
+                }}
+                title="重新生成话题聚类"
+              >
+                <RefreshCw size={16} className={isRegeneratingTopics ? 'spinning' : ''} />
+              </button>
+            </div>
           </div>
           {topicClusters && topicClusters.length > 0 ? (
             <ul className="topic-list">
