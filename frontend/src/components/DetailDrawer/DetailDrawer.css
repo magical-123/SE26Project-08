@@ -538,3 +538,52 @@
 .save-btn.danger:active {
   transform: translateY(0) scale(0.99);
 }
+
+/* ---- Nutrition Chart Section ---- */
+.nutrition-chart-section {
+  margin-top: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+}
+
+.nutrition-chart-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.nutrition-chart-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.nutrition-reasoning {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(14, 165, 233, 0.05);
+  border-left: 3px solid rgba(14, 165, 233, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-main);
+}
+
+.reasoning-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.reasoning-text {
+  color: var(--text-main);
+}
