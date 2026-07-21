@@ -3,7 +3,9 @@ package com.infodigest.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infodigest.entity.InformationItem;
+import com.infodigest.entity.UserTopicCluster;
 import com.infodigest.repository.InformationItemRepository;
+import com.infodigest.repository.UserTopicClusterRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,9 @@ public class TopicClusterService {
 
     @Autowired
     private InformationItemRepository informationItemRepository;
+
+    @Autowired
+    private UserTopicClusterRepository topicClusterRepository;
 
     @Autowired
     private AIService aiService;
@@ -59,6 +64,30 @@ public class TopicClusterService {
             """;
 
     /**
+     * 获取指定日期的话题聚类数据（优先从数据库读取）
+     */
+    public List<Map<String, Object>> getTopicClusters(Long userId, LocalDate reportDate) throws Exception {
+        Optional<UserTopicCluster> topicClusterOpt = topicClusterRepository
+                .findByUserIdAndReportDate(userId, reportDate);
+
+        if (topicClusterOpt.isPresent()) {
+            UserTopicCluster topicCluster = topicClusterOpt.get();
+            try {
+                List<Map<String, Object>> clusters = objectMapper.readValue(
+                        topicCluster.getClusters(),
+                        new TypeReference<List<Map<String, Object>>>() {});
+                log.info("从数据库读取用户 {} 日期 {} 的话题聚类", userId, reportDate);
+                return clusters;
+            } catch (Exception e) {
+                log.error("解析话题聚类数据失败", e);
+                throw new Exception("解析话题聚类数据失败: " + e.getMessage());
+            }
+        }
+
+        throw new Exception("未找到该日期的话题聚类数据");
+    }
+
+    /**
      * 生成日报话题聚类
      */
     public List<Map<String, Object>> generateDailyTopicClusters(Long userId, LocalDate reportDate) throws Exception {
@@ -75,11 +104,16 @@ public class TopicClusterService {
             return Collections.emptyList();
         }
 
-        return clusterTopics(items, userId);
+        List<Map<String, Object>> clusters = clusterTopics(items, userId);
+
+        // 保存到数据库
+        saveTopicClusters(userId, reportDate, clusters);
+
+        return clusters;
     }
 
     /**
-     * 生成周报话题聚类
+     * 生成周报话题聚类（不存储，仅实时计算）
      */
     public List<Map<String, Object>> generateWeeklyTopicClusters(Long userId, LocalDate endDate) throws Exception {
         log.info("开始生成用户 {} 的周报话题聚类 (截止{})", userId, endDate);
@@ -97,6 +131,29 @@ public class TopicClusterService {
         }
 
         return clusterTopics(items, userId);
+    }
+
+    /**
+     * 保存话题聚类到数据库
+     */
+    private void saveTopicClusters(Long userId, LocalDate reportDate, List<Map<String, Object>> clusters) throws Exception {
+        try {
+            String clustersJson = objectMapper.writeValueAsString(clusters);
+
+            UserTopicCluster topicCluster = topicClusterRepository
+                    .findByUserIdAndReportDate(userId, reportDate)
+                    .orElse(new UserTopicCluster());
+
+            topicCluster.setUserId(userId);
+            topicCluster.setReportDate(reportDate);
+            topicCluster.setClusters(clustersJson);
+
+            topicClusterRepository.save(topicCluster);
+            log.info("话题聚类数据已保存到数据库");
+        } catch (Exception e) {
+            log.error("保存话题聚类数据失败", e);
+            throw new Exception("保存话题聚类数据失败: " + e.getMessage());
+        }
     }
 
     /**
