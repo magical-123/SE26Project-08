@@ -233,6 +233,58 @@
   transform: translateY(0);
 }
 
+/* ---- Skeleton Loader ---- */
+.drawer-skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.drawer-skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.1) 25%, rgba(14, 165, 233, 0.25) 50%, rgba(14, 165, 233, 0.1) 75%);
+  background-size: 200% 100%;
+  border-radius: 6px;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+.drawer-skeleton-line.title {
+  width: 40%;
+  height: 16px;
+  margin-bottom: 4px;
+}
+
+.drawer-skeleton-line.full {
+  width: 100%;
+}
+
+.drawer-skeleton-line.medium {
+  width: 80%;
+}
+
+.drawer-skeleton-line.long {
+  width: 90%;
+}
+
+.drawer-skeleton-text {
+  font-size: 11px;
+  color: #0EA5E9;
+  font-weight: 600;
+  margin-top: 6px;
+  animation: pulse-text 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
 /* ---- User Notes ---- */
 .user-notes {
   display: flex;
