@@ -156,6 +156,15 @@ export const graphApi = {
     return res.json();
   },
 
+  /** 让AI同步推荐关键词 */
+  async analyzeKeywords(itemId, note) {
+    const res = await apiFetch(`/api/graph/analyze-keywords/${itemId}`, {
+      method: 'POST',
+      body: JSON.stringify({ note })
+    });
+    return res.json();
+  },
+
   /** 删除关键字 */
   async deleteKeyword(label) {
     await apiFetch(`/api/graph/keyword/${encodeURIComponent(label)}`, {

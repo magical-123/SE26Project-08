@@ -77,7 +77,7 @@ public class ContentAnalysisScheduler {
         }
     }
 
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 300000) // 5分钟一次，作为兜底
     public void scanAndAnalyzeItems() {
         log.debug("Starting scheduled content analysis scan");
 

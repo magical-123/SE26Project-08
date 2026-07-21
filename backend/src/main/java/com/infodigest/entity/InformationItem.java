@@ -41,6 +41,10 @@ public class InformationItem {
     // 用户手动标记的优质信息源（与 processStatus 独立）
     private Boolean isPremium = false;
 
+    // 用户自己记的笔记
+    @Column(columnDefinition = "text")
+    private String userNote;
+
     // AI 分析相关字段
     private Integer knowledgeScore; // 知识含量评分(0-100)
 

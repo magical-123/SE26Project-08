@@ -11,7 +11,7 @@ const platformIcon = {
   Zhihu: <FileText size={14} />,
 };
 
-export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywords, selectedKeywords, onNoteChange, onToggleKeyword, onAddKeyword, onDeleteKeyword, onUpgrade, onTogglePremium, onRegenerateSummary, sourceTitle }) {
+export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywords, selectedKeywords, onNoteChange, onToggleKeyword, onAddKeyword, onDeleteKeyword, onUpgrade, isUpgrading, onTogglePremium, onRegenerateSummary, sourceTitle }) {
   const d = data?.data || data || {};
   const isPremium = !!d.hasNote;
 
@@ -88,7 +88,7 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
                     <span className="ai-score-tag">知识评分：{d.knowledgeScore}</span>
                   )}
                 </div>
-                {d.processStatus === 'UNPROCESSED' ? (
+                {(!d.aiSummary && d.processStatus === 'UNPROCESSED') ? (
                   <div className="drawer-skeleton-container">
                     <div className="drawer-skeleton-line title"></div>
                     <div className="drawer-skeleton-line full"></div>
@@ -167,7 +167,12 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
             </div>
 
             <div className="drawer-footer">
-              {d.hasNote ? (
+              {isUpgrading ? (
+                <button className="save-btn primary" disabled>
+                   <div className="isc-spinner" style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 1s linear infinite', display: 'inline-block', marginRight: '8px', verticalAlign: 'middle' }} />
+                   AI 正在分析领域...
+                </button>
+              ) : d.hasNote ? (
                 <button className="save-btn danger" onClick={() => onTogglePremium?.(d.id)}>
                   取消优质信息源标识
                 </button>

@@ -305,3 +305,28 @@ html, body, #root {
   height: 100%;
   overflow-x: hidden;
 }
+
+/* ===== 手动更新按钮 - 暖金实体风格 ===== */
+.manual-update-btn {
+  margin-left: 12px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 6px 16px;
+  border-radius: 6px;
+}
+
+.manual-update-btn:hover {
+  background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 100%) !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5);
+  transform: translateY(-1px);
+}
+
+.manual-update-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}

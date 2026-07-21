@@ -15,6 +15,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.redisson.api.RBlockingDeque;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,6 +43,10 @@ public class InboxController {
 
     @Autowired
     private KeywordService keywordService;
+
+    @Autowired
+    @Qualifier("analysisQueue")
+    private RBlockingDeque<Long> analysisQueue;
 
     // 获取当前登录用户的信息项（支持分页 + 小红书限流，总上限 1000 条）
     @GetMapping("/items")
@@ -131,8 +137,8 @@ public class InboxController {
 
         InformationItem savedItem = informationItemRepository.save(item);
 
-        // 异步触发 AI 摘要生成（不阻塞响应）
-        aiSummaryService.generateSummaryAsync(savedItem);
+        // 将任务推入 Redis 队列由消费者处理
+        analysisQueue.offerAsync(savedItem.getId());
 
         return ResponseEntity.ok(savedItem);
     }
@@ -171,12 +177,12 @@ public class InboxController {
             }
         }
 
-        // 批量触发 AI 摘要（异步，不阻塞响应）
+        // 批量将任务推入 Redis 队列由消费者处理
         for (InformationItem savedItem : savedItems) {
             try {
-                aiSummaryService.generateSummaryAsync(savedItem);
+                analysisQueue.offerAsync(savedItem.getId());
             } catch (Exception e) {
-                log.error("[Inbox Batch] 触发摘要失败 itemId={}: {}", savedItem.getId(), e.getMessage());
+                log.error("[Inbox Batch] 任务入队失败 itemId={}: {}", savedItem.getId(), e.getMessage());
             }
         }
 
@@ -189,32 +195,32 @@ public class InboxController {
         return ResponseEntity.ok(response);
     }
 
-    // 更新信息项（PATCH 语义：只更新非 null 字段，兼容部分更新）
+    // 更新信息项（真正的 PATCH 语义：只更新请求中明确包含的字段）
+    // 使用 Map<String, Object> 代替 InformationItem，避免 Jackson 反序列化时
+    // 用实体类的默认值（如 isPremium=false, processStatus="UNPROCESSED"）覆盖已保存的数据
     @PutMapping("/items/{id}")
-    public ResponseEntity<InformationItem> updateInboxItem(@PathVariable Long id, @RequestBody InformationItem itemDetails) {
+    public ResponseEntity<InformationItem> updateInboxItem(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
         Long userId = getCurrentUserId();
         Optional<InformationItem> existingItem = informationItemRepository.findByIdAndUserId(id, userId);
         
         if (existingItem.isPresent()) {
             InformationItem item = existingItem.get();
-            // 只覆盖非 null 字段，避免全量覆盖导致 title 等必填字段被清空
-            if (itemDetails.getTitle() != null) item.setTitle(itemDetails.getTitle());
-            if (itemDetails.getUrl() != null) item.setUrl(itemDetails.getUrl());
-            if (itemDetails.getPlatform() != null) item.setPlatform(itemDetails.getPlatform());
-            if (itemDetails.getDurationMinutes() != null) item.setDurationMinutes(itemDetails.getDurationMinutes());
-            if (itemDetails.getContentRaw() != null) item.setContentRaw(itemDetails.getContentRaw());
-            if (itemDetails.getProcessStatus() != null) item.setProcessStatus(itemDetails.getProcessStatus());
             
-            boolean premiumTriggered = Boolean.TRUE.equals(itemDetails.getIsPremium()) && !Boolean.TRUE.equals(item.getIsPremium());
-            if (itemDetails.getIsPremium() != null) item.setIsPremium(itemDetails.getIsPremium());
+            if (updates.containsKey("title")) item.setTitle((String) updates.get("title"));
+            if (updates.containsKey("url")) item.setUrl((String) updates.get("url"));
+            if (updates.containsKey("platform")) item.setPlatform((String) updates.get("platform"));
+            if (updates.containsKey("durationMinutes")) {
+                Object val = updates.get("durationMinutes");
+                item.setDurationMinutes(val != null ? ((Number) val).intValue() : null);
+            }
+            if (updates.containsKey("contentRaw")) item.setContentRaw((String) updates.get("contentRaw"));
+            if (updates.containsKey("processStatus")) item.setProcessStatus((String) updates.get("processStatus"));
+            if (updates.containsKey("userNote")) item.setUserNote((String) updates.get("userNote"));
+            if (updates.containsKey("isPremium")) item.setIsPremium((Boolean) updates.get("isPremium"));
+            if (updates.containsKey("isLiked")) item.setIsLiked((Boolean) updates.get("isLiked"));
+            if (updates.containsKey("isFavorite")) item.setIsFavorite((Boolean) updates.get("isFavorite"));
             
             InformationItem updatedItem = informationItemRepository.save(item);
-            
-            if (premiumTriggered) {
-                String note = itemDetails.getContentRaw() != null ? itemDetails.getContentRaw() : item.getContentRaw();
-                keywordService.analyzeAndApplyKeywordsAsync(updatedItem, note);
-            }
-            
             return ResponseEntity.ok(updatedItem);
         } else {
             return ResponseEntity.notFound().build();
@@ -296,7 +302,7 @@ public class InboxController {
         if ("FAILED".equals(item.getProcessStatus())) {
             informationItemRepository.updateProcessStatus(id, "UNPROCESSED");
         }
-        aiSummaryService.generateSummaryAsync(item);
+        analysisQueue.offerAsync(item.getId());
 
         return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -329,10 +335,10 @@ public class InboxController {
                     informationItemRepository.updateProcessStatus(item.getId(), "UNPROCESSED");
                     resetFailed++;
                 }
-                aiSummaryService.generateSummaryAsync(item);
+                analysisQueue.offerAsync(item.getId());
                 triggered++;
             } catch (Exception e) {
-                log.error("[FixMissingSummaries] 触发 item {} 摘要生成失败: {}", item.getId(), e.getMessage());
+                log.error("[FixMissingSummaries] 任务入队失败 item {}: {}", item.getId(), e.getMessage());
             }
         }
 
