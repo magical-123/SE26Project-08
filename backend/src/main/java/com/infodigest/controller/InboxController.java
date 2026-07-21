@@ -137,6 +137,58 @@ public class InboxController {
         return ResponseEntity.ok(savedItem);
     }
 
+    // 批量创建信息项（供浏览器扩展/爬虫使用）
+    @PostMapping("/items/batch")
+    public ResponseEntity<Map<String, Object>> createInboxItemsBatch(@RequestBody List<InformationItem> items) {
+        Long userId = getCurrentUserId();
+
+        int created = 0;
+        int skipped = 0;
+        int failed = 0;
+        List<InformationItem> savedItems = new ArrayList<>();
+
+        for (InformationItem item : items) {
+            try {
+                item.setUserId(userId);
+
+                // 去重检查
+                if (item.getTitle() != null && item.getPlatform() != null) {
+                    Optional<InformationItem> existing = informationItemRepository
+                            .findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(
+                                    userId, item.getTitle(), item.getPlatform());
+                    if (existing.isPresent()) {
+                        skipped++;
+                        continue;
+                    }
+                }
+
+                InformationItem savedItem = informationItemRepository.save(item);
+                savedItems.add(savedItem);
+                created++;
+            } catch (Exception e) {
+                failed++;
+                log.error("[Inbox Batch] 写入失败: {}", e.getMessage(), e);
+            }
+        }
+
+        // 批量触发 AI 摘要（异步，不阻塞响应）
+        for (InformationItem savedItem : savedItems) {
+            try {
+                aiSummaryService.generateSummaryAsync(savedItem);
+            } catch (Exception e) {
+                log.error("[Inbox Batch] 触发摘要失败 itemId={}: {}", savedItem.getId(), e.getMessage());
+            }
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("count", created);
+        response.put("skipped", skipped);
+        response.put("failed", failed);
+        response.put("message", "成功 " + created + " 条，跳过 " + skipped + " 条，失败 " + failed + " 条");
+        return ResponseEntity.ok(response);
+    }
+
     // 更新信息项（PATCH 语义：只更新非 null 字段，兼容部分更新）
     @PutMapping("/items/{id}")
     public ResponseEntity<InformationItem> updateInboxItem(@PathVariable Long id, @RequestBody InformationItem itemDetails) {

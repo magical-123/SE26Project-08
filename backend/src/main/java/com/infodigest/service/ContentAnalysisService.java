@@ -129,12 +129,12 @@ public class ContentAnalysisService {
             item.setProcessStatus("PROCESSED");
             // isPremium 由用户手动标记，与 AI 分析无关
 
+            // 保存营养评分和摘要到数据库
+            itemRepository.save(item);
+
                 log.info("Nutrition analysis completed for item {}: protein={}, carbs={}, vitamins={}, fats={}, fiber={}",
                         itemId, result.getProtein(), result.getCarbs(), result.getVitamins(),
                         result.getFats(), result.getFiber());
-
-                // 标记营养分析完成（设为 PROCESSED 表示营养分析已完成）
-                itemRepository.updateProcessStatus(itemId, "PROCESSED");
 
             } catch (Exception e) {
                 log.error("Nutrition analysis failed for item {}: {}", itemId, e.getMessage(), e);
