@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "InfoDigest 知乎手动同步",
+  "description": "将当前真实浏览器中已加载的知乎内容手动同步到 InfoDigest。",
+  "version": "0.1.0",
+  "permissions": ["storage", "tabs", "scripting"],
+  "host_permissions": ["https://www.zhihu.com/*", "http://localhost:8080/*", "http://127.0.0.1:8080/*"],
+  "action": {
+    "default_title": "同步当前知乎页面",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.zhihu.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

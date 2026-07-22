@@ -1,0 +1,113 @@
+const DEFAULT_API_BASE = 'http://127.0.0.1:8080';
+
+async function getSettings() {
+  const settings = await chrome.storage.local.get({ apiBase: DEFAULT_API_BASE, token: '' });
+  return { apiBase: settings.apiBase.replace(/\/$/, ''), token: settings.token };
+}
+
+async function login({ apiBase, username, password }) {
+  const response = await fetch(`${apiBase.replace(/\/$/, '')}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!response.ok) throw new Error('InfoDigest 用户名或密码错误');
+  const payload = await response.json();
+  if (!payload.token) throw new Error('登录响应中没有 Token');
+  await chrome.storage.local.set({ apiBase: apiBase.replace(/\/$/, ''), token: payload.token });
+  return { username: payload.username || username };
+}
+
+async function syncCurrentZhihuTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id || !tab.url?.startsWith('https://www.zhihu.com/')) {
+    throw new Error('请先打开一个知乎页面，再点击“同步当前页面”');
+  }
+  const { apiBase, token } = await getSettings();
+  if (!token) throw new Error('请先登录 InfoDigest');
+
+  // 扩展可能是在知乎页面已经打开后才安装，此时 content script 尚未注入。
+  // 因此每次手动同步都在当前标签页执行一次只读提取，避免要求用户刷新页面。
+  const [extraction] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      const cleanText = (value, maxLength = 4000) => (value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+      const normalizeUrl = (href) => {
+        try {
+          const url = new URL(href, location.origin);
+          if (!/^https:\/\/www\.zhihu\.com\/(question\/\d+|p\/\d+|zvideo\/\d+|video\/\d+|pin\/\d+)/.test(url.href)) return null;
+          url.search = '';
+          url.hash = '';
+          return url.href;
+        } catch { return null; }
+      };
+      const seen = new Set();
+      const items = [];
+      // 最近浏览页的内容链接不一定带 question/p 选择器；统一从全部链接中筛选真实内容 URL。
+      for (const link of document.querySelectorAll('a[href]')) {
+        const url = normalizeUrl(link.href);
+        if (!url || seen.has(url)) continue;
+        const card = link.closest('.TopstoryItem, .Card, article, [data-zop], [class*="Item"], [class*="item"]') || link.parentElement;
+        const linkTitle = cleanText(link.textContent, 300);
+        const titleEl = card?.querySelector('h1, h2, h3, [class*="Title"]');
+        const title = linkTitle.length >= 4 ? linkTitle : cleanText(titleEl?.textContent, 300);
+        if (title.length < 4 || /^(登录|注册|首页|发现|想法|盐选|搜索)$/.test(title)) continue;
+        const authorEl = card?.querySelector('[class*="Author"], [class*="author"], [class*="UserLink"]');
+        const rawText = cleanText(card?.innerText || link.textContent);
+        seen.add(url);
+        items.push({
+          title, url, platform: 'ZHIHU', author: cleanText(authorEl?.textContent, 100),
+          category: '深度知识', durationMinutes: Math.max(1, Math.ceil(rawText.length / 500)),
+          contentRaw: rawText, processStatus: 'UNPROCESSED',
+        });
+        if (items.length >= 50) break;
+      }
+      return { items };
+    },
+  });
+  const items = extraction?.result?.items || [];
+  if (!items.length) throw new Error('当前页面没有识别到知乎问题或文章卡片；请滚动加载内容后重试');
+
+  const response = await fetch(`${apiBase}/api/inbox/items/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(items),
+  });
+  if (response.status === 401 || response.status === 403) {
+    await chrome.storage.local.remove('token');
+    throw new Error('InfoDigest 登录已过期，请重新登录');
+  }
+  if (!response.ok) throw new Error(`同步失败：HTTP ${response.status}`);
+  return { found: items.length, ...await response.json() };
+}
+
+async function recordEngagement(engagement) {
+  const { apiBase, token } = await getSettings();
+  if (!token) return { ignored: true, reason: 'not-logged-in' };
+  const response = await fetch(`${apiBase}/api/inbox/items/engagement`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(engagement),
+  });
+  if (response.status === 401 || response.status === 403) {
+    await chrome.storage.local.remove('token');
+    return { ignored: true, reason: 'token-expired' };
+  }
+  if (!response.ok) throw new Error(`时长上报失败：HTTP ${response.status}`);
+  return response.json();
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  (async () => {
+    if (message.type === 'LOGIN') return login(message);
+    if (message.type === 'SYNC_CURRENT_ZHIHU') return syncCurrentZhihuTab();
+    if (message.type === 'RECORD_ENGAGEMENT') return recordEngagement(message.engagement);
+    if (message.type === 'GET_STATUS') {
+      const { apiBase, token } = await getSettings();
+      return { apiBase, loggedIn: Boolean(token) };
+    }
+    throw new Error('未知扩展操作');
+  })().then((result) => sendResponse({ ok: true, result }))
+    .catch((error) => sendResponse({ ok: false, error: error.message }));
+  return true;
+});
