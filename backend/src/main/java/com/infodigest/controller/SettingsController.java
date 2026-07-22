@@ -212,6 +212,21 @@ public class SettingsController {
     }
 
     /**
+     * 仅清除平台凭证，保留已经进入 Inbox 的数据。
+     * 用于从旧 Cookie 爬虫平滑迁移到浏览器扩展捕获方案。
+     */
+    @DeleteMapping("/platforms/{platform}/credential-only")
+    public ResponseEntity<Map<String, Object>> deletePlatformCredentialOnly(@PathVariable String platform) {
+        Long userId = getCurrentUserId();
+        userPlatformRepository.findByUserIdAndPlatform(userId, platform.toUpperCase())
+                .ifPresent(userPlatformRepository::delete);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "已清除 " + platform + " 的凭证，已捕获的数据已保留"
+        ));
+    }
+
+    /**
      * 获取当前用户所有平台凭证（仅爬虫服务调用）
      * 返回格式：{ bilibili: {credential: "xxx"}, zhihu: {credential: "xxx"}, github: {credential: "xxx"} }
      */

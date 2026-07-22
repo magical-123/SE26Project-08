@@ -64,6 +64,9 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     // 按标题+平台+用户查找最新的一条（用于去重）
     Optional<InformationItem> findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(Long userId, String title, String platform);
 
+    // 行为记录按稳定 URL 归并，避免标题变化或多次上报造成重复条目
+    Optional<InformationItem> findTopByUserIdAndUrlAndPlatformOrderByCrawledAtDesc(Long userId, String url, String platform);
+
     // 局部更新：仅更新营养分析相关字段，不影响 aiSummary 等由 AI 摘要服务维护的字段
     @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET " +
