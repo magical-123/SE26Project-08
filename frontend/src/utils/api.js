@@ -246,6 +246,14 @@ export const settingsApi = {
     return res.json();
   },
 
+  /** 仅清除旧凭证，保留已经捕获的 Inbox 数据 */
+  async clearCredentialOnly(platform) {
+    const res = await apiFetch(`/api/settings/platforms/${platform}/credential-only`, {
+      method: 'DELETE',
+    });
+    return res.json();
+  },
+
   /** 切换娱乐信息隐藏开关 */
   async toggleEntertainmentHide() {
     const res = await apiFetch('/api/settings/toggle-entertainment-hide', {
