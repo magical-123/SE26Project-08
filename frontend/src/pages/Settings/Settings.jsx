@@ -513,6 +513,23 @@ export function Settings() {
   };
 
   const getPlatform = (key) => platforms.find(p => p.key === key) || { connected: false, name: key, desc: '' };
+  const browserCapturePlatforms = {
+    zhihu: { packageUrl: '/downloads/infodigest-zhihu-capture.zip', label: '下载知乎扩展包' },
+    xiaohongshu: { packageUrl: '/downloads/infodigest-xiaohongshu-capture.zip', label: '下载小红书扩展包' },
+  };
+
+  const handleClearLegacyCredential = async (platform) => {
+    if (!window.confirm(`确定清除 ${platform} 的旧 Cookie 吗？已捕获的 Inbox 数据会保留，之后由浏览器扩展自动捕获。`)) return;
+    setDisconnecting(prev => ({ ...prev, [`${platform}-credential`]: true }));
+    try {
+      await settingsApi.clearCredentialOnly(platform);
+      await refreshPlatformStatus();
+    } catch (err) {
+      alert('清除旧凭据失败：' + err.message);
+    } finally {
+      setDisconnecting(prev => ({ ...prev, [`${platform}-credential`]: false }));
+    }
+  };
 
   return (
     <div className="settings-page">
@@ -522,29 +539,46 @@ export function Settings() {
 
       <div className="settings-content">
         <GlassCard className="settings-section">
-          <h2>平台授权管理</h2>
-          <p className="section-desc">管理信息源的数据接入授权。凭证将加密存储在后端，仅用于爬虫抓取。</p>
+          <h2>平台接入管理</h2>
+          <p className="section-desc">B站和 GitHub 使用官方凭据授权；知乎和小红书推荐使用浏览器扩展在真实浏览时自动捕获，无需提交平台 Cookie。</p>
           {loading && <p className="section-desc" style={{ color: 'var(--text-muted)' }}>正在获取平台连接状态...</p>}
 
           <div className="platform-list">
             {['bilibili', 'zhihu', 'xiaohongshu', 'github'].map(key => {
               const p = getPlatform(key);
+              const browserCapture = browserCapturePlatforms[key];
+              const description = browserCapture
+                ? (p.connected
+                  ? `旧 Cookie 已保留（${p.desc}）。推荐改用浏览器扩展自动捕获，旧凭据仅作兼容用途。`
+                  : '推荐：安装浏览器扩展后，在真实浏览器中自动记录详情页浏览/观看时长，无需 Cookie。')
+                : p.desc;
               return (
-                <div className="platform-item" key={key}>
+                <div className={`platform-item ${browserCapture ? 'browser-capture-platform' : ''}`} key={key}>
                   <div className="platform-info">
                     <h3>{p.name}</h3>
-                    <p>{p.desc}</p>
+                    <p>{description}</p>
                   </div>
-                  {p.connected ? (
+                  {browserCapture && !p.connected ? (
+                    <div className="browser-capture-status">无需 Cookie</div>
+                  ) : p.connected ? (
                     <div className="platform-actions">
-                      <div className="status connected">已连接</div>
+                      <div className="status connected">{browserCapture ? '旧凭据' : '已连接'}</div>
                       <button
                         className="reconnect-btn"
                         onClick={() => handleConnect(key)}
                         disabled={saving || disconnecting[key]}
                       >
-                        更新凭证
+                        {browserCapture ? '管理旧凭据' : '更新凭证'}
                       </button>
+                      {browserCapture && (
+                        <button
+                          className="clear-credential-btn"
+                          onClick={() => handleClearLegacyCredential(key)}
+                          disabled={disconnecting[`${key}-credential`]}
+                        >
+                          {disconnecting[`${key}-credential`] ? '清除中...' : '清除旧 Cookie'}
+                        </button>
+                      )}
                       <button
                         className="disconnect-btn"
                         onClick={() => handleDisconnect(key)}
@@ -567,6 +601,25 @@ export function Settings() {
                 </div>
               );
             })}
+          </div>
+
+          <div className="browser-capture-guide">
+            <div className="capture-guide-heading">
+              <div>
+                <h3>浏览器扩展自动捕获 <span>推荐</span></h3>
+                <p>只在您真实打开知乎/小红书内容详情页时记录前台阅读或播放时长；不上传平台 Cookie，不读取未公开的历史、点赞或收藏。</p>
+              </div>
+            </div>
+            <ol className="capture-steps">
+              <li>下载扩展包并解压到本地文件夹。</li>
+              <li>在 Chrome/Edge 打开“扩展管理”页，开启<strong>开发者模式</strong>，选择“加载已解压的扩展程序”。</li>
+              <li>选择解压后的扩展文件夹，在扩展弹窗登录 InfoDigest 一次即可开始自动记录。</li>
+            </ol>
+            <div className="capture-downloads">
+              <a href="/downloads/infodigest-zhihu-capture.zip" download className="extension-download-btn">下载知乎扩展包</a>
+              <a href="/downloads/infodigest-xiaohongshu-capture.zip" download className="extension-download-btn xhs">下载小红书扩展包</a>
+            </div>
+            <p className="capture-note">提示：网页不能静默为您安装扩展，这是浏览器的安全限制。正式发布时可上架 Chrome Web Store 和 Edge 加载项商店，实现商店的一键安装与自动更新。</p>
           </div>
         </GlassCard>
 

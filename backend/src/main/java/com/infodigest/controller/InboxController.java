@@ -195,6 +195,87 @@ public class InboxController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 浏览器扩展上报实际阅读/观看时长的增量。
+     * 只接受当前已认证用户的数据，并按 userId + url + platform 累加，
+     * 不使用标题去重，避免同一内容的多次心跳丢失时长。
+     */
+    @Transactional
+    @PostMapping("/items/engagement")
+    public ResponseEntity<Map<String, Object>> recordEngagement(@RequestBody Map<String, Object> payload) {
+        Long userId = getCurrentUserId();
+        String url = stringValue(payload.get("url"));
+        String platform = stringValue(payload.get("platform"));
+        String title = stringValue(payload.get("title"));
+        int deltaSeconds = intValue(payload.get("deltaSeconds"), 0);
+        int contentDurationSeconds = intValue(payload.get("contentDurationSeconds"), 0);
+
+        if (url == null || url.isBlank() || platform == null || platform.isBlank() || title == null || title.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "url、platform、title 为必填项"));
+        }
+        // 单次心跳最多一分钟，防止失焦或客户端异常造成不合理的累加。
+        if (deltaSeconds < 1 || deltaSeconds > 60) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "deltaSeconds 必须在 1 到 60 之间"));
+        }
+
+        Optional<InformationItem> existing = informationItemRepository
+                .findTopByUserIdAndUrlAndPlatformOrderByCrawledAtDesc(userId, url, platform);
+        InformationItem item;
+        boolean created = existing.isEmpty();
+        if (created) {
+            item = new InformationItem();
+            item.setUserId(userId);
+            item.setUrl(url);
+            item.setPlatform(platform);
+            item.setTitle(title.substring(0, Math.min(title.length(), 500)));
+            item.setAuthor(stringValue(payload.get("author")));
+            item.setCategory("深度知识");
+            item.setContentRaw(truncate(stringValue(payload.get("contentRaw")), 4000));
+            item.setProcessStatus("UNPROCESSED");
+        } else {
+            item = existing.get();
+            if (isMetadataTitle(item.getTitle())) {
+                item.setTitle(title.substring(0, Math.min(title.length(), 500)));
+            }
+            if ((item.getAuthor() == null || item.getAuthor().isBlank()) && stringValue(payload.get("author")) != null) {
+                item.setAuthor(stringValue(payload.get("author")));
+            }
+        }
+
+        int oldSeconds = item.getWatchDurationSeconds() == null ? 0 : item.getWatchDurationSeconds();
+        item.setWatchDurationSeconds(Math.min(Integer.MAX_VALUE, oldSeconds + deltaSeconds));
+        if (contentDurationSeconds > 0) {
+            item.setDurationMinutes(Math.max(1, (int) Math.ceil(contentDurationSeconds / 60.0)));
+            item.setCompletionRate(Math.min(1.0, item.getWatchDurationSeconds() / (double) contentDurationSeconds));
+        }
+        InformationItem saved = informationItemRepository.save(item);
+        if (created) analysisQueue.offerAsync(saved.getId());
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "created", created,
+                "itemId", saved.getId(),
+                "watchDurationSeconds", saved.getWatchDurationSeconds(),
+                "completionRate", saved.getCompletionRate() == null ? 0.0 : saved.getCompletionRate()
+        ));
+    }
+
+    private static String stringValue(Object value) {
+        return value instanceof String ? ((String) value).trim() : null;
+    }
+
+    private static int intValue(Object value, int defaultValue) {
+        return value instanceof Number ? ((Number) value).intValue() : defaultValue;
+    }
+
+    private static String truncate(String value, int maxLength) {
+        return value == null ? "" : value.substring(0, Math.min(value.length(), maxLength));
+    }
+
+    private static boolean isMetadataTitle(String title) {
+        return title == null || title.isBlank() || title.startsWith("发布于") || title.startsWith("编辑于");
+    }
+
     // 更新信息项（真正的 PATCH 语义：只更新请求中明确包含的字段）
     // 使用 Map<String, Object> 代替 InformationItem，避免 Jackson 反序列化时
     // 用实体类的默认值（如 isPremium=false, processStatus="UNPROCESSED"）覆盖已保存的数据
