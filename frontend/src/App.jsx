@@ -9,6 +9,7 @@ import { Social } from './pages/Social/Social';
 import { Settings } from './pages/Settings/Settings';
 import { ProfilePage } from './pages/Profile/ProfilePage';
 import { AuthPage } from './pages/Auth/AuthPage';
+import { ToastProvider } from './components/Toast/Toast';
 
 // ProtectedRoute component checks if the user is authenticated
 const ProtectedRoute = ({ children }) => {
@@ -39,6 +40,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthRedirectListener />
+      <ToastProvider>
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/*" element={
@@ -57,6 +59,7 @@ function App() {
           </ProtectedRoute>
         } />
       </Routes>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

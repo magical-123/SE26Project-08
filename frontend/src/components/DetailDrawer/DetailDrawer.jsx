@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Edit3, PlayCircle, FileText, Mic, Clock, Calendar } from 'lucide-react';
@@ -6,6 +6,7 @@ import './DetailDrawer.css';
 import ReactECharts from 'echarts-for-react';
 
 import { Tag } from 'lucide-react';
+import { ConfirmModal } from '../ConfirmModal/ConfirmModal';
 
 const platformIcon = {
   Bilibili: <PlayCircle size={14} />,
@@ -15,6 +16,16 @@ const platformIcon = {
 export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywords, selectedKeywords, onNoteChange, onToggleKeyword, onAddKeyword, onDeleteKeyword, onUpgrade, isUpgrading, onTogglePremium, onRegenerateSummary, sourceTitle }) {
   const d = data?.data || data || {};
   const isPremium = !!d.hasNote;
+
+  // 删除关键词确认弹窗
+  const [keywordToDelete, setKeywordToDelete] = useState(null);
+
+  const handleConfirmDelete = () => {
+    if (keywordToDelete) {
+      onDeleteKeyword?.(keywordToDelete);
+      setKeywordToDelete(null);
+    }
+  };
 
   // 构建营养数据
   const nutritionData = useMemo(() => {
@@ -70,7 +81,7 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
     }
   }, [isOpen]);
 
-  return createPortal(
+  const drawerPortal = createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -192,9 +203,7 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
                           className="keyword-chip-delete"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm(`确定要彻底删除关键词“${kw.label}”吗？这将从系统中移除该领域。`)) {
-                              onDeleteKeyword?.(kw.label);
-                            }
+                            setKeywordToDelete(kw.label);
                           }}
                           title="彻底删除该关键词"
                         >
@@ -267,4 +276,18 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
     </AnimatePresence>,
     document.body
   );
+
+  const confirmModal = keywordToDelete ? createPortal(
+    <ConfirmModal
+      isOpen={true}
+      onClose={() => setKeywordToDelete(null)}
+      onConfirm={handleConfirmDelete}
+      title="删除关键词"
+      message={`确定要彻底删除关键词“${keywordToDelete}”吗？这将从系统中移除该领域。`}
+      confirmText="删除"
+      danger
+    />,
+    document.body
+  ) : null;
+  return <>{drawerPortal}{confirmModal}</>;
 }

@@ -27,13 +27,20 @@ export function Inbox() {
   const [selectedKeywords, setSelectedKeywords] = useState([]);
   const [suggestedKeywords, setSuggestedKeywords] = useState([]);
 
-  const filteredItems = filter === 'All' ? items : items.filter(item => item.platform === filter);
+  const filteredItems = filter === 'All' ? items : filter === 'Premium' ? items.filter(item => item.hasNote) : items.filter(item => item.platform === filter);
   const aiSummaryCount = items.filter(i => i.aiSummary).length;
   const totalCount = items.length;
 
   const unprocessedCount = items.filter(i => !i.aiSummary && i.processStatus === 'UNPROCESSED').length;
   
   const [batchTotal, setBatchTotal] = useState(0);
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     if (unprocessedCount > batchTotal) {
@@ -47,9 +54,9 @@ export function Inbox() {
   const processingPercent = batchTotal === 0 ? 0 : Math.round((batchProcessedCount / batchTotal) * 100);
   const isProcessing = unprocessedCount > 0;
 
-  // 切换平台筛选时，如果当前过滤结果为空且还有更多数据，自动加载更多
+  // 切换平台筛选时，如果当前过滤结果为空且还有更多数据，自动加载更多（Premium 过滤不触发自动加载）
   useEffect(() => {
-    if (filter === 'All') return;
+    if (filter === 'All' || filter === 'Premium') return;
     if (filteredItems.length > 0) return;
     if (!hasMore || loading) return;
 
@@ -65,7 +72,7 @@ export function Inbox() {
   // 切换 filter 时重置自动加载计数
   const handleFilterChange = (newFilter) => {
     setFilter(newFilter);
-    if (newFilter !== 'All') {
+    if (newFilter !== 'All' && newFilter !== 'Premium') {
       sessionStorage.removeItem(`inbox:autoload:${newFilter}`);
     }
   };
@@ -84,7 +91,7 @@ export function Inbox() {
       const kws = concepts.map(c => c.label);
       // 根据后端 highlighted 字段决定初始高亮状态
       const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
-      setSelectedKeywords(highlighted.length > 0 ? highlighted : kws);
+      setSelectedKeywords(highlighted);
       setSuggestedKeywords(kws.map(label => ({ label, isNew: false }))); 
     } catch (e) {
       console.error('获取关键词失败:', e);
@@ -136,7 +143,7 @@ export function Inbox() {
       sessionStorage.setItem('inbox:shouldRefetch', 'true');
     } catch (e) {
       console.error('删除关键词失败:', e);
-      alert('删除失败，请稍后重试');
+      showToast('删除失败，请稍后重试', 'error');
     }
   };
 
@@ -187,7 +194,7 @@ export function Inbox() {
       
     } catch (e) {
       console.error('AI 推荐关键词失败:', e);
-      alert('AI推荐领域失败，请稍后重试');
+      showToast('AI推荐领域失败，请稍后重试', 'error');
     } finally {
       setIsUpgrading(false);
       
@@ -196,7 +203,7 @@ export function Inbox() {
         const concepts = await graphApi.getItemKeywords(selectedItem.id);
         const kws = concepts.map(c => c.label);
         const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
-        setSelectedKeywords(highlighted.length > 0 ? highlighted : kws);
+        setSelectedKeywords(highlighted);
         setSuggestedKeywords(kws.map(label => ({ label, isNew: false }))); 
       } catch (err) {}
     }
@@ -213,8 +220,9 @@ export function Inbox() {
         try {
           const concepts = await graphApi.getItemKeywords(selectedItem.id);
           const kws = concepts.map(c => c.label);
+          const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
           if (kws.length > 0) {
-            setSelectedKeywords(kws);
+            setSelectedKeywords(highlighted);
             setSuggestedKeywords(kws.map(label => ({ label, isNew: false })));
           }
         } catch (err) {
@@ -244,18 +252,18 @@ export function Inbox() {
   const handleRegenerateSummary = async (id) => {
     try {
       await regenerateSummary(id);
-      alert('已重新触发该卡片的 AI 摘要生成，请稍后刷新查看');
+      showToast('已重新触发该卡片的 AI 摘要生成，请稍后刷新查看', 'info');
     } catch (err) {
-      alert('重新生成摘要失败：' + err.message);
+      showToast('重新生成摘要失败：' + err.message, 'error');
     }
   };
 
   const handleManualUpdate = async () => {
     try {
       await crawlApi.trigger('all');
-      alert('爬虫已启动，新数据将在几分钟内同步到 Inbox');
+      showToast('爬虫已启动，新数据将在几分钟内同步到 Inbox', 'info');
     } catch (err) {
-      alert('启动爬虫失败：' + err.message);
+      showToast('启动爬虫失败：' + err.message, 'error');
     }
   };
 
@@ -270,17 +278,18 @@ export function Inbox() {
           <div>
             <h1>捕获箱 (Inbox)</h1>
             <div className="inbox-subtitle">
-              共捕获 <strong>{totalCount}</strong> 条内容，其中 <strong>{aiSummaryCount}</strong> 条已生成 AI 摘要
+              共捕获 <strong>{totalCount}</strong> 条内容，其中 <strong>{items.filter(i => i.hasNote).length}</strong> 条优质信息源，<strong>{aiSummaryCount}</strong> 条已生成 AI 摘要
             </div>
           </div>
           <div className="inbox-filters">
-            {['All', 'Bilibili', 'Zhihu', 'Xiaohongshu', 'GitHub'].map(f => (
+            {['All', 'Premium', 'Bilibili', 'Zhihu', 'Xiaohongshu', 'GitHub'].map(f => (
               <button
                 key={f}
                 className={`filter-btn ${filter === f ? 'active' : ''}`}
+                data-premium={f === 'Premium' ? 'true' : undefined}
                 onClick={() => handleFilterChange(f)}
               >
-                {f}
+                {f === 'Premium' ? '优质信息源' : f}
               </button>
             ))}
             <button className="filter-btn manual-update-btn" onClick={handleManualUpdate}>
@@ -307,10 +316,22 @@ export function Inbox() {
         )}
       </header>
 
+      {/* Toast 通知 */}
+      {toast && (
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          className={`inbox-banner ${toast.type === 'error' ? 'inbox-banner-error' : 'inbox-banner-info'}`}
+        >
+          <span>{toast.type === 'error' ? '⚠️' : '✅'} {toast.message}</span>
+        </motion.div>
+      )}
+
       {/* 自动抓取提示 */}
       {refetching && (
-        <div className="inbox-refetching-banner">
-          <div className="refetching-spinner" />
+        <div className="inbox-banner inbox-banner-info">
+          <div className="inbox-spinner" />
           <span>正在后台抓取最新数据，请稍候...</span>
         </div>
       )}
@@ -338,23 +359,23 @@ export function Inbox() {
 
       {/* 加载状态 */}
       {loading && (
-        <div className="inbox-loading">
-          <div className="loading-spinner" />
+        <div className="inbox-banner inbox-banner-loading">
+          <div className="inbox-spinner" />
           <span>加载中...</span>
         </div>
       )}
 
       {/* 错误提示 */}
       {error && (
-        <div className="inbox-error">
-          ⚠️ {error}
+        <div className="inbox-banner inbox-banner-error">
+          <span>⚠️ {error}</span>
         </div>
       )}
 
       {/* 自动加载中提示 */}
       {!loading && filter !== 'All' && hasMore && filteredItems.length === 0 && items.length > 0 && (
-        <div className="inbox-loading">
-          <div className="loading-spinner" />
+        <div className="inbox-banner inbox-banner-loading">
+          <div className="inbox-spinner" />
           <span>正在加载 {filter} 平台数据...</span>
         </div>
       )}
@@ -382,10 +403,10 @@ export function Inbox() {
 
       {/* 空状态 */}
       {!loading && !hasMore && filteredItems.length === 0 && (
-        <div className="inbox-empty">
-          <p>{filter === 'All' ? '📭 暂无捕获的信息项' : `📭 暂无 ${filter} 平台数据`}</p>
-          <p className="inbox-empty-hint">
-            {filter === 'All' ? '连接平台授权后，爬虫会自动抓取内容到这里' : '请确认该平台已连接授权，或稍等爬虫完成抓取'}
+        <div className="inbox-banner inbox-banner-empty">
+          <p>{filter === 'All' ? '📭 暂无捕获的信息项' : filter === 'Premium' ? '📭 暂无优质信息源' : `📭 暂无 ${filter} 平台数据`}</p>
+          <p className="inbox-banner-empty-hint">
+            {filter === 'All' ? '连接平台授权后，爬虫会自动抓取内容到这里' : filter === 'Premium' ? '将信息源升级为优质信息源后会出现在这里' : '请确认该平台已连接授权，或稍等爬虫完成抓取'}
           </p>
         </div>
       )}
