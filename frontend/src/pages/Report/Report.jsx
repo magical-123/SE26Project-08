@@ -311,8 +311,10 @@ export function Report() {
 
     if (activeTab === 'weekly') {
       // 周报：使用滑块选择的那一天的数据
-      if (weeklyWordCloudHistory.length > 0 && weeklyWordCloudHistory[timeIndex]) {
-        const dayData = weeklyWordCloudHistory[timeIndex];
+      // 由于显示顺序是反转的（左边早，右边晚），所以需要反向映射索引
+      const actualIndex = weeklyWordCloudHistory.length - 1 - timeIndex;
+      if (weeklyWordCloudHistory.length > 0 && weeklyWordCloudHistory[actualIndex]) {
+        const dayData = weeklyWordCloudHistory[actualIndex];
         cloudData = (dayData.keywords || []).map(item => ({
           name: item.word,
           value: item.value
@@ -555,8 +557,8 @@ export function Report() {
                   className="timeline-slider"
                 />
                 <div className="timeline-labels">
-                  {weeklyWordCloudHistory.map((day, idx) => (
-                    <span key={idx} className={idx === timeIndex ? 'active' : ''}>
+                  {weeklyWordCloudHistory.slice().reverse().map((day, idx) => (
+                    <span key={idx} className={idx === (weeklyWordCloudHistory.length - 1 - timeIndex) ? 'active' : ''}>
                       {day.reportDate ? new Date(day.reportDate).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) : ''}
                     </span>
                   ))}
