@@ -26,6 +26,10 @@ public class AnalysisQueueConsumer {
 
     private ExecutorService consumerThread;
 
+    // 连续失败计数，用于指数退避
+    private int consecutiveFailures = 0;
+    private static final int MAX_BACKOFF_SECONDS = 120;
+
     @PostConstruct
     public void startConsuming() {
         consumerThread = Executors.newSingleThreadExecutor(r -> {
@@ -44,15 +48,36 @@ public class AnalysisQueueConsumer {
                         log.info("从队列取出任务: itemId={}", itemId);
                         try {
                             analysisService.analyzeItem(itemId);
+                            // 成功后重置退避计数
+                            consecutiveFailures = 0;
                         } catch (Exception e) {
-                            log.error("分析 itemId={} 失败: {}", itemId, e.getMessage(), e);
+                            String msg = e.getMessage() != null ? e.getMessage() : "";
+                            if (msg.contains("429") || msg.toLowerCase().contains("rate limit")) {
+                                consecutiveFailures++;
+                                int backoffSeconds = Math.min(
+                                        (int) Math.pow(2, consecutiveFailures) * 5,
+                                        MAX_BACKOFF_SECONDS);
+                                log.warn("[QueueConsumer] ⚠️ API 速率限制 (第{}次), 等待 {}秒后重试",
+                                        consecutiveFailures, backoffSeconds);
+                                Thread.sleep(backoffSeconds * 1000L);
+                            } else {
+                                consecutiveFailures = 0;
+                                log.error("[QueueConsumer] 分析 itemId={} 失败: {}", itemId, msg);
+                            }
                         }
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Exception e) {
-                    log.error("队列消费异常: {}", e.getMessage(), e);
+                    log.error("[QueueConsumer] 队列消费异常（安全捕获）: {}", e.getMessage());
+                    // 防止异常导致消费者死循环空转
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
             }
             log.info("Redis 队列消费者已停止");

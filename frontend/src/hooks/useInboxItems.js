@@ -312,13 +312,17 @@ export function useInboxItems() {
 
   const saveNote = useCallback(async (id, note, keywords) => {
     // 本地先更新
-    setItems((prev) =>
-      prev.map((item) =>
+    setItems((prev) => {
+      const updated = prev.map((item) =>
         item.id === id
           ? { ...item, hasNote: true, isPremium: true, note, keywords }
           : item
-      )
-    );
+      );
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     // 尝试更新后端：笔记存到 userNote 字段，不要覆盖 contentRaw（原始文章内容）
     try {
       await inboxApi.updateItem(id, {

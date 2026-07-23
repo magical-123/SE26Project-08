@@ -88,7 +88,6 @@ public class ContentAnalysisService {
         请确保 protein + carbs + vitamins + fats + fiber = 100
         """;
 
-    @Transactional
     public void analyzeItem(Long itemId) throws Exception {
         InformationItem item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
@@ -121,28 +120,35 @@ public class ContentAnalysisService {
             try {
                 AnalysisResultDTO result = aiService.analyze(config, "", userPrompt);
 
-            // 重新获取最新状态以免覆盖用户在 AI 分析期间的修改（如 userNote, isPremium）
-            InformationItem freshItem = itemRepository.findById(itemId).orElse(item);
-            freshItem.setNutritionProtein(result.getProtein());
-            freshItem.setNutritionCarbs(result.getCarbs());
-            freshItem.setNutritionVitamins(result.getVitamins());
-            freshItem.setNutritionFats(result.getFats());
-            freshItem.setNutritionFiber(result.getFiber());
-            freshItem.setNutritionReasoning(result.getReasoning());
-            freshItem.setAiSummary(result.getSummary());
-            freshItem.setAnalyzedAt(LocalDateTime.now());
-            freshItem.setProcessStatus("PROCESSED");
-            itemRepository.save(freshItem);
+                // 使用局部更新，仅更新 AI 分析相关字段，避免覆盖用户在 AI 分析期间的手动修改（如 userNote, isPremium）
+                itemRepository.updateAnalysisFields(
+                        itemId,
+                        result.getProtein(),
+                        result.getCarbs(),
+                        result.getVitamins(),
+                        result.getFats(),
+                        result.getFiber(),
+                        result.getReasoning(),
+                        result.getSummary(),
+                        LocalDateTime.now()
+                );
 
                 log.info("Nutrition analysis completed for item {}: protein={}, carbs={}, vitamins={}, fats={}, fiber={}",
                         itemId, result.getProtein(), result.getCarbs(), result.getVitamins(),
                         result.getFats(), result.getFiber());
 
             } catch (Exception e) {
-                log.error("Nutrition analysis failed for item {}: {}", itemId, e.getMessage(), e);
-                // 失败后重置为 UNPROCESSED，让调度器在下一轮扫描中自动重试
-                itemRepository.updateProcessStatus(itemId, "UNPROCESSED");
-                throw e;
+                String msg = e.getMessage() != null ? e.getMessage() : "";
+                if (msg.contains("429") || msg.toLowerCase().contains("rate limit")) {
+                    log.warn("⚠️ Nutrition analysis rate-limited for item {}, will retry next round", itemId);
+                    itemRepository.updateProcessStatus(itemId, "UNPROCESSED");
+                    // 将 429 异常继续上抛，让调度器决定是否停止本轮
+                    throw e;
+                } else {
+                    log.error("Nutrition analysis failed for item {}: {}", itemId, msg, e);
+                    // 非速率限制的错误，标记为 FAILED 避免反复重试
+                    itemRepository.updateProcessStatus(itemId, "FAILED");
+                }
             }
         }
 
