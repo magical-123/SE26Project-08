@@ -12,7 +12,7 @@ module.exports = {
   /** 需要抓取的平台列表：bilibili（知乎/小红书改用浏览器扩展手动同步） */
   ENABLED_PLATFORMS: process.env.ENABLED_PLATFORMS
     ? process.env.ENABLED_PLATFORMS.split(',')
-    : ['bilibili'],
+    : ['bilibili', 'github'],
 
   // ===== B 站配置 =====
   /** B 站完整 Cookie 字符串 */
