@@ -295,8 +295,11 @@ export function Social() {
         {friends.map(friend => (
           <GlassCard key={friend.id} className="friend-card">
             <div className="fc-header">
-              <div className="fc-avatar" style={{ background: friend.activeColor }}>
-                {friend.initial}
+              <div className="fc-avatar-wrapper">
+                <div className="fc-avatar" style={{ background: friend.activeColor }}>
+                  {friend.initial}
+                </div>
+                <span className={`fc-online-dot ${friend.isOnline ? 'online' : 'offline'}`} />
               </div>
               <div className="fc-info">
                 <h3>{friend.name}</h3>

@@ -35,7 +35,8 @@ public class UserController {
                     "avatarUrl", user.getAvatarUrl() != null ? user.getAvatarUrl() : "",
                     "defaultVisibility", user.getDefaultVisibility().name(),
                     "hiddenPlatforms", user.getHiddenPlatforms() != null ? user.getHiddenPlatforms() : "[]",
-                    "createdAt", user.getCreatedAt()
+                    "createdAt", user.getCreatedAt(),
+                    "selfPortrait", user.getSelfPortrait() != null ? user.getSelfPortrait() : ""
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -68,6 +69,10 @@ public class UserController {
                     return ResponseEntity.badRequest().body("Email is already taken!");
                 }
                 user.setEmail(newEmail);
+            }
+
+            if (body.containsKey("selfPortrait")) {
+                user.setSelfPortrait(body.get("selfPortrait"));
             }
 
             userRepository.save(user);

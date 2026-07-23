@@ -1,20 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
-import { User, Mail, LogOut, Loader2, CheckCircle, AlertCircle, Camera } from 'lucide-react';
+import { User, Mail, LogOut, Loader2, CheckCircle, AlertCircle, Camera, UserCircle } from 'lucide-react';
+import { useToast } from '../../components/Toast/Toast';
 import './ProfilePage.css';
 
 const API_BASE = 'http://localhost:8080';
 
 export function ProfilePage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const fileInputRef = useRef(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [savingPortrait, setSavingPortrait] = useState(false);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [selfPortrait, setSelfPortrait] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
@@ -36,6 +40,7 @@ export function ProfilePage() {
       setUser(data);
       setUsername(data.username || '');
       setEmail(data.email || '');
+      setSelfPortrait(data.selfPortrait || '');
       if (data.avatarUrl) {
         sessionStorage.setItem('avatarUrl', data.avatarUrl);
       } else {
@@ -56,7 +61,7 @@ export function ProfilePage() {
       const res = await fetch(`${API_BASE}/api/user/profile`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ username, email })
+        body: JSON.stringify({ username, email, selfPortrait })
       });
       if (!res.ok) {
         const err = await res.text();
@@ -70,6 +75,27 @@ export function ProfilePage() {
       setMessage({ type: 'error', text: err.message });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSavePortrait = async () => {
+    setSavingPortrait(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/user/profile`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ selfPortrait })
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
+      const data = await res.json();
+      toast.success('自画像已保存');
+    } catch (err) {
+      toast.error('保存失败：' + err.message);
+    } finally {
+      setSavingPortrait(false);
     }
   };
 
@@ -228,6 +254,40 @@ export function ProfilePage() {
             {saving ? <Loader2 className="spinner" size={18} /> : null}
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
+        </GlassCard>
+
+        {/* Self-Portrait Section */}
+        <GlassCard className="profile-portrait-section">
+          <h2>
+            <UserCircle size={18} />
+            用户自画像
+          </h2>
+          <p className="portrait-hint">
+            用你自己的话描述你的身份、兴趣领域、工作和学习目标。
+            AI 将利用这些信息对你捕获的内容进行个性化价值评估。
+          </p>
+          <textarea
+            className="portrait-textarea"
+            rows={8}
+            value={selfPortrait}
+            onChange={(e) => setSelfPortrait(e.target.value)}
+            placeholder={`尝试写一些类似这样的描述：
+
+我是一名全栈开发者，对 React、Spring Boot 和 AI 应用开发感兴趣。目前在学习系统设计和微服务架构。平时关注技术前沿动态，偶尔需要放松解压。
+
+也可以写更通用的内容，只要是真实的自我描述即可。`}
+          />
+          <div className="portrait-footer">
+            <span className="portrait-char-count">{selfPortrait.length} 字</span>
+            <button
+              className="portrait-save-btn"
+              onClick={handleSavePortrait}
+              disabled={savingPortrait}
+            >
+              {savingPortrait ? <Loader2 className="spinner" size={16} /> : null}
+              {savingPortrait ? '保存中...' : '保存自画像'}
+            </button>
+          </div>
         </GlassCard>
 
         {/* Logout Section */}
