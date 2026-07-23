@@ -42,7 +42,7 @@ export function Dashboard() {
         const token = sessionStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch('http://localhost:8080/api/dashboard/wordcloud', {
+        const response = await fetch('http://localhost:8080/api/dashboard/wordcloud/history', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -50,12 +50,34 @@ export function Dashboard() {
         });
 
         if (response.ok) {
-          const wordCloudData = await response.json();
-          console.log('[Dashboard 初始加载] API返回词云数据:', wordCloudData);
+          const historyData = await response.json();
+          console.log('[Dashboard 初始加载] API返回历史词云数据:', historyData);
+          
+          // 聚合近7天的数据
+          const aggregatedWords = {};
+          if (Array.isArray(historyData)) {
+            historyData.forEach(day => {
+              if (day.keywords && Array.isArray(day.keywords)) {
+                day.keywords.forEach(kw => {
+                  const word = kw.word || kw.name;
+                  if (aggregatedWords[word]) {
+                    aggregatedWords[word] += kw.value;
+                  } else {
+                    aggregatedWords[word] = kw.value;
+                  }
+                });
+              }
+            });
+          }
+          
+          const wordCloudData = Object.keys(aggregatedWords).map(key => ({
+            name: key,
+            value: aggregatedWords[key]
+          }));
+
           if (wordCloudData && wordCloudData.length > 0) {
-            // 后端返回的格式已经是 [{name, value}]
             setRealWordCloudData(wordCloudData);
-            console.log('[Dashboard 初始加载] 已设置realWordCloudData');
+            console.log('[Dashboard 初始加载] 成功聚合近7天词云数据:', wordCloudData.length, '个词');
           } else {
             console.log('[Dashboard 初始加载] 词云数据为空，realWordCloudData保持为null');
           }
@@ -80,7 +102,7 @@ export function Dashboard() {
         if (!token) return;
 
         console.log('[Dashboard] 开始获取最新词云数据...');
-        const response = await fetch('http://localhost:8080/api/dashboard/wordcloud', {
+        const response = await fetch('http://localhost:8080/api/dashboard/wordcloud/history', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -88,11 +110,33 @@ export function Dashboard() {
         });
 
         if (response.ok) {
-          const wordCloudData = await response.json();
-          console.log('[Dashboard] 收到词云数据:', wordCloudData);
+          const historyData = await response.json();
+          console.log('[Dashboard] 收到历史词云数据:', historyData);
+          
+          const aggregatedWords = {};
+          if (Array.isArray(historyData)) {
+            historyData.forEach(day => {
+              if (day.keywords && Array.isArray(day.keywords)) {
+                day.keywords.forEach(kw => {
+                  const word = kw.word || kw.name;
+                  if (aggregatedWords[word]) {
+                    aggregatedWords[word] += kw.value;
+                  } else {
+                    aggregatedWords[word] = kw.value;
+                  }
+                });
+              }
+            });
+          }
+          
+          const wordCloudData = Object.keys(aggregatedWords).map(key => ({
+            name: key,
+            value: aggregatedWords[key]
+          }));
+
           if (wordCloudData && wordCloudData.length > 0) {
             setRealWordCloudData(wordCloudData);
-            console.log('[Dashboard] 词云数据已更新，触发重新渲染');
+            console.log('[Dashboard] 词云数据已更新，聚合了近7天数据，触发重新渲染');
           } else {
             console.log('[Dashboard] 词云数据为空');
           }
@@ -310,9 +354,9 @@ export function Dashboard() {
       </header>
 
       <div className="stats-row">
-        <StatBadge icon={<BookOpen />} label="今日浏览总量" value={summary.todayViews} onClick={() => navigate('/inbox')} />
+        <StatBadge icon={<BookOpen />} label="浏览总量" value={summary.todayViews} onClick={() => navigate('/inbox')} />
         <StatBadge icon={<Zap />} label="优质信息源" value={summary.premiumCount} onClick={() => navigate('/graph')} />
-        <StatBadge icon={<Clock />} label="今日沉浸时长" value={summary.immersionHours} unit="h" onClick={() => navigate('/report')} />
+        <StatBadge icon={<Clock />} label="今日浏览时长" value={summary.immersionHours} unit="h" onClick={() => navigate('/report')} />
       </div>
 
       <div className="bento-grid">

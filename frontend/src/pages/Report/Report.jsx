@@ -54,7 +54,7 @@ export function Report() {
   useEffect(() => {
     const fetchNutritionData = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/dashboard/nutrition`, {
+        const response = await fetch(`${API_BASE}/api/dashboard/nutrition?type=${activeTab}`, {
           headers: getAuthHeaders()
         });
         if (response.ok) {
@@ -70,7 +70,7 @@ export function Report() {
       }
     };
     fetchNutritionData();
-  }, []);
+  }, [activeTab]);
 
   // 获取词云数据
   useEffect(() => {
@@ -453,7 +453,7 @@ export function Report() {
                   <div className="nl-row-left">
                     <span className="nl-color-block" style={{ backgroundColor: item.itemStyle.color }}></span>
                     <span className="nl-row-name">{item.name}</span>
-                    <span className="nl-row-sub">({item.subName || ''})</span>
+                    {item.subName && <span className="nl-row-sub">({item.subName})</span>}
                     <span className="nl-row-hours">{item.hours || 0}h</span>
                   </div>
                   <div className="nl-row-right">
