@@ -21,7 +21,7 @@ const itemVariants = {
 
 export function Inbox() {
   const [filter, setFilter] = useState('All');
-  const { items, togglePremium, toggleLike, toggleFavorite, regenerateSummary, saveNote, updateItem, loading, error, hasMore, loadMore, refetching } = useInboxItems();
+  const { items, togglePremium, regenerateSummary, saveNote, updateItem, loading, error, hasMore, loadMore, refetching } = useInboxItems();
   const [selectedItem, setSelectedItem] = useState(null);
   const [draftNote, setDraftNote] = useState('');
   const [selectedKeywords, setSelectedKeywords] = useState([]);
@@ -241,14 +241,6 @@ export function Inbox() {
     togglePremium(id);
   };
 
-  const handleToggleLike = (id) => {
-    toggleLike(id);
-  };
-
-  const handleToggleFavorite = (id) => {
-    toggleFavorite(id);
-  };
-
   const handleRegenerateSummary = async (id) => {
     try {
       await regenerateSummary(id);
@@ -349,8 +341,6 @@ export function Inbox() {
               isPremium={item.hasNote}
               premiumLabel={getPremiumLabel(item)}
               onTogglePremium={handleTogglePremium}
-              onToggleLike={handleToggleLike}
-              onToggleFavorite={handleToggleFavorite}
               onClick={() => openDrawer(item)}
             />
           </motion.div>

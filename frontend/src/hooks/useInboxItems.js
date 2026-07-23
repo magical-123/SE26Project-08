@@ -352,8 +352,6 @@ export function useInboxItems() {
       if (patch.isPremium !== undefined) backendPatch.isPremium = patch.isPremium;
       if (patch.userNote !== undefined) backendPatch.userNote = patch.userNote;
       if (patch.processStatus !== undefined) backendPatch.processStatus = patch.processStatus;
-      if (patch.isLiked !== undefined) backendPatch.isLiked = patch.isLiked;
-      if (patch.isFavorite !== undefined) backendPatch.isFavorite = patch.isFavorite;
       if (patch.contentRaw !== undefined) backendPatch.contentRaw = patch.contentRaw;
       
       // 只有确实有需要发到后端的字段时才调 API
@@ -363,35 +361,6 @@ export function useInboxItems() {
     } catch (err) {
       console.error('更新信息项失败:', err);
     }
-  }, []);
-
-  // 切换点赞
-  const toggleLike = useCallback(async (id) => {
-    setItems((prev) => {
-      const current = prev.find(i => i.id === id);
-      const newLiked = current ? !current.isLiked : true;
-
-      const updated = prev.map((item) =>
-        item.id === id ? { ...item, isLiked: newLiked } : item
-      );
-
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {}
-
-      inboxApi.toggleLike(id).catch((err) => {
-        console.error('点赞更新失败:', err);
-        const rolledBack = updated.map((item) =>
-          item.id === id ? { ...item, isLiked: !newLiked } : item
-        );
-        setItems(rolledBack);
-        try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rolledBack));
-        } catch {}
-      });
-
-      return updated;
-    });
   }, []);
 
   // 重新生成单条卡片的 AI 摘要
@@ -414,35 +383,6 @@ export function useInboxItems() {
     }
   }, []);
 
-  // 切换收藏
-  const toggleFavorite = useCallback(async (id) => {
-    setItems((prev) => {
-      const current = prev.find(i => i.id === id);
-      const newFav = current ? !current.isFavorite : true;
-
-      const updated = prev.map((item) =>
-        item.id === id ? { ...item, isFavorite: newFav } : item
-      );
-
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {}
-
-      inboxApi.toggleFavorite(id).catch((err) => {
-        console.error('收藏更新失败:', err);
-        const rolledBack = updated.map((item) =>
-          item.id === id ? { ...item, isFavorite: !newFav } : item
-        );
-        setItems(rolledBack);
-        try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rolledBack));
-        } catch {}
-      });
-
-      return updated;
-    });
-  }, []);
-
   return {
     items,
     setItems,
@@ -452,8 +392,6 @@ export function useInboxItems() {
     loadMore,
     createItem,
     togglePremium,
-    toggleLike,
-    toggleFavorite,
     regenerateSummary,
     saveNote,
     updateItem,
