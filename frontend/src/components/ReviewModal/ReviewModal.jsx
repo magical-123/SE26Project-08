@@ -68,10 +68,6 @@ export function ReviewModal({ cards, onClose }) {
               <div className="rc-back-content">
                 <p>{currentCard.content}</p>
               </div>
-              <div className="rc-actions">
-                <button className="memory-btn hard">忘记了</button>
-                <button className="memory-btn good">记住了</button>
-              </div>
             </div>
           </motion.div>
         </div>
