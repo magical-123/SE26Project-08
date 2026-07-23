@@ -11,5 +11,7 @@ import java.util.List;
 public interface ReviewCardRepository extends JpaRepository<ReviewCard, Long> {
     List<ReviewCard> findByUserIdAndScheduledReviewDate(Long userId, LocalDate scheduledReviewDate);
 
+    List<ReviewCard> findByUserIdAndScheduledReviewDateLessThanEqualOrderByScheduledReviewDateAsc(Long userId, LocalDate date);
+
     void deleteByUserIdAndScheduledReviewDate(Long userId, LocalDate scheduledReviewDate);
 }
