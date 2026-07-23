@@ -7,7 +7,6 @@ import com.infodigest.service.ContentAnalysisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -31,8 +30,10 @@ public class ContentAnalysisScheduler {
     @Autowired
     private AIConfigRepository aiConfigRepository;
 
-    // 每 60 秒扫描一次，每次最多处理 10 条（异步并发）
+    // 每次最多处理 10 条
     private static final int BATCH_SIZE = 10;
+    // 每条分析之间的间隔（毫秒），防止触发 API 速率限制
+    private static final long INTER_ITEM_DELAY_MS = 3000;
 
     @PostConstruct
     public void logDiagnosticStats() {
@@ -79,6 +80,15 @@ public class ContentAnalysisScheduler {
 
     @Scheduled(fixedRate = 300000) // 5分钟一次，作为兜底
     public void scanAndAnalyzeItems() {
+        try {
+            doScanAndAnalyze();
+        } catch (Exception e) {
+            // 最外层兜底：无论发生什么异常，调度器本身绝不崩溃
+            log.error("[Scheduler] 调度器执行异常（已安全捕获，不影响下次调度）: {}", e.getMessage());
+        }
+    }
+
+    private void doScanAndAnalyze() {
         log.debug("Starting scheduled content analysis scan");
 
         // 只处理有 AI 配置的用户的数据
@@ -119,18 +129,47 @@ public class ContentAnalysisScheduler {
 
         log.info("Found {} items to analyze", itemsToProcess.size());
 
+        int successCount = 0;
+        int failCount = 0;
+        int rateLimitCount = 0;
+
         for (InformationItem item : itemsToProcess) {
-            analyzeItemAsync(item.getId());
+            try {
+                log.info("Analyzing item {} in background", item.getId());
+                analysisService.analyzeItem(item.getId());
+                successCount++;
+
+                // 每条分析之间等待一段时间，防止触发 API 速率限制
+                if (INTER_ITEM_DELAY_MS > 0) {
+                    Thread.sleep(INTER_ITEM_DELAY_MS);
+                }
+            } catch (Exception e) {
+                String msg = e.getMessage() != null ? e.getMessage() : "";
+                if (msg.contains("429") || msg.toLowerCase().contains("rate limit")) {
+                    rateLimitCount++;
+                    log.warn("[Scheduler] ⚠️ API 速率限制，跳过本批次剩余 {} 条任务",
+                            itemsToProcess.size() - successCount - failCount - rateLimitCount);
+                    // 遇到速率限制，立刻停止本轮，等下一轮调度
+                    break;
+                } else {
+                    failCount++;
+                    log.error("[Scheduler] 分析 item {} 失败: {}", item.getId(), msg);
+                }
+            }
         }
+
+        log.info("[Scheduler] 本轮完成: 成功={}, 失败={}, 速率限制={}", successCount, failCount, rateLimitCount);
     }
 
-    @Async
+    /**
+     * 供外部 Controller 调用的异步分析入口（如手动触发按钮）
+     */
     public void analyzeItemAsync(Long itemId) {
         try {
-            log.info("Analyzing item {} in background", itemId);
+            log.info("[Scheduler] 手动触发分析 item {}", itemId);
             analysisService.analyzeItem(itemId);
         } catch (Exception e) {
-            log.error("Failed to analyze item {}: {}", itemId, e.getMessage());
+            log.error("[Scheduler] 手动分析 item {} 失败: {}", itemId, e.getMessage());
         }
     }
 }

@@ -19,4 +19,7 @@ public class ItemConcept {
 
     @Column(nullable = false)
     private Long conceptId;
+
+    @Column(nullable = false)
+    private Boolean highlighted = false;
 }
