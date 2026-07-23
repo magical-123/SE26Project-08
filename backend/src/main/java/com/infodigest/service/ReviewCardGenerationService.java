@@ -140,9 +140,8 @@ public class ReviewCardGenerationService {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             com.fasterxml.jackson.databind.JsonNode jsonNode = mapper.readTree(aiResponse);
 
-            // 删除今天的旧复习卡片（如果有）
             LocalDate today = LocalDate.now();
-            reviewCardRepository.deleteByUserIdAndScheduledReviewDate(userId, today);
+            // Note: We no longer delete unreviewed cards to allow spaced repetition to work across days.
 
             // 检查是否有 cards 数组
             if (!jsonNode.has("cards") || !jsonNode.get("cards").isArray()) {
@@ -179,6 +178,9 @@ public class ReviewCardGenerationService {
                 card.setContent(content);
                 card.setSourcePlatform(sourcePlatform);
                 card.setScheduledReviewDate(today);
+                card.setRepetitionCount(0);
+                card.setEasinessFactor(2.5);
+                card.setIntervalDays(0);
                 card.setCreatedAt(LocalDateTime.now());
 
                 reviewCardRepository.save(card);
@@ -199,17 +201,21 @@ public class ReviewCardGenerationService {
     }
 
     /**
-     * 获取用户今日的复习卡片列表
+     * 获取用户今日的复习卡片列表 (SM-2: 查找由于今天或之前未复习的卡片)
      */
     public List<Map<String, Object>> getTodayReviewCards(Long userId) {
         LocalDate today = LocalDate.now();
-        List<ReviewCard> cards = reviewCardRepository.findByUserIdAndScheduledReviewDate(userId, today);
+        List<ReviewCard> cards = reviewCardRepository.findByUserIdAndScheduledReviewDateLessThanEqualOrderByScheduledReviewDateAsc(userId, today);
+
+        // Limit to 15 cards per session to avoid overwhelming the user
+        List<ReviewCard> dueCards = cards.stream().limit(15).collect(Collectors.toList());
 
         List<Map<String, Object>> result = new ArrayList<>();
 
-        if (!cards.isEmpty()) {
-            for (ReviewCard card : cards) {
+        if (!dueCards.isEmpty()) {
+            for (ReviewCard card : dueCards) {
                 Map<String, Object> cardMap = new LinkedHashMap<>();
+                cardMap.put("id", card.getId()); // Needed for feedback API
                 cardMap.put("title", card.getTitle());
                 cardMap.put("content", card.getContent());
                 cardMap.put("source", card.getSourcePlatform());
@@ -218,6 +224,7 @@ public class ReviewCardGenerationService {
         } else {
             // 没有数据时返回默认内容
             Map<String, Object> defaultCard = new LinkedHashMap<>();
+            defaultCard.put("id", -1);
             defaultCard.put("title", "近期没有需要复习的内容");
             defaultCard.put("content", "系统会根据你的学习情况智能推荐复习内容");
             defaultCard.put("source", "InfoDigest");
@@ -225,5 +232,47 @@ public class ReviewCardGenerationService {
         }
 
         return result;
+    }
+
+    /**
+     * 处理复习反馈 (SM-2 算法)
+     */
+    @Transactional
+    public void processFeedback(Long cardId, Long userId, boolean remembered) {
+        Optional<ReviewCard> optCard = reviewCardRepository.findById(cardId);
+        if (optCard.isEmpty()) {
+            throw new IllegalArgumentException("Card not found");
+        }
+        ReviewCard card = optCard.get();
+        if (!card.getUserId().equals(userId)) {
+            throw new SecurityException("Unauthorized access to this card");
+        }
+
+        int repetitionCount = card.getRepetitionCount() != null ? card.getRepetitionCount() : 0;
+        double easinessFactor = card.getEasinessFactor() != null ? card.getEasinessFactor() : 2.5;
+        int intervalDays = card.getIntervalDays() != null ? card.getIntervalDays() : 0;
+
+        if (remembered) {
+            if (repetitionCount == 0) {
+                intervalDays = 1;
+            } else if (repetitionCount == 1) {
+                intervalDays = 6;
+            } else {
+                intervalDays = (int) Math.round(intervalDays * easinessFactor);
+            }
+            easinessFactor = Math.max(1.3, easinessFactor + 0.1);
+            repetitionCount++;
+        } else {
+            repetitionCount = 0;
+            intervalDays = 0;
+            easinessFactor = Math.max(1.3, easinessFactor - 0.2);
+        }
+
+        card.setRepetitionCount(repetitionCount);
+        card.setEasinessFactor(easinessFactor);
+        card.setIntervalDays(intervalDays);
+        card.setScheduledReviewDate(LocalDate.now().plusDays(intervalDays));
+        
+        reviewCardRepository.save(card);
     }
 }

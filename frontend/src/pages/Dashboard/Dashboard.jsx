@@ -345,9 +345,9 @@ export function Dashboard() {
         </div>
 
         <motion.div whileHover={{ y: -4 }} className="bento-review">
-          <GlassCard className="review-card" style={{ cursor: 'pointer', position: 'relative' }}>
+          <GlassCard className="review-card" style={{ cursor: 'pointer', position: 'relative' }} onClick={() => setIsReviewOpen(true)}>
             <div className="rc-header">
-              <h3 onClick={() => setIsReviewOpen(true)}>待复习卡片</h3>
+              <h3>待复习卡片</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="rc-badge">记忆曲线</span>
                 <button
@@ -361,10 +361,9 @@ export function Dashboard() {
               </div>
             </div>
             {reviewCards.length > 0 && (
-              <div onClick={() => setIsReviewOpen(true)}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <h4>{reviewCards[0].title}</h4>
-                <p>{reviewCards[0].content}</p>
-                <div className="rc-footer">{reviewCards[0].source}</div>
+                <div className="rc-footer" style={{ marginTop: 'auto' }}>{reviewCards[0].source}</div>
               </div>
             )}
           </GlassCard>
