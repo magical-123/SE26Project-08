@@ -115,6 +115,7 @@ public class GraphController {
 
         List<Concept> concepts = conceptRepository.findByUserId(userId);
         List<InformationItem> allItems = informationItemRepository.findByUserId(userId);
+
         List<InformationItem> premiumItems = allItems.stream()
                 .filter(item -> Boolean.TRUE.equals(item.getHasNote()))
                 .collect(Collectors.toList());
@@ -166,6 +167,7 @@ public class GraphController {
         // 获取目标用户的概念和优质信息源
         List<Concept> concepts = conceptRepository.findByUserId(userId);
         List<InformationItem> allItems = informationItemRepository.findByUserId(userId);
+
         List<InformationItem> premiumItems = allItems.stream()
                 .filter(item -> Boolean.TRUE.equals(item.getHasNote()))
                 .collect(Collectors.toList());

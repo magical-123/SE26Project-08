@@ -24,8 +24,7 @@ public class SocialController {
 
     /**
      * 返回所有 ACCEPTED 好友列表。
-     * 因目前 Friendship 表为空，返回 mock 数据。
-     * 返回格式同 socialFriends：[{ id, name, initial, status, tags, activeColor }]
+     * 返回格式：[{ id, name, initial, status, tags, activeColor }]
      */
     @GetMapping("/friends")
     public ResponseEntity<List<Map<String, Object>>> getFriends() {
@@ -54,8 +53,8 @@ public class SocialController {
             return ResponseEntity.ok(result);
         }
 
-        // 数据库为空，返回 mock 数据
-        return ResponseEntity.ok(buildMockFriends());
+        // 数据库为空，返回空列表
+        return ResponseEntity.ok(Collections.emptyList());
     }
 
     /**
@@ -157,30 +156,4 @@ public class SocialController {
         return user.getId();
     }
 
-    // ==================== Mock 数据构建 ====================
-
-    private List<Map<String, Object>> buildMockFriends() {
-        List<Map<String, Object>> friends = new ArrayList<>();
-
-        friends.add(buildFriend(1L, "Alice", "A", "正在深入研究 AI",
-                List.of("大模型", "提示词工程", "科幻"), "#10B981"));
-        friends.add(buildFriend(2L, "Bob Design", "B", "寻找灵感中",
-                List.of("UI/UX", "空间设计", "排版"), "#F59E0B"));
-        friends.add(buildFriend(3L, "Charlie", "C", "摸鱼",
-                List.of("单机游戏", "动漫", "影视解说"), "#F43F5E"));
-
-        return friends;
-    }
-
-    private Map<String, Object> buildFriend(Long id, String name, String initial,
-                                            String status, List<String> tags, String activeColor) {
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("id", id);
-        item.put("name", name);
-        item.put("initial", initial);
-        item.put("status", status);
-        item.put("tags", tags);
-        item.put("activeColor", activeColor);
-        return item;
-    }
 }

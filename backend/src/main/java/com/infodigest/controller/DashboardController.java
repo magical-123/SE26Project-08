@@ -167,10 +167,10 @@ public class DashboardController {
      */
     @GetMapping("/wordcloud/{word}/sources")
     public ResponseEntity<List<Map<String, Object>>> getWordSources(@PathVariable String word) {
-        Long userId = getCurrentUserId();
-        LocalDate today = LocalDate.now();
-
         try {
+            Long userId = getCurrentUserId();
+            LocalDate today = LocalDate.now();
+
             // 获取今日词云数据
             Map<String, Object> wordCloudData = wordCloudService.getWordCloud(userId, today);
             List<Map<String, Object>> keywords = (List<Map<String, Object>>) wordCloudData.get("keywords");
