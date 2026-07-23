@@ -44,10 +44,13 @@ public class SocialController {
                 map.put("id", friendId);
                 map.put("name", friend != null ? friend.getUsername() : "Unknown");
                 map.put("initial", friend != null ? String.valueOf(friend.getUsername().charAt(0)).toUpperCase() : "?");
-                // TODO: 从 UserProfile 或社交资料表中获取 status / tags / activeColor
-                map.put("status", "在线");
+                // 根据 lastActiveAt 判断在线状态（5 分钟内活跃视为在线）
+                boolean isOnline = friend != null && friend.getLastActiveAt() != null
+                        && friend.getLastActiveAt().isAfter(java.time.LocalDateTime.now().minusMinutes(5));
+                map.put("status", isOnline ? "在线" : "离线");
+                map.put("isOnline", isOnline);
                 map.put("tags", Collections.emptyList());
-                map.put("activeColor", "#10B981");
+                map.put("activeColor", isOnline ? "#10B981" : "#9CA3AF");
                 return map;
             }).collect(Collectors.toList());
             return ResponseEntity.ok(result);

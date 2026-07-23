@@ -79,6 +79,31 @@
   color: #fff;
 }
 
+.fc-avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.fc-online-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-main, #F4F3ED);
+  transition: background 0.2s ease;
+}
+
+.fc-online-dot.online {
+  background: #10B981;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3);
+}
+
+.fc-online-dot.offline {
+  background: #9CA3AF;
+}
+
 .fc-info h3 {
   margin: 0 0 4px;
   font-size: 16px;

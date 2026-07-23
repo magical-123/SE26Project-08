@@ -5,6 +5,7 @@ import com.infodigest.entity.AIConfig;
 import com.infodigest.entity.InformationItem;
 import com.infodigest.repository.AIConfigRepository;
 import com.infodigest.repository.InformationItemRepository;
+import com.infodigest.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,9 @@ public class ContentAnalysisService {
 
     @Autowired
     private AiSummaryService aiSummaryService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     private static final int MAX_CONTENT_LENGTH = 100000;  // 提升到100k，支持完整字幕分析
 
@@ -88,6 +92,13 @@ public class ContentAnalysisService {
         请确保 protein + carbs + vitamins + fats + fiber = 100
         """;
 
+    private static final String SELF_PORTRAIT_BLOCK = """
+
+        附加信息——用户的个人需求描述：
+        该用户对自己的描述如下。请结合这些信息，评估该内容对这位具体用户的参考价值：
+        {selfPortrait}
+        """;
+
     public void analyzeItem(Long itemId) throws Exception {
         InformationItem item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
@@ -115,7 +126,13 @@ public class ContentAnalysisService {
 
         // 1. 营养分析（如果还没做）
         if (!hasNutrition) {
-            String userPrompt = buildContentPrompt(item, SYSTEM_PROMPT);
+            // 获取用户自画像，用于个性化 AI 价值判断
+            String selfPortrait = userRepository.findById(item.getUserId())
+                    .map(u -> u.getSelfPortrait())
+                    .filter(s -> s != null && !s.trim().isEmpty())
+                    .orElse(null);
+
+            String userPrompt = buildContentPrompt(item, SYSTEM_PROMPT, selfPortrait);
 
             try {
                 AnalysisResultDTO result = aiService.analyze(config, "", userPrompt);
@@ -201,17 +218,24 @@ public class ContentAnalysisService {
         }
     }
 
-    private String buildContentPrompt(InformationItem item, String template) {
+    private String buildContentPrompt(InformationItem item, String template, String selfPortrait) {
         String content = item.getContentRaw();
         if (content != null && content.length() > MAX_CONTENT_LENGTH) {
             content = truncateContent(content, MAX_CONTENT_LENGTH);
         }
 
-        return template
+        String prompt = template
                 .replace("{title}", item.getTitle() != null ? item.getTitle() : "")
                 .replace("{platform}", item.getPlatform() != null ? item.getPlatform() : "")
                 .replace("{duration}", item.getDurationMinutes() != null ? String.valueOf(item.getDurationMinutes()) : "未知")
                 .replace("{content}", content != null ? content : "");
+
+        // 如果用户有自画像，追加到 prompt 末尾
+        if (selfPortrait != null && !selfPortrait.trim().isEmpty()) {
+            prompt += SELF_PORTRAIT_BLOCK.replace("{selfPortrait}", selfPortrait);
+        }
+
+        return prompt;
     }
 
     private String truncateContent(String content, int maxLength) {

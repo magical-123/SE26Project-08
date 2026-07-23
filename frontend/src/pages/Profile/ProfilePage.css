@@ -219,6 +219,96 @@
   animation: spin 1s linear infinite;
 }
 
+/* Portrait Section */
+.profile-portrait-section {
+  padding: 32px;
+}
+
+.profile-portrait-section h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.portrait-hint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.portrait-textarea {
+  width: 100%;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid var(--border-glass);
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.6;
+  color: var(--text-main);
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 180px;
+}
+
+.portrait-textarea:focus {
+  border-color: var(--text-main);
+}
+
+.portrait-textarea::placeholder {
+  color: #bbb;
+  font-size: 13px;
+}
+
+.portrait-char-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.portrait-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  gap: 12px;
+}
+
+.portrait-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: var(--text-main);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.portrait-save-btn:hover {
+  opacity: 0.85;
+}
+
+.portrait-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.portrait-save-btn .spinner {
+  animation: spin 1s linear infinite;
+}
+
 /* Danger Section (Logout) */
 .profile-danger-section {
   padding: 32px;
