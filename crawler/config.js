@@ -69,6 +69,6 @@ module.exports = {
   /** 每次请求的分页大小 */
   PAGE_SIZE: 20,
 
-  /** 字幕/全文提取的并行数量（前 N 条） */
-  SUBTITLE_EXTRACT_COUNT: 3,
+  /** 字幕/全文提取的并行数量（前 N 条）设为 999999 表示全部提取 */
+  SUBTITLE_EXTRACT_COUNT: 999999,
 };

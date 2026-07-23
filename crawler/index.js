@@ -247,9 +247,7 @@ function transformBilibiliItem(historyItem, subtitleText = '', isLiked = false, 
       || '',
     category: classifyBilibili(historyItem.tag_name),
     durationMinutes: Math.round(duration / 60) || 1,
-    contentRaw: subtitleText
-      ? subtitleText.substring(0, 4000)
-      : historyItem.title || '',
+    contentRaw: subtitleText || historyItem.title || '',  // 移除字幕截断限制
     isLiked: !!isLiked,
     isFavorite: !!isFavorite,
     processStatus: 'UNPROCESSED',

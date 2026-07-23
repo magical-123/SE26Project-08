@@ -153,10 +153,7 @@ public class AiSummaryService {
         String content = item.getContentRaw() != null ? item.getContentRaw() : "";
         String platform = item.getPlatform() != null ? item.getPlatform() : "未知";
 
-        // 截断过长的内容
-        if (content.length() > 3000) {
-            content = content.substring(0, 3000) + "...";
-        }
+        // 不再截断内容，支持完整字幕分析
 
         return "你是一个信息营养分析师。请阅读以下来自「" + platform + "」的内容，\n"
                 + "先判断内容是否属于「娱乐短剧」类（包括但不限于：生活日常、八卦闲聊、搞笑段子、穿搭美妆、\n"
@@ -180,7 +177,7 @@ public class AiSummaryService {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", model);
         body.put("temperature", 0.3);
-        body.put("max_tokens", 512);
+        body.put("max_tokens", 100000);
         body.put("messages", List.of(
                 Map.of("role", "system", "content", "你是一个信息营养分析师，返回纯 JSON，不要用 markdown 代码块包裹。"),
                 Map.of("role", "user", "content", prompt)

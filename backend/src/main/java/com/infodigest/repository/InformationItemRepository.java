@@ -125,4 +125,10 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET i.isFavorite = :favorite WHERE i.id = :id")
     void updateIsFavorite(@Param("id") Long id, @Param("favorite") Boolean favorite);
+
+    // 更新 contentRaw 字段（用于AI处理完后清空字幕内容）
+    @org.springframework.transaction.annotation.Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE InformationItem i SET i.contentRaw = :contentRaw WHERE i.id = :id")
+    void updateContentRaw(@Param("id") Long id, @Param("contentRaw") String contentRaw);
 }
