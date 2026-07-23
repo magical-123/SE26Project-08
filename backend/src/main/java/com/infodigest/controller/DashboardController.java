@@ -171,24 +171,49 @@ public class DashboardController {
             Long userId = getCurrentUserId();
             LocalDate today = LocalDate.now();
 
+            log.info("[溯源API] 查询词汇: {}, 用户ID: {}, 日期: {}", word, userId, today);
+
             // 获取今日词云数据
             Map<String, Object> wordCloudData = wordCloudService.getWordCloud(userId, today);
             List<Map<String, Object>> keywords = (List<Map<String, Object>>) wordCloudData.get("keywords");
 
+            log.info("[溯源API] 词云数据包含 {} 个关键词", keywords != null ? keywords.size() : 0);
+
             if (keywords == null) {
+                log.warn("[溯源API] keywords为null");
                 return ResponseEntity.ok(new ArrayList<>());
             }
 
             // 查找指定关键词的相关视频ID
             List<Long> relatedVideoIds = null;
             for (Map<String, Object> keyword : keywords) {
-                if (word.equals(keyword.get("word"))) {
-                    relatedVideoIds = (List<Long>) keyword.get("relatedVideos");
+                String keywordWord = (String) keyword.get("word");
+                log.debug("[溯源API] 检查关键词: {}", keywordWord);
+                if (word.equals(keywordWord)) {
+                    Object relatedVideosObj = keyword.get("relatedVideos");
+                    log.info("[溯源API] 找到匹配关键词: {}, relatedVideos对象: {}, 类型: {}",
+                            word, relatedVideosObj, relatedVideosObj != null ? relatedVideosObj.getClass() : "null");
+
+                    // 转换为List<Long>，处理Integer类型
+                    if (relatedVideosObj instanceof List) {
+                        List<?> rawList = (List<?>) relatedVideosObj;
+                        relatedVideoIds = rawList.stream()
+                                .map(obj -> {
+                                    if (obj instanceof Number) {
+                                        return ((Number) obj).longValue();
+                                    }
+                                    return null;
+                                })
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toList());
+                    }
+                    log.info("[溯源API] 转换后的视频IDs: {}", relatedVideoIds);
                     break;
                 }
             }
 
             if (relatedVideoIds == null || relatedVideoIds.isEmpty()) {
+                log.warn("[溯源API] 未找到关键词 '{}' 的相关视频", word);
                 return ResponseEntity.ok(new ArrayList<>());
             }
 
@@ -207,9 +232,10 @@ public class DashboardController {
                 });
             }
 
+            log.info("[溯源API] 返回 {} 条溯源记录", sources.size());
             return ResponseEntity.ok(sources);
         } catch (Exception e) {
-            log.error("获取词云溯源数据失败: {}", e.getMessage());
+            log.error("获取词云溯源数据失败: {}", e.getMessage(), e);
             return ResponseEntity.ok(new ArrayList<>());
         }
     }

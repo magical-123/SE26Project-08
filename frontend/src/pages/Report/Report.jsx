@@ -83,6 +83,7 @@ export function Report() {
           });
           if (response.ok) {
             const data = await response.json();
+            console.log('[词云数据] 今日词云原始数据:', data);
             setDailyWordCloud(data || []);
           }
         } else {
@@ -92,6 +93,7 @@ export function Report() {
           });
           if (response.ok) {
             const data = await response.json();
+            console.log('[词云数据] 7天历史数据:', data);
             setWeeklyWordCloudHistory(data || []);
             // 默认显示最后一天
             if (data.length > 0) {
@@ -159,13 +161,18 @@ export function Report() {
         return;
       }
 
+      console.log('[溯源] 开始获取词汇溯源数据:', selectedWord);
       try {
         const response = await fetch(`${API_BASE}/api/dashboard/wordcloud/${encodeURIComponent(selectedWord)}/sources`, {
           headers: getAuthHeaders()
         });
+        console.log('[溯源] API响应状态:', response.ok, response.status);
         if (response.ok) {
           const data = await response.json();
+          console.log('[溯源] 获取到的数据:', data);
           setWordSources(data || []);
+        } else {
+          console.error('[溯源] API响应失败:', response.status);
         }
       } catch (error) {
         console.error('获取词云溯源数据失败:', error);
@@ -370,7 +377,9 @@ export function Report() {
   }, [timeIndex, activeTab, dailyWordCloud, weeklyWordCloudHistory]);
 
   const onChartClick = (e) => {
+    console.log('[词云点击] 点击事件:', e);
     if (e.name) {
+      console.log('[词云点击] 设置选中词汇:', e.name);
       setSelectedWord(e.name);
     }
   };
