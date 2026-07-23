@@ -37,17 +37,14 @@ async function validateToken(client) {
 /**
  * 获取用户 Starred 仓库（反映关注的领域）
  */
-async function fetchStarredRepos(client, username, options = {}) {
-  const { page = 1, perPage = 30 } = options;
+async function fetchStarredRepos(client, options = {}) {
+  const { page = 1, perPage = options.limit || 30 } = options;
 
-  const res = await client.get(`/users/${username}/starred`, {
+  const res = await client.get('/user/starred', {
     params: { page, per_page: perPage, sort: 'created', direction: 'desc' },
   });
 
-  const repos = (res.data || []).map(formatRepo);
-  const hasMore = repos.length === perPage;
-
-  return { items: repos, hasMore, nextPage: hasMore ? page + 1 : null };
+  return (res.data || []).map(formatRepo);
 }
 
 /**

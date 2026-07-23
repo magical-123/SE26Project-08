@@ -67,7 +67,8 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     // 行为记录按稳定 URL 归并，避免标题变化或多次上报造成重复条目
     Optional<InformationItem> findTopByUserIdAndUrlAndPlatformOrderByCrawledAtDesc(Long userId, String url, String platform);
 
-    // 局部更新：仅更新营养分析相关字段，不影响 aiSummary 等由 AI 摘要服务维护的字段
+    // 局部更新：仅更新营养分析相关字段和 AI 摘要，不影响 isPremium 等由用户手动维护的字段
+    @org.springframework.transaction.annotation.Transactional
     @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET " +
             "i.nutritionProtein = COALESCE(:protein, i.nutritionProtein), " +
@@ -76,6 +77,7 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
             "i.nutritionFats = COALESCE(:fats, i.nutritionFats), " +
             "i.nutritionFiber = COALESCE(:fiber, i.nutritionFiber), " +
             "i.nutritionReasoning = COALESCE(:reasoning, i.nutritionReasoning), " +
+            "i.aiSummary = CASE WHEN :aiSummary IS NULL THEN i.aiSummary ELSE :aiSummary END, " +
             "i.processStatus = 'PROCESSED', " +
             "i.analyzedAt = :analyzedAt " +
             "WHERE i.id = :id")
@@ -86,10 +88,12 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
                               @Param("fats") Integer fats,
                               @Param("fiber") Integer fiber,
                               @Param("reasoning") String reasoning,
+                              @Param("aiSummary") String aiSummary,
                               @Param("analyzedAt") LocalDateTime analyzedAt);
 
     // 局部更新：仅更新 AI 摘要相关字段（null 值不覆盖数据库现有值）
     // clearAutomatically=true 防止 Hibernate 脏检查在事务提交时误覆盖 isPremium 等用户手动标记
+    @org.springframework.transaction.annotation.Transactional
     @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET " +
             "i.aiSummary = CASE WHEN :summary IS NULL THEN i.aiSummary ELSE :summary END, " +
@@ -107,6 +111,7 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
                                @Param("analyzedAt") LocalDateTime analyzedAt);
 
     // 局部更新：仅更新 processStatus
+    @org.springframework.transaction.annotation.Transactional
     @Modifying(clearAutomatically = true)
     @Query("UPDATE InformationItem i SET i.processStatus = :status WHERE i.id = :id")
     void updateProcessStatus(@Param("id") Long id, @Param("status") String status);
