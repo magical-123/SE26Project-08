@@ -110,4 +110,37 @@ public class DashboardInsightScheduler {
             log.error("每日数据生成任务执行失败: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * 每2小时自动生成复习卡片
+     * cron 表达式：秒 分 时 日 月 周
+     * 0 0 星号斜杠2 星号 星号 ? 表示每2小时的整点执行
+     */
+    @Scheduled(cron = "0 0 */2 * * ?")
+    public void generateReviewCardsEveryTwoHours() {
+        log.info("====== 开始执行每2小时复习卡片生成任务 ======");
+
+        try {
+            List<User> allUsers = userRepository.findAll();
+            int successCount = 0;
+            int failCount = 0;
+
+            for (User user : allUsers) {
+                try {
+                    log.info("为用户 {} ({}) 生成复习卡片", user.getUsername(), user.getId());
+                    reviewCardGenerationService.generateTodayReviewCard(user.getId());
+                    successCount++;
+                } catch (Exception e) {
+                    log.error("为用户 {} ({}) 生成复习卡片失败: {}", user.getUsername(), user.getId(), e.getMessage());
+                    failCount++;
+                }
+            }
+
+            log.info("====== 每2小时复习卡片生成任务完成 ======");
+            log.info("成功：{}，失败：{}", successCount, failCount);
+
+        } catch (Exception e) {
+            log.error("每2小时复习卡片生成任务执行失败: {}", e.getMessage(), e);
+        }
+    }
 }
