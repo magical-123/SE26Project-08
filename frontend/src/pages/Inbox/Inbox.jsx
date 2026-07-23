@@ -82,7 +82,9 @@ export function Inbox() {
     try {
       const concepts = await graphApi.getItemKeywords(item.id);
       const kws = concepts.map(c => c.label);
-      setSelectedKeywords(kws);
+      // 根据后端 highlighted 字段决定初始高亮状态
+      const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
+      setSelectedKeywords(highlighted.length > 0 ? highlighted : kws);
       setSuggestedKeywords(kws.map(label => ({ label, isNew: false }))); 
     } catch (e) {
       console.error('获取关键词失败:', e);
@@ -94,15 +96,29 @@ export function Inbox() {
   };
 
   const toggleKeyword = (kw) => {
-    setSelectedKeywords(prev =>
-      prev.includes(kw) ? prev.filter(t => t !== kw) : [...prev, kw]
-    );
+    if (!selectedItem) return;
+    // 调用后端切换高亮状态，成功后更新本地状态
+    graphApi.toggleItemKeyword(selectedItem.id, kw).then(concepts => {
+      const kws = concepts.map(c => c.label);
+      const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
+      setSelectedKeywords(highlighted);
+      setSuggestedKeywords(kws.map(label => ({ label, isNew: false })));
+    }).catch(e => console.error('切换高亮失败:', e));
   };
   
   const handleAddKeyword = () => {
     const kw = prompt('请输入新关键词：');
     if (kw && !selectedKeywords.includes(kw)) {
-      setSelectedKeywords(prev => [...prev, kw]);
+      setSelectedKeywords(prev => {
+        const updated = [...prev, kw];
+        if (selectedItem) {
+          graphApi.updateItemKeywords(selectedItem.id, updated.map(label => ({
+            label,
+            isNew: suggestedKeywords.find(s => s.label === label)?.isNew || false
+          }))).catch(e => console.error('添加关键词失败:', e));
+        }
+        return updated;
+      });
       if (!suggestedKeywords.find(s => s.label === kw)) {
         setSuggestedKeywords(prev => [...prev, { label: kw, isNew: true }]);
       }
@@ -126,11 +142,7 @@ export function Inbox() {
 
   const handleCloseDrawer = () => {
     if (selectedItem) {
-      updateItem(selectedItem.id, { note: draftNote, keywords: selectedKeywords });
-      graphApi.updateItemKeywords(selectedItem.id, selectedKeywords.map(label => ({ 
-        label, 
-        isNew: suggestedKeywords.find(s => s.label === label)?.isNew || false 
-      })));
+      updateItem(selectedItem.id, { note: draftNote });
     }
     setSelectedItem(null);
   };
@@ -178,7 +190,8 @@ export function Inbox() {
       try {
         const concepts = await graphApi.getItemKeywords(selectedItem.id);
         const kws = concepts.map(c => c.label);
-        setSelectedKeywords(kws);
+        const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
+        setSelectedKeywords(highlighted.length > 0 ? highlighted : kws);
         setSuggestedKeywords(kws.map(label => ({ label, isNew: false }))); 
       } catch (err) {}
     }

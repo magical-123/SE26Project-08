@@ -124,19 +124,30 @@ public class GraphController {
                 .map(InformationItem::getId)
                 .collect(Collectors.toList());
 
-        // 1. 先从 item_concepts 表读取已有映射
-        List<ItemConcept> mappings = premiumItemIds.isEmpty()
+        // 从 item_concepts 表读取已有映射，仅保留高亮（highlighted=true）的
+        List<ItemConcept> allMappings = premiumItemIds.isEmpty()
                 ? Collections.emptyList()
                 : itemConceptRepository.findByItemIdIn(premiumItemIds);
+        List<ItemConcept> highlightedMappings = allMappings.stream()
+                .filter(m -> Boolean.TRUE.equals(m.getHighlighted()))
+                .collect(Collectors.toList());
+
+        // 只保留至少有一个高亮映射的概念
+        Set<Long> highlightedConceptIds = highlightedMappings.stream()
+                .map(ItemConcept::getConceptId)
+                .collect(Collectors.toSet());
+        List<Concept> visibleConcepts = concepts.stream()
+                .filter(c -> highlightedConceptIds.contains(c.getId()))
+                .collect(Collectors.toList());
 
         Map<Long, List<Long>> itemToConcepts = new HashMap<>();
-        for (ItemConcept mapping : mappings) {
+        for (ItemConcept mapping : highlightedMappings) {
             itemToConcepts.computeIfAbsent(mapping.getItemId(), k -> new ArrayList<>())
                     .add(mapping.getConceptId());
         }
 
         Map<String, Object> result = new HashMap<>();
-        result.put("concepts", concepts);
+        result.put("concepts", visibleConcepts);
         result.put("items", premiumItems);
         result.put("itemToConcepts", itemToConcepts);
 
@@ -236,7 +247,7 @@ public class GraphController {
     }
 
     @GetMapping("/item-keywords/{itemId}")
-    public ResponseEntity<List<Concept>> getItemKeywords(@PathVariable Long itemId) {
+    public ResponseEntity<List<KeywordSuggestion>> getItemKeywords(@PathVariable Long itemId) {
         Long userId = getCurrentUserId();
         
         List<ItemConcept> mappings = itemConceptRepository.findByItemId(itemId);
@@ -246,19 +257,51 @@ public class GraphController {
         
         List<Long> conceptIds = mappings.stream().map(ItemConcept::getConceptId).collect(Collectors.toList());
         List<Concept> userConcepts = conceptRepository.findByUserId(userId);
+        Map<Long, Boolean> highlightedMap = mappings.stream()
+                .collect(Collectors.toMap(ItemConcept::getConceptId, ItemConcept::getHighlighted));
         
-        List<Concept> itemConcepts = userConcepts.stream()
+        List<KeywordSuggestion> result = userConcepts.stream()
                 .filter(c -> conceptIds.contains(c.getId()))
+                .map(c -> {
+                    KeywordSuggestion ks = new KeywordSuggestion();
+                    ks.setLabel(c.getLabel());
+                    ks.setNew(false);
+                    ks.setHighlighted(highlightedMap.getOrDefault(c.getId(), true));
+                    return ks;
+                })
                 .collect(Collectors.toList());
                 
-        return ResponseEntity.ok(itemConcepts);
+        return ResponseEntity.ok(result);
     }
 
     @PutMapping("/item-keywords/{itemId}")
-    public ResponseEntity<List<Concept>> updateItemKeywords(@PathVariable Long itemId, @RequestBody List<KeywordSuggestion> keywords) {
+    public ResponseEntity<List<KeywordSuggestion>> updateItemKeywords(@PathVariable Long itemId, @RequestBody List<KeywordSuggestion> keywords) {
         Long userId = getCurrentUserId();
         
         keywordService.applyKeywords(itemId, userId, keywords);
+        
+        return getItemKeywords(itemId);
+    }
+
+    /**
+     * 切换某关键词对某 item 的高亮状态
+     */
+    @PutMapping("/item-keywords/{itemId}/toggle")
+    public ResponseEntity<List<KeywordSuggestion>> toggleItemKeywordHighlight(
+            @PathVariable Long itemId,
+            @RequestBody Map<String, Object> body) {
+        Long userId = getCurrentUserId();
+        String label = (String) body.get("label");
+        if (label == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        conceptRepository.findByUserIdAndLabel(userId, label).ifPresent(concept -> {
+            itemConceptRepository.findByItemIdAndConceptId(itemId, concept.getId()).ifPresent(mapping -> {
+                mapping.setHighlighted(!Boolean.TRUE.equals(mapping.getHighlighted()));
+                itemConceptRepository.save(mapping);
+            });
+        });
         
         return getItemKeywords(itemId);
     }

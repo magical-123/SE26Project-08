@@ -64,6 +64,7 @@ public class KeywordService {
     public static class KeywordSuggestion {
         private String label;
         private boolean isNew;
+        private boolean highlighted = true;
     }
 
     @Async
