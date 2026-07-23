@@ -338,6 +338,7 @@ public class InboxController {
             if (updates.containsKey("contentRaw")) item.setContentRaw((String) updates.get("contentRaw"));
             if (updates.containsKey("processStatus")) item.setProcessStatus((String) updates.get("processStatus"));
             if (updates.containsKey("userNote")) item.setUserNote((String) updates.get("userNote"));
+            else if (updates.containsKey("note")) item.setUserNote((String) updates.get("note"));
             if (updates.containsKey("isPremium")) item.setIsPremium((Boolean) updates.get("isPremium"));
             if (updates.containsKey("isLiked")) item.setIsLiked((Boolean) updates.get("isLiked"));
             if (updates.containsKey("isFavorite")) item.setIsFavorite((Boolean) updates.get("isFavorite"));
