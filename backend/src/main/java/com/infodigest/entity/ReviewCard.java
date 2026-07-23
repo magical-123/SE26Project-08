@@ -31,6 +31,16 @@ public class ReviewCard {
     @Column(nullable = false)
     private LocalDate scheduledReviewDate;
 
+    // Fields for Spaced Repetition System (SM-2)
+    @Column(nullable = false)
+    private Integer repetitionCount = 0;
+
+    @Column(nullable = false)
+    private Double easinessFactor = 2.5;
+
+    @Column(nullable = false)
+    private Integer intervalDays = 0;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }
