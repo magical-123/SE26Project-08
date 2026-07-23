@@ -324,9 +324,20 @@ async function fetchExplore(clientDummy, options = {}) {
       }
 
       // 尝试提取作者
-      const authorEl = card?.querySelector('[class*="author"], [class*="Author"], .author-name, [class*="user-name"]');
-      if (authorEl) {
-        author = authorEl.textContent.trim();
+      const dataZopEl = card?.querySelector('[data-zop]') || (card?.hasAttribute?.('data-zop') ? card : null);
+      if (dataZopEl) {
+        try {
+          const dataZop = JSON.parse(dataZopEl.getAttribute('data-zop') || '{}');
+          author = dataZop.authorName || dataZop.author_name || dataZop.author?.name || '';
+        } catch { /* DOM fallback below */ }
+      }
+      if (!author) {
+        const authorEl = card?.querySelector(
+          '.AuthorInfo-name .UserLink-link, [class*="AuthorInfo-name"] a[href*="/people/"], .UserLink-link, ' +
+          '[data-za-detail-view-element_name="User"], a[href*="/people/"], ' +
+          '[class*="author"], [class*="Author"], .author-name, [class*="user-name"]'
+        );
+        if (authorEl) author = authorEl.textContent.trim();
       }
 
       // 过滤无效标题
@@ -442,6 +453,24 @@ async function fetchFromDOM(clientDummy, options = {}) {
         if (!title || title.length < 3) continue;
         if (/^(登录|注册|举报|侵权|联系|关于)/.test(title)) continue;
 
+        // 提取作者。知乎的 data-zop 往往比易变化的 className 更稳定。
+        let author = '';
+        const dataZopEl = card?.querySelector('[data-zop]') || (card?.hasAttribute?.('data-zop') ? card : null);
+        if (dataZopEl) {
+          try {
+            const dataZop = JSON.parse(dataZopEl.getAttribute('data-zop') || '{}');
+            author = dataZop.authorName || dataZop.author_name || dataZop.author?.name || '';
+          } catch { /* DOM fallback below */ }
+        }
+        if (!author) {
+          const authorEl = card?.querySelector(
+            '.AuthorInfo-name .UserLink-link, [class*="AuthorInfo-name"] a[href*="/people/"], .UserLink-link, ' +
+            '[data-za-detail-view-element_name="User"], a[href*="/people/"], ' +
+            '[class*="author"], [class*="Author"]'
+          );
+          if (authorEl) author = authorEl.textContent.trim();
+        }
+
         // 提取摘要
         let excerpt = '';
         if (card) {
@@ -459,7 +488,7 @@ async function fetchFromDOM(clientDummy, options = {}) {
           }
         }
 
-        results.push({ title, url: href, excerpt });
+        results.push({ title, url: href, excerpt, author });
       }
     }
 

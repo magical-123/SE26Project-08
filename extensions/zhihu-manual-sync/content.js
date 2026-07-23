@@ -2,6 +2,55 @@ function cleanText(value, maxLength = 4000) {
   return (value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
 
+function isMetadataTitle(value) {
+  return /^(?:发布于|编辑于|[?？]{2,})\s*\d{4}(?:[-/.年]|\s)/.test(cleanText(value, 300));
+}
+
+function isUsableTitle(value) {
+  const title = cleanText(value, 300);
+  return title.length >= 4
+    && !isMetadataTitle(title)
+    && !/^(登录|注册|首页|发现|想法|盐选|搜索)$/.test(title);
+}
+
+function getCardTitle(card, link) {
+  // “最近浏览”卡片里有指向内容的链接，但它的文本有时只是“发布于…”。
+  // 优先使用卡片标题元素，并把链接文本仅作为兜底。
+  const headingTitle = [...(card?.querySelectorAll(
+    'h1, h2, h3, [class*="QuestionHeader-title"], [class*="ContentItem-title"], [class*="Title"]'
+  ) || [])]
+    .map((element) => cleanText(element.textContent, 300))
+    .find(isUsableTitle);
+  const linkTitle = cleanText(link.textContent, 300);
+  return headingTitle || (isUsableTitle(linkTitle) ? linkTitle : '');
+}
+
+function getZhihuAuthor(container = document) {
+  const dataZopElement = container.querySelector?.('[data-zop]');
+  if (dataZopElement) {
+    try {
+      const data = JSON.parse(dataZopElement.getAttribute('data-zop') || '{}');
+      const author = cleanText(data.authorName || data.author_name || data.author?.name, 100);
+      if (author) return author;
+    } catch { /* 继续使用 DOM 兜底 */ }
+  }
+
+  const selectors = [
+    '.AuthorInfo-name .UserLink-link',
+    '[class*="AuthorInfo-name"] a[href*="/people/"]',
+    '.UserLink-link',
+    '[data-za-detail-view-element_name="User"]',
+    'a[href*="/people/"]',
+    '[class*="author"]',
+    '[class*="Author"]',
+  ];
+  for (const selector of selectors) {
+    const author = cleanText(container.querySelector?.(selector)?.textContent, 100);
+    if (author && !/^(关注|匿名用户|未知作者)$/.test(author)) return author;
+  }
+  return '';
+}
+
 function normalizeUrl(href) {
   try {
     const url = new URL(href, location.origin);
@@ -23,19 +72,16 @@ function extractItems() {
     if (!url || seen.has(url)) continue;
 
     const card = link.closest('.TopstoryItem, .Card, article, [data-zop], [class*="Item"], [class*="item"]') || link.parentElement;
-    const linkTitle = cleanText(link.textContent, 300);
-    const titleEl = card?.querySelector('h1, h2, h3, [class*="Title"]');
-    const title = linkTitle.length >= 4 ? linkTitle : cleanText(titleEl?.textContent, 300);
-    if (title.length < 4 || /^(登录|注册|首页|发现|想法|盐选|搜索)$/.test(title)) continue;
+    const title = getCardTitle(card, link);
+    if (!isUsableTitle(title)) continue;
 
-    const authorEl = card?.querySelector('[class*="Author"], [class*="author"], [class*="UserLink"]');
     const rawText = cleanText(card?.innerText || link.textContent);
     seen.add(url);
     items.push({
       title,
       url,
       platform: 'ZHIHU',
-      author: cleanText(authorEl?.textContent, 100),
+      author: getZhihuAuthor(card || document),
       category: '深度知识',
       durationMinutes: Math.max(1, Math.ceil(rawText.length / 500)),
       contentRaw: rawText,
@@ -57,12 +103,15 @@ let lastVideoTime = null;
 function currentContent() {
   const match = location.pathname.match(/^\/(question\/\d+|p\/\d+|zvideo\/\d+|video\/\d+|pin\/\d+)/);
   if (!match) return null;
-  const ogTitle = document.querySelector('meta[property="og:title"]')?.content;
-  const pageTitle = document.title.replace(/\s*-\s*知乎\s*$/, '');
-  // 不直接取 h2：知乎回答页的第一个 h2 可能是“发布于……”等元信息。
-  const title = cleanText(ogTitle || pageTitle || document.querySelector('h1, [class*="QuestionHeader-title"]')?.textContent, 300);
+  const candidates = [
+    document.querySelector('meta[property="og:title"]')?.content,
+    document.querySelector('h1, [class*="QuestionHeader-title"], [class*="ContentItem-title"]')?.textContent,
+    document.title.replace(/\s*-\s*知乎\s*$/, ''),
+  ].map((value) => cleanText(value, 300));
+  const title = candidates.find(isUsableTitle);
   if (!title) return null;
-  const author = cleanText(document.querySelector('[class*="Author"], [class*="author"], [class*="UserLink"]')?.textContent, 100);
+  const metaAuthor = cleanText(document.querySelector('meta[name="author"]')?.content, 100);
+  const author = metaAuthor || getZhihuAuthor(document);
   const contentRaw = cleanText(document.querySelector('main')?.innerText || document.body?.innerText, 4000);
   return { title, author, contentRaw, url: location.href.split('?')[0].split('#')[0], platform: 'ZHIHU' };
 }

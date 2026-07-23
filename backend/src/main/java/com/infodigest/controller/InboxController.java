@@ -123,8 +123,13 @@ public class InboxController {
             Optional<InformationItem> existing = informationItemRepository
                     .findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(userId, item.getTitle(), item.getPlatform());
             if (existing.isPresent()) {
+                InformationItem existingItem = existing.get();
+                if (shouldUpdateAuthor(existingItem.getAuthor(), item.getAuthor())) {
+                    existingItem.setAuthor(item.getAuthor().trim());
+                    informationItemRepository.save(existingItem);
+                }
                 System.out.println("[Inbox] 跳过重复数据: " + item.getTitle() + " (" + item.getPlatform() + ")");
-                return ResponseEntity.ok(existing.get());
+                return ResponseEntity.ok(existingItem);
             }
         }
 
@@ -150,12 +155,25 @@ public class InboxController {
             try {
                 item.setUserId(userId);
 
+                // 浏览器页面里的“发布于/编辑于”是时间元信息，不是内容标题。
+                // 在服务端再拦截一次，避免旧版扩展或其他采集端写入无效卡片。
+                if (isMetadataTitle(item.getTitle())) {
+                    skipped++;
+                    log.warn("[Inbox Batch] 跳过无效元信息标题: {}", item.getTitle());
+                    continue;
+                }
+
                 // 去重检查
                 if (item.getTitle() != null && item.getPlatform() != null) {
                     Optional<InformationItem> existing = informationItemRepository
                             .findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(
                                     userId, item.getTitle(), item.getPlatform());
                     if (existing.isPresent()) {
+                        InformationItem existingItem = existing.get();
+                        if (shouldUpdateAuthor(existingItem.getAuthor(), item.getAuthor())) {
+                            existingItem.setAuthor(item.getAuthor().trim());
+                            informationItemRepository.save(existingItem);
+                        }
                         skipped++;
                         continue;
                     }
@@ -206,6 +224,9 @@ public class InboxController {
         if (url == null || url.isBlank() || platform == null || platform.isBlank() || title == null || title.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "url、platform、title 为必填项"));
         }
+        if (isMetadataTitle(title)) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "标题不能是发布时间或编辑时间"));
+        }
         // 单次心跳最多一分钟，防止失焦或客户端异常造成不合理的累加。
         if (deltaSeconds < 1 || deltaSeconds > 60) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "deltaSeconds 必须在 1 到 60 之间"));
@@ -253,6 +274,18 @@ public class InboxController {
         ));
     }
 
+    /** 清理扩展旧版本误把“发布于/编辑于”写成标题的条目，只影响当前用户。 */
+    @Transactional
+    @PostMapping("/items/cleanup-metadata-titles")
+    public ResponseEntity<Map<String, Object>> cleanupMetadataTitleItems() {
+        Long userId = getCurrentUserId();
+        List<InformationItem> invalidItems = informationItemRepository.findByUserId(userId).stream()
+                .filter(item -> isMetadataTitle(item.getTitle()))
+                .toList();
+        informationItemRepository.deleteAll(invalidItems);
+        return ResponseEntity.ok(Map.of("success", true, "deleted", invalidItems.size()));
+    }
+
     private static String stringValue(Object value) {
         return value instanceof String ? ((String) value).trim() : null;
     }
@@ -266,7 +299,22 @@ public class InboxController {
     }
 
     private static boolean isMetadataTitle(String title) {
-        return title == null || title.isBlank() || title.startsWith("发布于") || title.startsWith("编辑于");
+        return title == null || title.isBlank()
+                || title.startsWith("发布于")
+                || title.startsWith("编辑于")
+                || title.matches("^[?？]{2,}\\s*\\d{4}[-/.年\\s].*");
+    }
+
+    private static boolean isMissingAuthor(String author) {
+        return author == null || author.isBlank() || "未知作者".equals(author.trim());
+    }
+
+    private static boolean shouldUpdateAuthor(String currentAuthor, String incomingAuthor) {
+        if (isMissingAuthor(incomingAuthor)) return false;
+        if (isMissingAuthor(currentAuthor)) return true;
+        String current = currentAuthor.trim();
+        String incoming = incomingAuthor.trim();
+        return !current.equals(incoming) && current.length() > incoming.length() + 3;
     }
 
     // 更新信息项（真正的 PATCH 语义：只更新请求中明确包含的字段）

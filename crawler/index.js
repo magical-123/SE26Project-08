@@ -236,7 +236,15 @@ function transformBilibiliItem(historyItem, subtitleText = '', isLiked = false, 
     title: historyItem.title || '无标题',
     url: url,
     platform: 'BILIBILI',
-    author: historyItem.author || historyItem.history?.author || historyItem.up_name || historyItem.history?.up_name || '',
+    author: historyItem.author_name
+      || historyItem.author
+      || historyItem.owner?.name
+      || historyItem.upper?.name
+      || historyItem.history?.author_name
+      || historyItem.history?.author
+      || historyItem.up_name
+      || historyItem.history?.up_name
+      || '',
     category: classifyBilibili(historyItem.tag_name),
     durationMinutes: Math.round(duration / 60) || 1,
     contentRaw: subtitleText
@@ -254,7 +262,12 @@ function transformZhihuItem(item, fullText = '') {
     title: item.title || '无标题',
     url: item.url || '',
     platform: 'ZHIHU',
-    author: item.author || '',
+    author: item.author
+      || item.authorName
+      || item.author_name
+      || item.creator?.name
+      || item.user?.name
+      || '',
     category: classifyByText(item.title, item.excerpt),
     durationMinutes: Math.max(1, Math.ceil((fullText.length || item.excerpt?.length || 100) / 500)),
     contentRaw: fullText ? fullText.substring(0, 4000) : (item.excerpt || '').substring(0, 4000),
@@ -274,7 +287,16 @@ function transformGitHubItem(item, readmeText = '', topics = []) {
     title: item.title || '未知仓库',
     url: item.url || '',
     platform: 'GITHUB',
-    author: item.author || '',
+    author: item.author
+      || item.owner
+      || (item.title || '').split('/')[0]
+      || (() => {
+        try {
+          return new URL(item.url).pathname.split('/').filter(Boolean)[0] || '';
+        } catch {
+          return '';
+        }
+      })(),
     category: classifyByText(item.description || '', topicText),
     durationMinutes: Math.max(1, Math.ceil((contentRaw.length || 100) / 500)),
     contentRaw: contentRaw.substring(0, 4000),
@@ -643,7 +665,10 @@ async function crawlGitHub(getToken) {
       (async () => {
         try {
           await withRetry(async () => {
-            const readme = await gh.fetchReadme(client, repo);
+            const [owner, repoName] = (repo.title || '').split('/');
+            const readme = owner && repoName
+              ? await gh.fetchRepoReadme(client, owner, repoName)
+              : '';
             if (readme) readmeMap.set(i, readme);
           }, `GitHub-README-${repo.title}`);
         } catch { /* skip */ }
