@@ -13,22 +13,12 @@ const shouldShowRedDot = (data) => {
   return data.isFavorite;
 };
 
-export function InfoSourceCard({ data, onClick, onTogglePremium, onToggleLike, onToggleFavorite, isPremium, premiumLabel }) {
+export function InfoSourceCard({ data, onClick, onTogglePremium, isPremium, premiumLabel }) {
   const showRedDot = shouldShowRedDot(data);
 
   const handleTogglePremium = (e) => {
     e.stopPropagation();
     onTogglePremium?.(data.id);
-  };
-
-  const handleToggleLike = (e) => {
-    e.stopPropagation();
-    onToggleLike?.(data.id);
-  };
-
-  const handleToggleFavorite = (e) => {
-    e.stopPropagation();
-    onToggleFavorite?.(data.id);
   };
 
   return (
@@ -75,20 +65,18 @@ export function InfoSourceCard({ data, onClick, onTogglePremium, onToggleLike, o
         </div>
 
         <div className="isc-actions">
-          <button
-            className={`isc-action-btn ${data.isLiked ? 'active' : ''}`}
-            onClick={handleToggleLike}
-            title={data.isLiked ? '取消点赞' : '点赞'}
+          <span
+            className={`isc-action-indicator ${data.isLiked ? 'active' : ''}`}
+            title={data.isLiked ? '已从平台同步：您点赞了此内容' : '未检测到平台点赞'}
           >
             <Heart size={14} fill={data.isLiked ? '#EF4444' : 'none'} color={data.isLiked ? '#EF4444' : undefined} />
-          </button>
-          <button
-            className={`isc-action-btn ${data.isFavorite ? 'active' : ''}`}
-            onClick={handleToggleFavorite}
-            title={data.isFavorite ? '取消收藏' : '收藏'}
+          </span>
+          <span
+            className={`isc-action-indicator ${data.isFavorite ? 'active' : ''}`}
+            title={data.isFavorite ? '已从平台同步：您收藏了此内容' : '未检测到平台收藏'}
           >
             <Star size={14} fill={data.isFavorite ? '#F59E0B' : 'none'} color={data.isFavorite ? '#F59E0B' : undefined} />
-          </button>
+          </span>
           <button
             className="isc-extract-btn"
             onClick={(e) => {
