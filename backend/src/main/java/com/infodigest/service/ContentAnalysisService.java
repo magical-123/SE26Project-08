@@ -29,7 +29,7 @@ public class ContentAnalysisService {
     @Autowired
     private AiSummaryService aiSummaryService;
 
-    private static final int MAX_CONTENT_LENGTH = 4000;
+    private static final int MAX_CONTENT_LENGTH = 100000;  // 提升到100k，支持完整字幕分析
 
     private static final String SYSTEM_PROMPT = """
         你是一个专业的数字内容营养师。请分析以下视频内容，按照"数字饮食营养成分"模型进行评估。
@@ -178,6 +178,25 @@ public class ContentAnalysisService {
             } catch (Exception e) {
                 log.error("AI summary generation failed for item {}: {}", itemId, e.getMessage());
                 // 不抛异常：营养分析已经成功，摘要可以下次调度重试
+            }
+        }
+
+        // 3. 清空字幕内容（AI分析完成后不再需要存储）
+        // 只有当营养分析和AI摘要都完成后才清空，避免中途失败导致数据丢失
+        if (hasNutrition || !hasSummary) {
+            // 重新检查是否都已完成
+            Optional<InformationItem> finalItem = itemRepository.findById(itemId);
+            if (finalItem.isPresent()) {
+                InformationItem item2 = finalItem.get();
+                boolean allDone = item2.getNutritionProtein() != null &&
+                                  item2.getAiSummary() != null &&
+                                  !item2.getAiSummary().isEmpty();
+                if (allDone && item2.getContentRaw() != null && !item2.getContentRaw().isEmpty()) {
+                    // 只清空字幕内容，保留标题作为 contentRaw（避免完全为空）
+                    String title = item2.getTitle() != null ? item2.getTitle() : "";
+                    itemRepository.updateContentRaw(itemId, title);
+                    log.info("✅ Cleared subtitle content for item {} after AI processing", itemId);
+                }
             }
         }
     }
