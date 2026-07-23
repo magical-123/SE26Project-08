@@ -11,6 +11,7 @@ import {
 import { Download, ExternalLink, ArrowRight, Sparkles, Info, RefreshCw, Eye } from 'lucide-react';
 import { PosterModal } from '../../components/PosterModal/PosterModal';
 import { InsightDrawer } from '../../components/InsightDrawer/InsightDrawer';
+import { useToast } from '../../components/Toast/Toast';
 import './Report.css';
 
 const API_BASE = 'http://localhost:8080';
@@ -24,6 +25,7 @@ function getAuthHeaders() {
 }
 
 export function Report() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('weekly');
   const [selectedWord, setSelectedWord] = useState(null);
   const [timeIndex, setTimeIndex] = useState(6); // 默认显示最后一天（第7天，索引6）
@@ -192,13 +194,13 @@ export function Report() {
       if (response.ok && data.success) {
         setInsight(data.report);
         setHasInsight(true);
-        alert('洞察生成成功！');
+        toast.success('洞察生成成功！');
       } else {
-        alert(`生成失败: ${data.error || '未知错误'}`);
+        toast.error(`生成失败: ${data.error || '未知错误'}`);
       }
     } catch (error) {
       console.error('生成洞察失败:', error);
-      alert(`生成洞察失败: ${error.message}`);
+      toast.error(`生成洞察失败: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -238,14 +240,14 @@ export function Report() {
         const timestamp = Date.now().toString();
         sessionStorage.setItem('dashboard:wordcloudUpdated', timestamp);
         console.log('[Report] 词云生成完成，已设置通知标记:', timestamp);
-        alert('词云生成成功！');
+        toast.success('词云生成成功！');
       } else {
         // 显示后端返回的详细错误信息
-        alert('生成失败: ' + (data.message || '未知错误'));
+        toast.error('生成失败: ' + (data.message || '未知错误'));
       }
     } catch (error) {
       console.error('重新生成词云失败:', error);
-      alert('生成失败: 网络错误或服务器异常，请稍后重试');
+      toast.error('生成失败: 网络错误或服务器异常，请稍后重试');
     } finally {
       setIsRegeneratingWordCloud(false);
     }
@@ -266,14 +268,14 @@ export function Report() {
       if (data.success && data.data) {
         setTopicClusters(data.data);
         // 显示成功提示
-        alert('话题聚类生成成功！');
+        toast.success('话题聚类生成成功！');
       } else {
         // 显示后端返回的详细错误信息
-        alert('生成失败: ' + (data.message || '未知错误'));
+        toast.error('生成失败: ' + (data.message || '未知错误'));
       }
     } catch (error) {
       console.error('重新生成话题聚类失败:', error);
-      alert('生成失败: 网络错误或服务器异常，请稍后重试');
+      toast.error('生成失败: 网络错误或服务器异常，请稍后重试');
     } finally {
       setIsRegeneratingTopics(false);
     }

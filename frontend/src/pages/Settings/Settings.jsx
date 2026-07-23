@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { settingsApi, crawlApi, aiConfigApi } from '../../utils/api';
 import { QRCodeSVG } from 'qrcode.react';
+import { useToast } from '../../components/Toast/Toast';
+import { ConfirmModal } from '../../components/ConfirmModal/ConfirmModal';
 import './Settings.css';
 
 function defaultPlatforms() {
@@ -14,6 +16,7 @@ function defaultPlatforms() {
 }
 
 export function Settings() {
+  const toast = useToast();
   const [platforms, setPlatforms] = useState(defaultPlatforms);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,6 +43,9 @@ export function Settings() {
 
   // 自定义输入弹窗状态
   const [promptConfig, setPromptConfig] = useState(null);
+
+  // 确认弹窗状态
+  const [confirmState, setConfirmState] = useState(null); // { platform: string, type: 'disconnect' | 'clearCredential' }
 
   // AI 配置状态
   const [selectedProvider, setSelectedProvider] = useState('openai');
@@ -302,7 +308,7 @@ export function Settings() {
       setQrPolling(true);
       pollLoop(key);
     } catch (err) {
-      alert('获取二维码失败：' + err.message);
+      toast.error('获取二维码失败：' + err.message);
       setQrLoading(false);
     }
   };
@@ -361,7 +367,7 @@ export function Settings() {
         console.warn('触发爬虫失败（不影响授权）:', err.message);
       });
 
-      alert('B 站登录成功！凭证已自动保存。爬虫已启动，即将为您抓取数据...');
+      toast.success('B 站登录成功！凭证已自动保存。爬虫已启动，即将为您抓取数据...');
 
       // 跳转到 Inbox 查看抓取结果
       setSaving(false);
@@ -370,7 +376,7 @@ export function Settings() {
       // 后台等待爬虫启动完成
       crawlPromise;
     } catch (err) {
-      alert('登录成功但后续处理失败：' + err.message);
+      toast.error('登录成功但后续处理失败：' + err.message);
       setSaving(false);
     }
   };
@@ -389,7 +395,7 @@ export function Settings() {
       setZhihuQrPolling(true);
       pollZhihuLoop(data.qrcodeKey || '');
     } catch (err) {
-      alert('获取二维码失败：' + err.message);
+      toast.error('获取二维码失败：' + err.message);
       setZhihuQrLoading(false);
     }
   };
@@ -445,14 +451,14 @@ export function Settings() {
         console.warn('触发爬虫失败（不影响授权）:', err.message);
       });
 
-      alert('知乎登录成功！凭证已自动保存。爬虫已启动，即将为您抓取数据...');
+      toast.success('知乎登录成功！凭证已自动保存。爬虫已启动，即将为您抓取数据...');
 
       setSaving(false);
       window.location.href = '/inbox';
 
       crawlPromise;
     } catch (err) {
-      alert('登录成功但后续处理失败：' + err.message);
+      toast.error('登录成功但后续处理失败：' + err.message);
       setSaving(false);
     }
   };
@@ -515,7 +521,7 @@ export function Settings() {
       });
 
       // 5. 提示用户
-      alert(platform === 'xiaohongshu' && !credential
+      toast.success(platform === 'xiaohongshu' && !credential
         ? '已保存公开模式。爬虫已启动，即将为您抓取数据...'
         : '授权成功！凭证已安全保存。爬虫已启动，即将为您抓取数据...');
 
@@ -528,20 +534,25 @@ export function Settings() {
       // 后台等待爬虫启动完成（不阻塞）
       crawlPromise;
     } catch (err) {
-      alert('保存失败：' + err.message);
+      toast.error('保存失败：' + err.message);
       setSaving(false);
     }
   };
 
   const handleDisconnect = async (platform) => {
-    if (!window.confirm(`确定要断开 ${platform} 的连接吗？该平台已抓取的数据也将被删除。`)) return;
+    setConfirmState({ platform, type: 'disconnect' });
+  };
 
+  const handleConfirmDisconnect = async () => {
+    if (!confirmState) return;
+    const { platform } = confirmState;
+    setConfirmState(null);
     setDisconnecting(prev => ({ ...prev, [platform]: true }));
     try {
       await settingsApi.deleteCredential(platform);
       await refreshPlatformStatus();
     } catch (err) {
-      alert('断开失败：' + err.message);
+      toast.error('断开失败：' + err.message);
     } finally {
       setDisconnecting(prev => ({ ...prev, [platform]: false }));
     }
@@ -554,13 +565,19 @@ export function Settings() {
   };
 
   const handleClearLegacyCredential = async (platform) => {
-    if (!window.confirm(`确定清除 ${platform} 的旧 Cookie 吗？已捕获的 Inbox 数据会保留，之后由浏览器扩展自动捕获。`)) return;
+    setConfirmState({ platform, type: 'clearCredential' });
+  };
+
+  const handleConfirmClearCredential = async () => {
+    if (!confirmState) return;
+    const { platform } = confirmState;
+    setConfirmState(null);
     setDisconnecting(prev => ({ ...prev, [`${platform}-credential`]: true }));
     try {
       await settingsApi.clearCredentialOnly(platform);
       await refreshPlatformStatus();
     } catch (err) {
-      alert('清除旧凭据失败：' + err.message);
+      toast.error('清除旧凭据失败：' + err.message);
     } finally {
       setDisconnecting(prev => ({ ...prev, [`${platform}-credential`]: false }));
     }
@@ -912,6 +929,25 @@ export function Settings() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmState?.type === 'disconnect'}
+        onClose={() => setConfirmState(null)}
+        onConfirm={handleConfirmDisconnect}
+        title="断开平台连接"
+        message={`确定要断开 ${confirmState?.platform || ''} 的连接吗？该平台已抓取的数据也将被删除。`}
+        confirmText="断开"
+        danger
+      />
+      <ConfirmModal
+        isOpen={confirmState?.type === 'clearCredential'}
+        onClose={() => setConfirmState(null)}
+        onConfirm={handleConfirmClearCredential}
+        title="清除旧 Cookie"
+        message={`确定清除 ${confirmState?.platform || ''} 的旧 Cookie 吗？已捕获的 Inbox 数据会保留，之后由浏览器扩展自动捕获。`}
+        confirmText="清除"
+        danger
+      />
     </div>
   );
 }
