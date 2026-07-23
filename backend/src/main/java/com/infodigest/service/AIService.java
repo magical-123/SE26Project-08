@@ -106,7 +106,8 @@ public class AIService {
         String requestBody = String.format("""
             {
               "model": "%s",
-              "max_tokens": 2048,
+              "temperature": 0.3,
+              "max_tokens": 8192,
               "messages": [
                 {
                   "role": "user",
