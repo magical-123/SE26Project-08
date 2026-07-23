@@ -317,6 +317,64 @@ public class DashboardController {
     }
 
     /**
+     * 处理复习卡片的反馈 (记住了/忘记了)
+     */
+    @PostMapping("/reviews/{cardId}/feedback")
+    public ResponseEntity<Map<String, Object>> handleReviewFeedback(@PathVariable Long cardId, @RequestBody Map<String, Boolean> payload) {
+        Long userId = getCurrentUserId();
+        Boolean remembered = payload.get("remembered");
+        
+        if (remembered == null) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "Missing 'remembered' field in request body");
+            return ResponseEntity.badRequest().body(result);
+        }
+
+        try {
+            reviewCardGenerationService.processFeedback(cardId, userId, remembered);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("message", "Feedback processed successfully");
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException | SecurityException e) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "Failed to process feedback: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
+        }
+    }
+
+    /**
+     * 删除复习卡片 (不再复习)
+     */
+    @DeleteMapping("/reviews/{cardId}")
+    public ResponseEntity<Map<String, Object>> deleteReviewCard(@PathVariable Long cardId) {
+        Long userId = getCurrentUserId();
+        try {
+            reviewCardRepository.findById(cardId).ifPresent(card -> {
+                if (card.getUserId().equals(userId)) {
+                    reviewCardRepository.deleteById(cardId);
+                }
+            });
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("message", "Card deleted successfully");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "Failed to delete card: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
+        }
+    }
+
+    /**
      * 手动触发生成今日复习卡片
      */
     @PostMapping("/reviews/generate")
