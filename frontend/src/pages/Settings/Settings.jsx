@@ -38,14 +38,11 @@ export function Settings() {
   const [zhihuQrPolling, setZhihuQrPolling] = useState(false);
   const [zhihuQrLoading, setZhihuQrLoading] = useState(false);
 
-  // 娱乐信息隐藏开关
-  const [hideEntertainment, setHideEntertainment] = useState(false);
-  const [togglingHide, setTogglingHide] = useState(false);
-
   // 自定义输入弹窗状态
   const [promptConfig, setPromptConfig] = useState(null);
 
   // AI 配置状态
+  const [selectedProvider, setSelectedProvider] = useState('openai');
   const [selectedModel, setSelectedModel] = useState('gpt-4');
   const [customConfig, setCustomConfig] = useState({
     modelName: '',
@@ -57,6 +54,52 @@ export function Settings() {
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [isTestingAI, setIsTestingAI] = useState(false);
   const [testResult, setTestResult] = useState(null); // { success: boolean, message: string }
+
+  // ===== 供应商与模型定义 =====
+  /** 供应商列表：每个供应商有 label、模型列表、是否需要 API Key 等 */
+  const providers = {
+    openai: { label: 'OpenAI', needsApiKey: true, endpoint: 'https://api.openai.com/v1/chat/completions', models: {
+      'gpt-4': { label: 'GPT-4', modelType: 'GPT_4' },
+      'gpt-4-turbo': { label: 'GPT-4 Turbo', modelType: 'GPT_4_TURBO' },
+      'gpt-3.5-turbo': { label: 'GPT-3.5 Turbo', modelType: 'GPT_3_5_TURBO' },
+    }},
+    anthropic: { label: 'Anthropic (Claude)', needsApiKey: true, endpoint: 'https://api.anthropic.com/v1/messages', models: {
+      'claude-3-opus': { label: 'Claude 3 Opus', modelType: 'CLAUDE_3_OPUS' },
+      'claude-3-sonnet': { label: 'Claude 3 Sonnet', modelType: 'CLAUDE_3_SONNET' },
+      'claude-3-haiku': { label: 'Claude 3 Haiku', modelType: 'CLAUDE_3_HAIKU' },
+    }},
+    google: { label: 'Google', needsApiKey: true, endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', models: {
+      'gemini-pro': { label: 'Gemini Pro', modelType: 'GEMINI_PRO' },
+    }},
+    deepseek: { label: 'DeepSeek (深度求索)', needsApiKey: true, endpoint: 'https://api.deepseek.com/v1/chat/completions', models: {
+      'deepseek-v4-flash': { label: 'DeepSeek V4 Flash', modelType: 'DEEPSEEK' },
+      'deepseek-chat': { label: 'DeepSeek Chat', modelType: 'DEEPSEEK' },
+    }},
+    qwen: { label: '通义千问 (Alibaba)', needsApiKey: true, endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', models: {
+      'qwen-plus': { label: 'Qwen Plus', modelType: 'QWEN' },
+      'qwen-turbo': { label: 'Qwen Turbo', modelType: 'QWEN' },
+      'qwen-max': { label: 'Qwen Max', modelType: 'QWEN' },
+    }},
+    glm: { label: '智谱 GLM (Zhipu)', needsApiKey: true, endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', models: {
+      'glm-4-plus': { label: 'GLM-4 Plus', modelType: 'GLM' },
+      'glm-4-flash': { label: 'GLM-4 Flash', modelType: 'GLM' },
+    }},
+    kimi: { label: '月之暗面 Kimi (Moonshot)', needsApiKey: true, endpoint: 'https://api.moonshot.cn/v1/chat/completions', models: {
+      'moonshot-v1-8k': { label: 'Moonshot v1 8K', modelType: 'KIMI' },
+      'moonshot-v1-32k': { label: 'Moonshot v1 32K', modelType: 'KIMI' },
+    }},
+    doubao: { label: '字节豆包 (ByteDance)', needsApiKey: true, endpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', models: {
+      'doubao-pro-32k': { label: 'Doubao Pro 32K', modelType: 'DOUBAO' },
+      'doubao-1.5-pro': { label: 'Doubao 1.5 Pro', modelType: 'DOUBAO' },
+    }},
+    custom: { label: '自定义模型', needsApiKey: true, needsCustomFields: true, models: {
+      'custom': { label: '自定义', modelType: 'CUSTOM' },
+    }},
+  };
+  /** 当前供应商的模型列表 */
+  const currentModels = providers[selectedProvider]?.models || {};
+  /** 当前是否需要填写 API Key */
+  const needsApiKey = providers[selectedProvider]?.needsApiKey || false;
 
   // 页面加载时从后端获取真实平台连接状态
   useEffect(() => {
@@ -71,10 +114,6 @@ export function Settings() {
           if (remote) return { ...p, connected: remote.connected, desc: remote.desc };
           return p;
         }));
-        // 读取娱乐信息隐藏状态
-        if (typeof data.hideEntertainment === 'boolean') {
-          setHideEntertainment(data.hideEntertainment);
-        }
       })
       .catch((err) => {
         if (cancelled) return;
@@ -120,52 +159,64 @@ export function Settings() {
     }
   };
 
-  const handleToggleEntertainmentHide = async () => {
-    setTogglingHide(true);
-    try {
-      const data = await settingsApi.toggleEntertainmentHide();
-      if (data.hideEntertainment !== undefined) {
-        setHideEntertainment(data.hideEntertainment);
-      }
-    } catch (err) {
-      console.warn('切换娱乐信息隐藏失败:', err.message);
-    } finally {
-      setTogglingHide(false);
-    }
-  };
-
   // AI 配置相关函数
   const loadAIConfig = async () => {
     try {
       const config = await aiConfigApi.getConfig();
-      const modelTypeMap = {
-        'GPT_4': 'gpt-4',
-        'GPT_4_TURBO': 'gpt-4-turbo',
-        'GPT_3_5_TURBO': 'gpt-3.5-turbo',
-        'CLAUDE_3_OPUS': 'claude-3-opus',
-        'CLAUDE_3_SONNET': 'claude-3-sonnet',
-        'CLAUDE_3_HAIKU': 'claude-3-haiku',
-        'GEMINI_PRO': 'gemini-pro',
-        'CUSTOM': 'custom'
-      };
 
-      setSelectedModel(modelTypeMap[config.modelType] || 'gpt-4');
+      // 构建反向映射：modelType → { providerKey, modelKey }
+      let foundProvider = 'openai';
+      let foundModel = 'gpt-4';
+      for (const [pKey, pVal] of Object.entries(providers)) {
+        for (const [mKey, mVal] of Object.entries(pVal.models)) {
+          if (mVal.modelType === config.modelType) {
+            foundProvider = pKey;
+            // 对于国产模型，用 customModelName 匹配具体的模型
+            if (pVal.needsApiKey && config.customModelName) {
+              // 如果保存的模型名匹配任一选项，就用它
+              if (mKey === config.customModelName) {
+                foundModel = mKey;
+              } else {
+                // 否则看有没有哪个选项的 key 匹配
+                const match = Object.keys(pVal.models).find(k => k === config.customModelName);
+                foundModel = match || mKey;
+              }
+            } else {
+              foundModel = mKey;
+            }
+            break;
+          }
+        }
+      }
+      setSelectedProvider(foundProvider);
+      setSelectedModel(foundModel);
 
       // 保存已有的屏蔽 API Key 用于显示
       if (config.apiKey) {
         setExistingApiKey(config.apiKey);
       }
 
-      if (config.modelType === 'CUSTOM') {
+      // 需要 API Key 的供应商：预填 endpoint 和 modelName
+      const prov = providers[foundProvider];
+      if (prov.needsApiKey) {
         setCustomConfig({
-          modelName: config.customModelName || '',
-          apiEndpoint: config.apiEndpoint || '',
-          apiKey: '' // 不预填充 API Key，用户需要重新输入
+          modelName: config.customModelName || foundModel,
+          apiEndpoint: config.apiEndpoint || (prov.endpoint || ''),
+          apiKey: '' // 不预填充 API Key
         });
       }
     } catch (error) {
       console.error('加载 AI 配置失败:', error);
     }
+  };
+
+  const handleProviderChange = (e) => {
+    const newProvider = e.target.value;
+    setSelectedProvider(newProvider);
+    // 切换到新供应商时默认选中其第一个模型
+    const firstModel = Object.keys(providers[newProvider].models)[0];
+    setSelectedModel(firstModel);
+    setSaveStatus('');
   };
 
   const handleModelChange = (e) => {
@@ -186,24 +237,15 @@ export function Settings() {
     setSaveStatus('');
 
     try {
-      const modelTypeMap = {
-        'gpt-4': 'GPT_4',
-        'gpt-4-turbo': 'GPT_4_TURBO',
-        'gpt-3.5-turbo': 'GPT_3_5_TURBO',
-        'claude-3-opus': 'CLAUDE_3_OPUS',
-        'claude-3-sonnet': 'CLAUDE_3_SONNET',
-        'claude-3-haiku': 'CLAUDE_3_HAIKU',
-        'gemini-pro': 'GEMINI_PRO',
-        'custom': 'CUSTOM'
-      };
+      const prov = providers[selectedProvider];
+      const modelDef = prov.models[selectedModel];
+      const needsExtra = prov.needsApiKey || prov.needsCustomFields;
 
       const requestBody = {
-        modelType: modelTypeMap[selectedModel],
-        apiKey: selectedModel === 'custom'
-          ? (customConfig.apiKey || null)  // 空字符串传 null，后端保持原有值
-          : null,
-        apiEndpoint: selectedModel === 'custom' ? customConfig.apiEndpoint : null,
-        customModelName: selectedModel === 'custom' ? customConfig.modelName : null
+        modelType: modelDef.modelType,
+        apiKey: needsExtra ? (customConfig.apiKey || null) : null,
+        apiEndpoint: needsExtra ? (customConfig.apiEndpoint || (prov.endpoint || null)) : null,
+        customModelName: needsExtra ? (customConfig.modelName || selectedModel) : null
       };
 
       await aiConfigApi.saveConfig(requestBody);
@@ -226,22 +268,15 @@ export function Settings() {
     setTestResult(null);
 
     try {
-      const modelTypeMap = {
-        'gpt-4': 'GPT_4',
-        'gpt-4-turbo': 'GPT_4_TURBO',
-        'gpt-3.5-turbo': 'GPT_3_5_TURBO',
-        'claude-3-opus': 'CLAUDE_3_OPUS',
-        'claude-3-sonnet': 'CLAUDE_3_SONNET',
-        'claude-3-haiku': 'CLAUDE_3_HAIKU',
-        'gemini-pro': 'GEMINI_PRO',
-        'custom': 'CUSTOM'
-      };
+      const prov = providers[selectedProvider];
+      const modelDef = prov.models[selectedModel];
+      const needsExtra = prov.needsApiKey || prov.needsCustomFields;
 
       const requestBody = {
-        modelType: modelTypeMap[selectedModel],
-        apiKey: selectedModel === 'custom' ? (customConfig.apiKey || null) : null,
-        apiEndpoint: selectedModel === 'custom' ? customConfig.apiEndpoint : null,
-        customModelName: selectedModel === 'custom' ? customConfig.modelName : null
+        modelType: modelDef.modelType,
+        apiKey: needsExtra ? (customConfig.apiKey || null) : null,
+        apiEndpoint: needsExtra ? (customConfig.apiEndpoint || (prov.endpoint || null)) : null,
+        customModelName: needsExtra ? (customConfig.modelName || selectedModel) : null
       };
 
       const res = await aiConfigApi.testConfig(requestBody);
@@ -639,21 +674,6 @@ export function Settings() {
               </label>
             </div>
 
-            <div className="privacy-item">
-              <div className="pi-info">
-                <h4>娱乐类信息隐藏</h4>
-                <p>自动隐藏标签为"娱乐短剧"等低营养信息，不在趋势中展示</p>
-              </div>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={hideEntertainment}
-                  disabled={togglingHide}
-                  onChange={handleToggleEntertainmentHide}
-                />
-                <span className="slider"></span>
-              </label>
-            </div>
           </div>
         </GlassCard>
 
@@ -663,47 +683,59 @@ export function Settings() {
 
           <div className="ai-settings">
             <div className="ai-model-selector">
-              <label htmlFor="model-select" className="ai-label">选择模型</label>
+              <label htmlFor="provider-select" className="ai-label">供应商</label>
+              <select
+                id="provider-select"
+                className="model-select"
+                value={selectedProvider}
+                onChange={handleProviderChange}
+              >
+                {Object.entries(providers).map(([key, prov]) => (
+                  <option key={key} value={key}>{prov.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="ai-model-selector">
+              <label htmlFor="model-select" className="ai-label">模型</label>
               <select
                 id="model-select"
                 className="model-select"
                 value={selectedModel}
                 onChange={handleModelChange}
               >
-                <option value="gpt-4">GPT-4</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                <option value="claude-3-opus">Claude 3 Opus</option>
-                <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-                <option value="claude-3-haiku">Claude 3 Haiku</option>
-                <option value="gemini-pro">Gemini Pro</option>
-                <option value="custom">自定义模型</option>
+                {Object.entries(currentModels).map(([key, m]) => (
+                  <option key={key} value={key}>{m.label}</option>
+                ))}
               </select>
             </div>
 
-            {selectedModel === 'custom' && (
+            {needsApiKey && (
               <div className="custom-model-config">
-                <div className="input-group">
-                  <label htmlFor="model-name">模型名称</label>
-                  <input
-                    id="model-name"
-                    type="text"
-                    placeholder="例如：gpt-4-custom"
-                    value={customConfig.modelName}
-                    onChange={(e) => handleCustomConfigChange('modelName', e.target.value)}
-                  />
-                </div>
-
-                <div className="input-group">
-                  <label htmlFor="api-endpoint">API 端点</label>
-                  <input
-                    id="api-endpoint"
-                    type="text"
-                    placeholder="例如：https://api.openai.com/v1/chat/completions"
-                    value={customConfig.apiEndpoint}
-                    onChange={(e) => handleCustomConfigChange('apiEndpoint', e.target.value)}
-                  />
-                </div>
+                {providers[selectedProvider].needsCustomFields && (
+                  <>
+                    <div className="input-group">
+                      <label htmlFor="model-name">模型名称</label>
+                      <input
+                        id="model-name"
+                        type="text"
+                        placeholder="例如：gpt-4-custom"
+                        value={customConfig.modelName}
+                        onChange={(e) => handleCustomConfigChange('modelName', e.target.value)}
+                      />
+                    </div>
+                    <div className="input-group">
+                      <label htmlFor="api-endpoint">API 端点</label>
+                      <input
+                        id="api-endpoint"
+                        type="text"
+                        placeholder="例如：https://api.openai.com/v1/chat/completions"
+                        value={customConfig.apiEndpoint}
+                        onChange={(e) => handleCustomConfigChange('apiEndpoint', e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="input-group">
                   <label htmlFor="api-key">API Key</label>
@@ -740,24 +772,6 @@ export function Settings() {
               </div>
             )}
 
-            {selectedModel !== 'custom' && (
-              <div className="ai-actions-group">
-                <button
-                  className={`test-config-btn ${isTestingAI ? 'testing' : ''}`}
-                  onClick={handleTestConfig}
-                  disabled={isTestingAI || isLoadingAI}
-                >
-                  {isTestingAI ? '测试中...' : '测试连接'}
-                </button>
-                <button
-                  className={`save-config-btn ${saveStatus === 'success' ? 'success' : ''}`}
-                  onClick={handleSaveConfig}
-                  disabled={isLoadingAI || isTestingAI}
-                >
-                  {isLoadingAI ? '保存中...' : saveStatus === 'success' ? '✓ 已保存' : '保存配置'}
-                </button>
-              </div>
-            )}
           </div>
 
           {testResult && (

@@ -52,7 +52,7 @@ public class AIService {
             return callClaudeForInsight(config, prompt);
         } else if (modelType.startsWith("GEMINI")) {
             return callGeminiForInsight(config, prompt);
-        } else if (modelType.equalsIgnoreCase("deepseek") || modelType.equalsIgnoreCase("DEEPSEEK")) {
+        } else if (modelType.equals("DEEPSEEK") || modelType.equals("QWEN") || modelType.equals("GLM") || modelType.equals("KIMI") || modelType.equals("DOUBAO")) {
             return callCustomModelForInsight(config, prompt);
         } else if (modelType.equals("CUSTOM")) {
             return callCustomModelForInsight(config, prompt);
@@ -216,7 +216,7 @@ public class AIService {
             return callClaude(config, systemPrompt, userContent);
         } else if (modelType.startsWith("GEMINI")) {
             return callGemini(config, systemPrompt, userContent);
-        } else if (modelType.equalsIgnoreCase("deepseek") || modelType.equalsIgnoreCase("DEEPSEEK")) {
+        } else if (modelType.equals("DEEPSEEK") || modelType.equals("QWEN") || modelType.equals("GLM") || modelType.equals("KIMI") || modelType.equals("DOUBAO")) {
             return callCustomModel(config, systemPrompt, userContent);
         } else if (modelType.equals("CUSTOM")) {
             return callCustomModel(config, systemPrompt, userContent);

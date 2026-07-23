@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { FriendGraphView } from '../../components/FriendGraphView/FriendGraphView';
-import { UserPlus, Search, X, Check, Loader2, Eye, ChevronDown } from 'lucide-react';
+import { FriendTrendView } from '../../components/FriendTrendView/FriendTrendView';
+import { UserPlus, Search, X, Check, Loader2, Eye, ChevronDown, TrendingUp } from 'lucide-react';
 import './Social.css';
 
 const API_BASE = 'http://localhost:8080';
@@ -134,6 +135,7 @@ export function Social() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewGraph, setViewGraph] = useState(null); // { id, name }
+  const [viewTrend, setViewTrend] = useState(null); // { id, name }
   const [receivedCollapsed, setReceivedCollapsed] = useState(false);
   const [sentCollapsed, setSentCollapsed] = useState(false);
 
@@ -313,6 +315,10 @@ export function Social() {
               <Eye size={14} />
               <span>查看知识图谱</span>
             </div>
+            <button className="fc-trend-btn" style={{ '--glow': friend.activeColor }} onClick={() => setViewTrend({ id: friend.id, name: friend.name })}>
+              <TrendingUp size={14} />
+              <span>查看浏览趋势</span>
+            </button>
           </GlassCard>
         ))}
       </div>
@@ -329,6 +335,13 @@ export function Social() {
           friendId={viewGraph.id}
           friendName={viewGraph.name}
           onClose={() => setViewGraph(null)}
+        />
+      )}
+      {viewTrend && (
+        <FriendTrendView
+          friendId={viewTrend.id}
+          friendName={viewTrend.name}
+          onClose={() => setViewTrend(null)}
         />
       )}
     </div>
