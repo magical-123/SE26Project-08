@@ -380,11 +380,7 @@
 }
 
 .keyword-chip:hover:not([disabled]) {
-  transform: translateY(-2px) scale(1.04);
-  border-color: #0EA5E9;
-  color: #0EA5E9;
-  background: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 6px 18px color-mix(in srgb, #0EA5E9 18%, transparent);
+  transform: scale(1.08);
 }
 
 .keyword-chip.active {

@@ -12,6 +12,7 @@ import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
 import { ZoomIn, ZoomOut, Eye, EyeOff, Camera, Sparkles } from 'lucide-react';
 import { buildGraphData, ConceptNode, SourceNode, MAX_LABEL_LENGTH } from './graphShared';
+import { graphApi } from '../../utils/api';
 import './KnowledgeGraph.css';
 
 /* ------------------------------------------------------------------ */
@@ -29,6 +30,8 @@ function KnowledgeGraphInner() {
   const [dataLoading, setDataLoading] = useState(true);
   const [premiumItems, setPremiumItems] = useState([]);
   const { items } = useInboxItems();
+  const [selectedKeywords, setSelectedKeywords] = useState([]);
+  const [suggestedKeywords, setSuggestedKeywords] = useState([]);
   const reactFlowInstance = useReactFlow();
   const isDraggingRef = useRef(false);
   const initialPositionsSavedRef = useRef(false);
@@ -44,16 +47,18 @@ function KnowledgeGraphInner() {
     return undefined;
   });
 
+  const [visibleConcepts, setVisibleConcepts] = useState(new Set());
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const API_BASE = 'http://localhost:8080';
   const getAuthHeaders = () => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${sessionStorage.getItem('token')}`
   });
 
-  const [visibleConcepts, setVisibleConcepts] = useState(new Set());
-
   // Fetch graph data and positions from API
-  useEffect(() => {
+  const fetchGraphData = useCallback(() => {
+    setDataLoading(true);
     const headers = getAuthHeaders();
     Promise.all([
       fetch(`${API_BASE}/api/graph/data`, { headers }).then(res => res.ok ? res.json() : null),
@@ -81,11 +86,23 @@ function KnowledgeGraphInner() {
             id: item.id,
             title: item.title,
             platform: item.platform,
-            author: item.platform || '未知来源',
-            duration: (item.durationMinutes || 1) + ' 分钟',
+            author: item.author || item.platform || '未知来源',
+            durationMinutes: item.durationMinutes,
+            duration: item.durationMinutes ? item.durationMinutes + ' 分钟' : '-',
             date: item.crawledAt || '',
             aiSummary: item.aiSummary || null,
             knowledgeScore: item.knowledgeScore || null,
+            nutritionProtein: item.nutritionProtein || null,
+            nutritionCarbs: item.nutritionCarbs || null,
+            nutritionVitamins: item.nutritionVitamins || null,
+            nutritionFats: item.nutritionFats || null,
+            nutritionFiber: item.nutritionFiber || null,
+            nutritionReasoning: item.nutritionReasoning || null,
+            userNote: item.userNote || null,
+            note: item.note || null,
+            url: item.url || null,
+            isLiked: item.isLiked || false,
+            isFavorite: item.isFavorite || false,
           }));
           setPremiumItems(apiPremiumItems);
 
@@ -97,6 +114,10 @@ function KnowledgeGraphInner() {
         setDataLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    fetchGraphData();
+  }, [fetchGraphData, refreshKey]);
 
   const savePositions = async (positions) => {
     try {
@@ -155,6 +176,20 @@ function KnowledgeGraphInner() {
 
   const handleDrawerClose = () => {
     setIsDrawerOpen(false);
+    setSelectedKeywords([]);
+    setSuggestedKeywords([]);
+  };
+
+  const handleToggleKeyword = (kw) => {
+    const itemId = selectedNode?.data?.id;
+    if (!itemId) return;
+    graphApi.toggleItemKeyword(itemId, kw).then(concepts => {
+      const kws = concepts.map(c => c.label);
+      const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
+      setSelectedKeywords(highlighted);
+      setSuggestedKeywords(kws.map(label => ({ label, isNew: false })));
+      setRefreshKey(k => k + 1);
+    }).catch(e => console.error('切换高亮失败:', e));
   };
 
   const graphData = useMemo(() => {
@@ -320,9 +355,56 @@ function KnowledgeGraphInner() {
         position: node.position,
       });
       setIsDrawerOpen(true);
+
+      // 获取关键词
+      const itemId = nodeData?.id || node.id;
+      if (itemId) {
+        graphApi.getItemKeywords(itemId).then(concepts => {
+          const kws = concepts.map(c => c.label);
+          const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
+          setSelectedKeywords(highlighted.length > 0 ? highlighted : kws);
+          setSuggestedKeywords(kws.map(label => ({ label, isNew: false })));
+        }).catch(e => {
+          console.error('获取关键词失败:', e);
+          setSelectedKeywords([]);
+          setSuggestedKeywords([]);
+        });
+      }
     }
     setFocusedNodeId(node.id);
   }, [focusedNodeId]);
+
+  const handleDeleteKeyword = async (label) => {
+    if (!label) return;
+    try {
+      await graphApi.deleteKeyword(label);
+      setSelectedKeywords(prev => prev.filter(k => k !== label));
+      setSuggestedKeywords(prev => prev.filter(k => k.label !== label));
+      setRefreshKey(k => k + 1);
+    } catch (e) {
+      console.error('删除关键词失败:', e);
+    }
+  };
+
+  const handleAddKeyword = () => {
+    const kw = prompt('请输入新关键词：');
+    const itemId = selectedNode?.data?.id;
+    if (kw && itemId && !selectedKeywords.includes(kw)) {
+      setSelectedKeywords(prev => {
+        const updated = [...prev, kw];
+        graphApi.updateItemKeywords(itemId, updated.map(label => ({
+          label,
+          isNew: suggestedKeywords.find(s => s.label === label)?.isNew || false
+        }))).then(() => {
+          setRefreshKey(k => k + 1);
+        }).catch(e => console.error('添加关键词失败:', e));
+        return updated;
+      });
+      if (!suggestedKeywords.find(s => s.label === kw)) {
+        setSuggestedKeywords(prev => [...prev, { label: kw, isNew: true }]);
+      }
+    }
+  };
 
 
 
@@ -330,6 +412,8 @@ function KnowledgeGraphInner() {
     setSelectedNode(null);
     setFocusedNodeId(null);
     setIsDrawerOpen(false);
+    setSelectedKeywords([]);
+    setSuggestedKeywords([]);
   }, []);
 
   const onMoveEnd = useCallback((_event, viewport) => {
@@ -463,6 +547,11 @@ function KnowledgeGraphInner() {
         onClose={handleDrawerClose}
         data={selectedNode}
         sourceTitle={selectedNode?.title}
+        selectedKeywords={selectedKeywords}
+        suggestedKeywords={suggestedKeywords}
+        onToggleKeyword={handleToggleKeyword}
+        onDeleteKeyword={handleDeleteKeyword}
+        onAddKeyword={handleAddKeyword}
       />
     </div>
   );

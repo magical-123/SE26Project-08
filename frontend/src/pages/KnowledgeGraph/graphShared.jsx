@@ -90,12 +90,13 @@ export function buildGraphData(premiumItems, visibleConcepts, savedPositions, co
     // 如果有保存的位置，直接使用；否则按圆形排列计算
     const saved = savedPositions[concept.id];
     let x, y;
+    let centerAngle = 0;
     if (saved) {
       x = saved.x;
       y = saved.y;
     } else {
       const sliceAngle = (weight / totalWeight) * 2 * Math.PI;
-      const centerAngle = currentAngle + sliceAngle / 2;
+      centerAngle = currentAngle + sliceAngle / 2;
       x = cx + conceptRadius * Math.cos(centerAngle);
       y = cy + conceptRadius * Math.sin(centerAngle);
       currentAngle += sliceAngle;
@@ -103,8 +104,10 @@ export function buildGraphData(premiumItems, visibleConcepts, savedPositions, co
 
     const nodeSize = Math.min(40 + count * 6, 110);
     const sliceAngle = saved ? 0 : (weight / totalWeight) * 2 * Math.PI;
+    // 计算概念节点相对于原点的角度（已保存则从坐标反算）
+    const angleFromOrigin = saved ? Math.atan2(y - cy, x - cx) : centerAngle;
 
-    conceptPositions[concept.id] = { x, y, color: concept.color, angle: 0, sliceAngle, size: nodeSize };
+    conceptPositions[concept.id] = { x, y, color: concept.color, angle: angleFromOrigin, sliceAngle, size: nodeSize };
 
     nodes.push({
       id: concept.id,
@@ -190,7 +193,7 @@ export function buildGraphData(premiumItems, visibleConcepts, savedPositions, co
         sx /= activeItemConcepts.length;
         sy /= activeItemConcepts.length;
 
-        const jitterRadius = 12 + localIndex * 15;
+        const jitterRadius = 18 + localIndex * 20;
         const angle = localIndex * 2.39996;
         sx += jitterRadius * Math.cos(angle);
         sy += jitterRadius * Math.sin(angle);
@@ -228,6 +231,45 @@ export function buildGraphData(premiumItems, visibleConcepts, savedPositions, co
       });
     });
   });
+
+  // ===== 重叠检测与推开：确保未保存位置的圆不会重叠 =====
+  const MIN_PADDING = 6;
+  const MAX_ITER = 15;
+  for (let iter = 0; iter < MAX_ITER; iter++) {
+    let moved = false;
+    for (let i = 0; i < nodes.length; i++) {
+      const ni = nodes[i];
+      // 概念节点和已保存位置的节点不动
+      if (ni.type === 'concept' || savedPositions[ni.id]) continue;
+      for (let j = 0; j < nodes.length; j++) {
+        if (i === j) continue;
+        const nj = nodes[j];
+        const radiusI = (ni.data.size || 24) / 2;
+        const radiusJ = (nj.data.size || 24) / 2;
+
+        const dx = nj.position.x - ni.position.x;
+        const dy = nj.position.y - ni.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = radiusI + radiusJ + MIN_PADDING;
+
+        if (dist < minDist && dist > 0.001) {
+          const push = (minDist - dist) / 2;
+          const nx = dx / dist;
+          const ny = dy / dist;
+          // 移动当前节点（source 且未保存）
+          ni.position.x -= nx * push;
+          ni.position.y -= ny * push;
+          // 如果对方也是可移动节点（source 且未保存），一起推开
+          if (nj.type !== 'concept' && !savedPositions[nj.id]) {
+            nj.position.x += nx * push;
+            nj.position.y += ny * push;
+          }
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
 
   return { nodes, edges };
 }

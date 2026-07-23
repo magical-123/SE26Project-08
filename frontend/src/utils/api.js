@@ -156,6 +156,15 @@ export const graphApi = {
     return res.json();
   },
 
+  /** 切换关键字高亮状态 */
+  async toggleItemKeyword(itemId, label) {
+    const res = await apiFetch(`/api/graph/item-keywords/${itemId}/toggle`, {
+      method: 'PUT',
+      body: JSON.stringify({ label }),
+    });
+    return res.json();
+  },
+
   /** 让AI同步推荐关键词 */
   async analyzeKeywords(itemId, note) {
     const res = await apiFetch(`/api/graph/analyze-keywords/${itemId}`, {

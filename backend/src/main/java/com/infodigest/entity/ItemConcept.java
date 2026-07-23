@@ -19,4 +19,8 @@ public class ItemConcept {
 
     @Column(nullable = false)
     private Long conceptId;
+
+    /** 前端是否高亮显示，默认 true */
+    @Column(nullable = false)
+    private Boolean highlighted = true;
 }
