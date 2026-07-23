@@ -74,8 +74,8 @@ function extractNotesFromFeedResponse(responseText) {
     const noteCard = item.note_card;
     if (noteCard && typeof noteCard === 'object') {
       title = noteCard.display_title || noteCard.title || '';
-      const user = noteCard.user || {};
-      author = user.nickname || user.nick_name || '';
+      const user = noteCard.user || noteCard.user_info || {};
+      author = user.nickname || user.nick_name || user.user_name || user.name || '';
     }
 
     // 兼容其他结构（如 item.note）
@@ -83,8 +83,8 @@ function extractNotesFromFeedResponse(responseText) {
     if (!noteId) noteId = legacyNote.note_id || legacyNote.id;
     if (!title) title = legacyNote.title || legacyNote.display_title || legacyNote.desc || '';
     if (!author) {
-      const user = legacyNote.user || {};
-      author = user.nickname || user.name || '';
+      const user = legacyNote.user || legacyNote.user_info || {};
+      author = user.nickname || user.nick_name || user.user_name || user.name || '';
     }
 
     const displayTitle = (title || '无标题').trim();
@@ -134,7 +134,13 @@ async function extractNotesFromDom(page, limit) {
           }
         }
         let author = '';
-        for (const asel of ['.author', '.user-name', '[class*="author"]']) {
+        for (const asel of [
+          '.author-wrapper .name',
+          '.author .name',
+          '.user-name',
+          '[class*="author"] [class*="name"]',
+          '[class*="author"]',
+        ]) {
           const a = el.querySelector(asel);
           if (a) {
             author = a.innerText.trim();

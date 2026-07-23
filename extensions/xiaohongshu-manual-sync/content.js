@@ -11,7 +11,9 @@ function currentContent() {
   // 优先页面元标题，避免把笔记详情中的发布时间、互动数等元信息当成标题。
   const title = clean(ogTitle || pageTitle || document.querySelector('h1, [class*="title"], [class*="Title"]')?.textContent, 300);
   if (!title) return null;
-  const author = clean(document.querySelector('[class*="author"], [class*="user"], [class*="Author"], [class*="User"]')?.textContent, 100);
+  const author = clean(document.querySelector(
+    '.author-wrapper .name, .author .name, .user-name, [class*="author"] [class*="name"], [class*="Author"] [class*="Name"], [class*="user"] [class*="name"]'
+  )?.textContent, 100);
   const contentRaw = clean(document.querySelector('main')?.innerText || document.body?.innerText, 4000);
   return { title, author, contentRaw, url: location.href.split('?')[0].split('#')[0], platform: 'XIAOHONGSHU' };
 }

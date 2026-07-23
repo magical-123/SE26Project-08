@@ -42,7 +42,9 @@ async function extractFromCurrentTab(tabId) {
         const titleEl = card?.querySelector('h1, h2, h3, [class*="title"], [class*="Title"]');
         const title = linkTitle.length >= 2 ? linkTitle : clean(titleEl?.textContent, 300);
         if (!title || /^(首页|发现|登录|注册)$/.test(title)) continue;
-        const authorEl = card?.querySelector('[class*="author"], [class*="user"], [class*="Author"], [class*="User"]');
+        const authorEl = card?.querySelector(
+          '.author-wrapper .name, .author .name, .user-name, [class*="author"] [class*="name"], [class*="Author"] [class*="Name"], [class*="user"] [class*="name"]'
+        );
         const text = clean(card?.innerText || link.textContent);
         seen.add(url);
         items.push({
