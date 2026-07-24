@@ -43,7 +43,8 @@ public class CrawlScheduler {
     private final Set<String> activeJobs = ConcurrentHashMap.newKeySet();
 
     /** 需要抓取的平台列表 */
-    private static final List<String> PLATFORMS = List.of("bilibili", "zhihu", "github", "xiaohongshu");
+    // 小红书只允许浏览器扩展按用户实际浏览行为上报，不参与后台定时抓取。
+    private static final List<String> PLATFORMS = List.of("bilibili", "github");
 
     /**
      * 项目启动时执行一次，之后每隔 1 小时自动触发一次全平台爬虫

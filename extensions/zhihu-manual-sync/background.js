@@ -23,6 +23,13 @@ async function syncCurrentZhihuTab() {
   if (!tab?.id || !tab.url?.startsWith('https://www.zhihu.com/')) {
     throw new Error('请先打开一个知乎页面，再点击“同步当前页面”');
   }
+  // 推荐流不做批量同步；仅在用户实际打开内容详情页时由 content.js
+  // 按 10 秒心跳记录前台浏览时长并写入 Inbox。
+  if (!/^https:\/\/www\.zhihu\.com\/(question\/\d+|p\/\d+|zvideo\/\d+|video\/\d+|pin\/\d+)/.test(tab.url)) {
+    throw new Error('请打开一个知乎问题、文章或视频详情；推荐流不会被批量同步');
+  }
+  return { found: 0, inserted: 0, skipped: 0, trackingOnly: true };
+
   const { apiBase, token } = await getSettings();
   if (!token) throw new Error('请先登录 InfoDigest');
 

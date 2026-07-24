@@ -53,7 +53,6 @@ public class InboxController {
     public ResponseEntity<Map<String, Object>> getInboxItems(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "1000") int size,
-            @RequestParam(defaultValue = "4") int xiaohongshuLimit,
             @RequestParam(defaultValue = "1000") int maxTotal) {
         // 获取当前用户
         Long userId = getCurrentUserId();
@@ -64,18 +63,7 @@ public class InboxController {
         PageRequest recentRequest = PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "crawledAt"));
         List<InformationItem> recentItems = informationItemRepository.findByUserId(userId, recentRequest).getContent();
 
-        List<InformationItem> filteredItems = new ArrayList<>();
-        int xhsCount = 0;
-        for (InformationItem item : recentItems) {
-            if ("XIAOHONGSHU".equalsIgnoreCase(item.getPlatform())) {
-                if (xhsCount < xiaohongshuLimit) {
-                    filteredItems.add(item);
-                    xhsCount++;
-                }
-            } else {
-                filteredItems.add(item);
-            }
-        }
+        List<InformationItem> filteredItems = new ArrayList<>(recentItems);
 
         // 对合并后的结果再次按 crawledAt 降序排列
         filteredItems.sort((a, b) -> b.getCrawledAt().compareTo(a.getCrawledAt()));
@@ -154,6 +142,13 @@ public class InboxController {
         for (InformationItem item : items) {
             try {
                 item.setUserId(userId);
+                // 小红书不接受推荐流/页面扫描产生的批量数据，只允许详情页浏览心跳接口写入。
+                if ("XIAOHONGSHU".equalsIgnoreCase(item.getPlatform())
+                        || "ZHIHU".equalsIgnoreCase(item.getPlatform())) {
+                    skipped++;
+                    log.info("[Inbox Batch] 跳过知乎/小红书批量数据，需由浏览行为上报: {}", item.getTitle());
+                    continue;
+                }
 
                 // 浏览器页面里的“发布于/编辑于”是时间元信息，不是内容标题。
                 // 在服务端再拦截一次，避免旧版扩展或其他采集端写入无效卡片。
