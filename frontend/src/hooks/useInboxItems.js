@@ -7,14 +7,13 @@ const STORAGE_KEY = 'infodigest_inbox_cache_v2';
  * 格式化后端的 InformationItem 为前端需要的格式
  */
 function formatItem(item) {
-
-
   return {
     id: item.id,
     title: item.title,
     platform: formatPlatform(item.platform),
     author: item.author || '未知作者',
-    duration: (item.durationMinutes || 1) + ' 分钟',
+    duration: formatWatchDuration(item.watchDurationSeconds),
+    watchDurationSeconds: item.watchDurationSeconds,
     date: formatTimeAgo(item.crawledAt),
     isFavorite: item.isFavorite === true,
     isLiked: item.isLiked === true,
@@ -36,6 +35,17 @@ function formatItem(item) {
     nutritionFiber: item.nutritionFiber,
     nutritionReasoning: item.nutritionReasoning,
   };
+}
+
+function formatWatchDuration(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '未记录';
+  const totalSeconds = Math.max(0, Math.floor(Number(value)));
+  if (totalSeconds < 60) return `${totalSeconds} 秒`;
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}小时${minutes}分钟`;
+  return seconds > 0 ? `${minutes}分${seconds}秒` : `${minutes}分钟`;
 }
 
 function formatPlatform(platform) {
