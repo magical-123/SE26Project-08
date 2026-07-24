@@ -232,6 +232,20 @@ export const wordCloudApi = {
 // ===== Settings API =====
 
 export const settingsApi = {
+  async getPrivacy() {
+    const res = await apiFetch('/api/user/profile');
+    const data = await res.json();
+    return { publicGraph: data.defaultVisibility === 'PUBLIC' };
+  },
+
+  async updatePrivacy(publicGraph) {
+    const res = await apiFetch('/api/user/privacy', {
+      method: 'PUT',
+      body: JSON.stringify({ publicGraph }),
+    });
+    return res.json();
+  },
+
   /** 获取当前用户各平台连接状态 */
   async getPlatforms() {
     const res = await apiFetch('/api/settings/platforms');

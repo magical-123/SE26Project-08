@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.DayOfWeek;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,6 +80,9 @@ public class InsightService {
             【每日洞察汇总】
             %s
 
+            重要：报告中凡是提到营养维度百分比，必须严格使用上方“本周五维度营养分布”的数值，
+            禁止根据每日洞察自行重新计算、推测或改写百分比。
+
             请生成一份周报，包含以下内容：
             1. **标题**：简洁有力的主题标题（10字以内）
             2. **核心洞察**：用3-4句话概括本周整体的内容消费特点和变化趋势
@@ -119,9 +121,9 @@ public class InsightService {
     private UserReport generateDailyInsightFromVideos(Long userId, LocalDate reportDate) throws Exception {
         log.info("基于视频列表生成日报：userId={}, date={}", userId, reportDate);
 
-        // 1. 获取当天的所有已分析视频
+        // 1. 按内容捕获时间统计当天的摄入，避免把延迟分析的内容算到错误日期
         List<InformationItem> items = itemRepository
-                .findByUserIdAndProcessStatusAndAnalyzedAtBetween(
+                .findByUserIdAndProcessStatusAndCrawledAtBetween(
                         userId, "PROCESSED",
                         reportDate.atStartOfDay(),
                         reportDate.atTime(23, 59, 59)
@@ -170,30 +172,34 @@ public class InsightService {
     private UserReport generateWeeklyInsightFromDailyReports(Long userId, LocalDate reportDate) throws Exception {
         log.info("基于日报生成周报：userId={}, date={}", userId, reportDate);
 
-        // 1. 计算周的日期范围（周一到周日）
-        LocalDate startDate = reportDate.with(DayOfWeek.MONDAY);
-        LocalDate endDate = reportDate.with(DayOfWeek.SUNDAY);
+        // 1. AI 周报用于解释左侧营养表，因此采用相同的滚动最近 7 天范围。
+        LocalDate startDate = reportDate.minusDays(7);
+        LocalDate endDate = reportDate;
+        // 存储键继续使用自然周周一，兼容既有报告查询和版本历史。
+        LocalDate storageDate = reportDate.with(DayOfWeek.MONDAY);
 
         // 2. 获取本周所有日报
         List<UserReport> dailyReports = reportRepository.findByUserIdAndTypeAndReportDateBetween(
                 userId, ReportType.DAILY, startDate, endDate);
 
-        if (dailyReports.isEmpty()) {
-            throw new RuntimeException("本周还没有任何日报，请先生成日报");
-        }
-
-        // 3. 计算本周整体营养分布（基于所有视频的时间范围）
+        // 3. 获取本周内容。即使历史日报尚未生成，也可以直接从内容生成周报。
         List<InformationItem> weekItems = itemRepository
-                .findByUserIdAndProcessStatusAndAnalyzedAtBetween(
+                .findByUserIdAndProcessStatusAndCrawledAtBetween(
                         userId, "PROCESSED",
                         startDate.atStartOfDay(),
                         endDate.atTime(23, 59, 59)
                 );
 
+        if (weekItems.isEmpty()) {
+            throw new RuntimeException("本周没有已分析的内容数据");
+        }
+
         Map<String, Integer> weeklyNutrition = calculateNutritionDistribution(weekItems);
 
-        // 4. 构建每日洞察汇总文本
-        String dailyInsightsSummary = buildDailyInsightsSummary(dailyReports);
+        // 4. 优先使用日报汇总；没有历史日报时直接使用本周内容摘要，保证周报链路可独立运行。
+        String dailyInsightsSummary = dailyReports.isEmpty()
+                ? buildVideoList(weekItems)
+                : buildDailyInsightsSummary(dailyReports);
 
         // 5. 构建周报提示词
         String timeRange = startDate + " 至 " + endDate;
@@ -215,8 +221,8 @@ public class InsightService {
         // 7. 解析 AI 响应
         Map<String, String> insightData = parseInsightResponse(aiResponse);
 
-        // 8. 保存周报（reportDate 使用周一日期）
-        return saveReport(userId, ReportType.WEEKLY, startDate, weeklyNutrition, insightData);
+        // 8. 保存周报（存储键仍使用周一日期）
+        return saveReport(userId, ReportType.WEEKLY, storageDate, weeklyNutrition, insightData);
     }
 
     /**
@@ -314,41 +320,93 @@ public class InsightService {
      * 计算营养分布
      */
     private Map<String, Integer> calculateNutritionDistribution(List<InformationItem> items) {
-        long proteinSum = 0, carbsSum = 0, vitaminsSum = 0, fatsSum = 0, fiberSum = 0;
+        if (items == null || items.isEmpty()) {
+            return Map.of(
+                    "protein", 0,
+                    "carbs", 0,
+                    "vitamins", 0,
+                    "fats", 0,
+                    "fiber", 0
+            );
+        }
+
+        double totalSeconds = 0;
+        double proteinSeconds = 0;
+        double carbsSeconds = 0;
+        double vitaminsSeconds = 0;
+        double fatsSeconds = 0;
+        double fiberSeconds = 0;
 
         for (InformationItem item : items) {
-            if (item.getNutritionProtein() != null) proteinSum += item.getNutritionProtein();
-            if (item.getNutritionCarbs() != null) carbsSum += item.getNutritionCarbs();
-            if (item.getNutritionVitamins() != null) vitaminsSum += item.getNutritionVitamins();
-            if (item.getNutritionFats() != null) fatsSum += item.getNutritionFats();
-            if (item.getNutritionFiber() != null) fiberSum += item.getNutritionFiber();
+            double itemSeconds = getEffectiveDurationSeconds(item);
+            totalSeconds += itemSeconds;
+
+            if (item.getNutritionProtein() != null) {
+                proteinSeconds += itemSeconds * item.getNutritionProtein() / 100.0;
+            }
+            if (item.getNutritionCarbs() != null) {
+                carbsSeconds += itemSeconds * item.getNutritionCarbs() / 100.0;
+            }
+            if (item.getNutritionVitamins() != null) {
+                vitaminsSeconds += itemSeconds * item.getNutritionVitamins() / 100.0;
+            }
+            if (item.getNutritionFats() != null) {
+                fatsSeconds += itemSeconds * item.getNutritionFats() / 100.0;
+            }
+            if (item.getNutritionFiber() != null) {
+                fiberSeconds += itemSeconds * item.getNutritionFiber() / 100.0;
+            }
         }
 
-        int count = items.size();
-        int avgProtein = (int) (proteinSum / count);
-        int avgCarbs = (int) (carbsSum / count);
-        int avgVitamins = (int) (vitaminsSum / count);
-        int avgFats = (int) (fatsSum / count);
-        int avgFiber = (int) (fiberSum / count);
-
-        // 归一化到 100%
-        int total = avgProtein + avgCarbs + avgVitamins + avgFats + avgFiber;
-        if (total > 0) {
-            avgProtein = (int) Math.round(avgProtein * 100.0 / total);
-            avgCarbs = (int) Math.round(avgCarbs * 100.0 / total);
-            avgVitamins = (int) Math.round(avgVitamins * 100.0 / total);
-            avgFats = (int) Math.round(avgFats * 100.0 / total);
-            avgFiber = 100 - avgProtein - avgCarbs - avgVitamins - avgFats;
+        int protein;
+        int carbs;
+        int vitamins;
+        int fats;
+        int fiber;
+        if (totalSeconds > 0) {
+            // 与 Dashboard 营养成分表保持一致：按照真实观看时长加权。
+            protein = (int) Math.round(proteinSeconds * 100.0 / totalSeconds);
+            carbs = (int) Math.round(carbsSeconds * 100.0 / totalSeconds);
+            vitamins = (int) Math.round(vitaminsSeconds * 100.0 / totalSeconds);
+            fats = (int) Math.round(fatsSeconds * 100.0 / totalSeconds);
+            fiber = Math.max(0, 100 - protein - carbs - vitamins - fats);
+        } else {
+            // 所有内容都没有可靠时长时才退回等权平均，且不伪造观看时长。
+            protein = averageNutrition(items, InformationItem::getNutritionProtein);
+            carbs = averageNutrition(items, InformationItem::getNutritionCarbs);
+            vitamins = averageNutrition(items, InformationItem::getNutritionVitamins);
+            fats = averageNutrition(items, InformationItem::getNutritionFats);
+            fiber = Math.max(0, 100 - protein - carbs - vitamins - fats);
         }
 
-        Map<String, Integer> result = new HashMap<>();
-        result.put("protein", avgProtein);
-        result.put("carbs", avgCarbs);
-        result.put("vitamins", avgVitamins);
-        result.put("fats", avgFats);
-        result.put("fiber", avgFiber);
+        return Map.of(
+                "protein", protein,
+                "carbs", carbs,
+                "vitamins", vitamins,
+                "fats", fats,
+                "fiber", fiber
+        );
+    }
 
-        return result;
+    private double getEffectiveDurationSeconds(InformationItem item) {
+        if (item.getWatchDurationSeconds() != null && item.getWatchDurationSeconds() > 0) {
+            return item.getWatchDurationSeconds();
+        }
+        if (item.getDurationMinutes() != null && item.getDurationMinutes() > 0) {
+            return item.getDurationMinutes() * 60.0;
+        }
+        return 0;
+    }
+
+    private int averageNutrition(
+            List<InformationItem> items,
+            java.util.function.Function<InformationItem, Integer> getter) {
+        return (int) Math.round(items.stream()
+                .map(getter)
+                .filter(java.util.Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0));
     }
 
     /**
