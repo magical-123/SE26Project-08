@@ -9,6 +9,7 @@ import com.infodigest.repository.AIConfigRepository;
 import com.infodigest.repository.ConceptRepository;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.ItemConceptRepository;
+import com.infodigest.security.CredentialCryptoService;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,8 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class KeywordService {
+    @Autowired
+    private CredentialCryptoService credentialCryptoService;
 
     @Autowired
     private ConceptRepository conceptRepository;
@@ -97,7 +100,9 @@ public class KeywordService {
                     AIConfig config = userConfig.get();
                     // 兼容旧数据：读取时去除首尾空格
                     if (config.getApiEndpoint() != null && !config.getApiEndpoint().isEmpty()) apiUrl = config.getApiEndpoint().trim();
-                    if (config.getApiKey() != null && !config.getApiKey().isEmpty()) apiKey = config.getApiKey().trim();
+                    if (config.getApiKey() != null && !config.getApiKey().isEmpty()) {
+                        apiKey = credentialCryptoService.decrypt(config.getApiKey()).trim();
+                    }
                     if (config.getCustomModelName() != null && !config.getCustomModelName().isEmpty()) model = config.getCustomModelName().trim();
                 }
             }

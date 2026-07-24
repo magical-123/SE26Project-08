@@ -33,8 +33,4 @@ public class AuthController {
         }
     }
 
-    @PutMapping("/privacy")
-    public String updatePrivacy() {
-        return "Privacy updated";
-    }
 }

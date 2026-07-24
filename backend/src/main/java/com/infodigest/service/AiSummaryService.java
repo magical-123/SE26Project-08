@@ -9,6 +9,7 @@ import com.infodigest.repository.AIConfigRepository;
 import com.infodigest.repository.ConceptRepository;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.ItemConceptRepository;
+import com.infodigest.security.CredentialCryptoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
@@ -43,6 +44,8 @@ public class AiSummaryService {
 
     @Autowired
     private AIConfigRepository aiConfigRepository;
+    @Autowired
+    private CredentialCryptoService credentialCryptoService;
 
     @Autowired
     private org.springframework.transaction.PlatformTransactionManager transactionManager;
@@ -112,7 +115,7 @@ public class AiSummaryService {
                         apiUrl = config.getApiEndpoint().trim();
                     }
                     if (config.getApiKey() != null && !config.getApiKey().isEmpty()) {
-                        apiKey = config.getApiKey().trim();
+                        apiKey = credentialCryptoService.decrypt(config.getApiKey()).trim();
                     }
                     if (config.getCustomModelName() != null && !config.getCustomModelName().isEmpty()) {
                         model = config.getCustomModelName().trim();

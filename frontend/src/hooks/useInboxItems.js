@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { inboxApi } from '../utils/api';
-import { inboxItems as fallbackItems } from '../mock/inboxData';
 
 const STORAGE_KEY = 'infodigest_inbox_cache_v2';
 
@@ -194,7 +193,7 @@ export function useInboxItems() {
     } catch (err) {
       console.warn('API 请求失败，使用缓存/Mock 数据:', err.message);
       // API 失败 → 如果缓存也没数据，用 Mock 兜底
-      setItems((prev) => prev.length > 0 ? prev : fallbackItems.map(formatItem));
+      setItems((prev) => prev);
       setError('API 连接失败，使用本地数据');
     } finally {
       setLoading(false);
