@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -13,12 +14,12 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    // In a real application, inject this from application.yml
-    private final String SECRET = "A_Very_Long_Secret_Key_For_InfoDigest_Application_1234567890!";
+    @Value("${security.jwt.secret}")
+    private String secret;
     private final long EXPIRATION_TIME = 30L * 24 * 60 * 60 * 1000; // 30 days in ms
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     public String generateToken(String username, Long userId) {

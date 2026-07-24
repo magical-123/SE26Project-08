@@ -3,12 +3,7 @@ import { createPortal } from 'react-dom';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
-import { reportData } from '../../mock/reportData';
-import {
-  weeklyAiInsight,
-  dailyAiInsight
-} from '../../mock/dashboardData';
-import { Download, ExternalLink, ArrowRight, Sparkles, Info, RefreshCw, Eye } from 'lucide-react';
+import { Download, ArrowRight, Sparkles, Info, RefreshCw, Eye } from 'lucide-react';
 import { PosterModal } from '../../components/PosterModal/PosterModal';
 import { InsightDrawer } from '../../components/InsightDrawer/InsightDrawer';
 import { useToast } from '../../components/Toast/Toast';
@@ -201,6 +196,17 @@ export function Report() {
       if (response.ok && data.success) {
         setInsight(data.report);
         setHasInsight(true);
+        // 洞察与营养表使用同一批最新数据；生成完成后同步刷新左侧统计，
+        // 避免后台分析期间营养数据变化造成左右显示口径一致但快照不同。
+        const nutritionResponse = await fetch(
+          `${API_BASE}/api/dashboard/nutrition?type=${activeTab}`,
+          { headers: getAuthHeaders() }
+        );
+        if (nutritionResponse.ok) {
+          const nutritionResult = await nutritionResponse.json();
+          setNutritionData(nutritionResult.data || []);
+          setTotalHours(nutritionResult.totalHours || 0);
+        }
         toast.success('洞察生成成功！');
       } else {
         toast.error(`生成失败: ${data.error || '未知错误'}`);
@@ -313,7 +319,7 @@ export function Report() {
         ]
       }
     ]
-  }), [activeTab, nutritionData]);
+  }), [nutritionData]);
 
   const wordCloudOption = React.useMemo(() => {
     let cloudData = [];

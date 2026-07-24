@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infodigest.dto.AnalysisResultDTO;
 import com.infodigest.entity.AIConfig;
 import com.infodigest.repository.AIConfigRepository;
+import com.infodigest.security.CredentialCryptoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,13 @@ public class AIService {
 
     @Autowired
     private AIConfigRepository aiConfigRepository;
+    @Autowired
+    private CredentialCryptoService credentialCryptoService;
+
+    private String apiKey(AIConfig config) {
+        String value = credentialCryptoService.decrypt(config.getApiKey());
+        return value == null ? "" : value.trim();
+    }
 
     public AIService() {
         this.httpClient = HttpClient.newBuilder()
@@ -84,7 +92,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + (config.getApiKey() == null ? "" : config.getApiKey().trim()))
+                .header("Authorization", "Bearer " + apiKey(config))
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
@@ -123,7 +131,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .header("Content-Type", "application/json")
-                .header("x-api-key", config.getApiKey() == null ? "" : config.getApiKey().trim())
+                .header("x-api-key", apiKey(config))
                 .header("anthropic-version", "2023-06-01")
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -156,7 +164,7 @@ public class AIService {
         );
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(endpoint + "?key=" + (config.getApiKey() == null ? "" : config.getApiKey().trim())))
+                .uri(URI.create(endpoint + "?key=" + apiKey(config)))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -192,7 +200,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(config.getApiEndpoint()))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + (config.getApiKey() == null ? "" : config.getApiKey().trim()))
+                .header("Authorization", "Bearer " + apiKey(config))
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
@@ -254,7 +262,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + (config.getApiKey() == null ? "" : config.getApiKey().trim()))
+                .header("Authorization", "Bearer " + apiKey(config))
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
@@ -296,7 +304,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .header("Content-Type", "application/json")
-                .header("x-api-key", config.getApiKey() == null ? "" : config.getApiKey().trim())
+                .header("x-api-key", apiKey(config))
                 .header("anthropic-version", "2023-06-01")
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -333,7 +341,7 @@ public class AIService {
         );
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(endpoint + "?key=" + (config.getApiKey() == null ? "" : config.getApiKey().trim())))
+                .uri(URI.create(endpoint + "?key=" + apiKey(config)))
                 .header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -376,7 +384,7 @@ public class AIService {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(config.getApiEndpoint()))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + (config.getApiKey() == null ? "" : config.getApiKey().trim()))
+                .header("Authorization", "Bearer " + apiKey(config))
                 .timeout(Duration.ofSeconds(60))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();

@@ -36,6 +36,13 @@ public class CrawlController {
     @PostMapping("/trigger")
     public ResponseEntity<Map<String, Object>> triggerCrawl(@RequestParam(defaultValue = "all") String platform) {
         Map<String, Object> result = new LinkedHashMap<>();
+
+        if ("xiaohongshu".equalsIgnoreCase(platform) || "zhihu".equalsIgnoreCase(platform)) {
+            result.put("status", "disabled");
+            result.put("platform", platform.toLowerCase());
+            result.put("message", "知乎和小红书仅通过浏览器扩展记录用户实际浏览的内容，不支持推荐流抓取");
+            return ResponseEntity.badRequest().body(result);
+        }
         
         try {
             // 获取当前认证用户

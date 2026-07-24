@@ -4,6 +4,7 @@ import com.infodigest.entity.AIConfig;
 import com.infodigest.entity.User;
 import com.infodigest.repository.AIConfigRepository;
 import com.infodigest.repository.UserRepository;
+import com.infodigest.security.CredentialCryptoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,9 @@ public class AIConfigController {
     @Autowired
     private com.infodigest.service.AIService aiService;
 
+    @Autowired
+    private CredentialCryptoService credentialCryptoService;
+
     @PostMapping("/save")
     public ResponseEntity<?> saveAIConfig(@RequestBody AIConfigRequest request) {
         try {
@@ -39,7 +43,7 @@ public class AIConfigController {
 
             // 只有当传入的 API Key 不为 null 时才更新（保存时去除首尾空格，避免 DeepSeek/LiteLLM 鉴权失败）
             if (request.getApiKey() != null) {
-                config.setApiKey(request.getApiKey().trim());
+                config.setApiKey(credentialCryptoService.encrypt(request.getApiKey().trim()));
             }
 
             // 只有当传入的 API Endpoint 不为 null 时才更新
@@ -82,8 +86,9 @@ public class AIConfigController {
                     .orElseThrow(() -> new RuntimeException("未找到用户的AI配置"));
 
             // 隐藏 API Key 的敏感部分
-            String maskedApiKey = config.getApiKey() != null
-                    ? config.getApiKey().substring(0, Math.min(10, config.getApiKey().length())) + "..."
+            String plainApiKey = credentialCryptoService.decrypt(config.getApiKey());
+            String maskedApiKey = plainApiKey != null
+                    ? plainApiKey.substring(0, Math.min(4, plainApiKey.length())) + "..."
                     : null;
 
             return ResponseEntity.ok(Map.of(
@@ -141,7 +146,7 @@ public class AIConfigController {
             if (request.getApiKey() != null && !request.getApiKey().trim().isEmpty()) {
                 tempConfig.setApiKey(request.getApiKey().trim());
             } else if (savedConfig != null) {
-                tempConfig.setApiKey(savedConfig.getApiKey());
+                tempConfig.setApiKey(credentialCryptoService.decrypt(savedConfig.getApiKey()));
             }
 
             // Similarly for Endpoint and Model Name, although the frontend usually passes them
