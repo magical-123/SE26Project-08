@@ -65,6 +65,13 @@ async function sync() {
   if (!tab?.id || !tab.url?.startsWith('https://www.xiaohongshu.com/')) {
     throw new Error('请先打开小红书页面，再点击“同步当前小红书页面”');
   }
+  // 推荐流不做批量同步；仅在用户实际打开笔记详情页时由 content.js
+  // 按 10 秒心跳记录前台浏览时长并写入 Inbox。
+  if (!/^https:\/\/www\.xiaohongshu\.com\/(explore|discovery\/item)\//.test(tab.url)) {
+    throw new Error('请打开一篇小红书笔记详情；推荐流不会被批量同步');
+  }
+  return { found: 0, inserted: 0, skipped: 0, trackingOnly: true };
+
   const { apiBase, token } = await settings();
   if (!token) throw new Error('请先登录 InfoDigest');
   const items = await extractFromCurrentTab(tab.id);

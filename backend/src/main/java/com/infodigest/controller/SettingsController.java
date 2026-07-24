@@ -5,6 +5,7 @@ import com.infodigest.entity.UserPlatform;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.UserPlatformRepository;
 import com.infodigest.repository.UserRepository;
+import com.infodigest.security.CredentialCryptoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -38,6 +39,9 @@ public class SettingsController {
 
     @Autowired
     private UserPlatformRepository userPlatformRepository;
+
+    @Autowired
+    private CredentialCryptoService credentialCryptoService;
 
     // ===== B 站扫码登录会话缓存 =====
     private static final ConcurrentHashMap<String, QrSession> BILI_QR_SESSIONS = new ConcurrentHashMap<>();
@@ -176,7 +180,7 @@ public class SettingsController {
         UserPlatform userPlatform = new UserPlatform();
         userPlatform.setUserId(userId);
         userPlatform.setPlatform(platform.toUpperCase());
-        userPlatform.setCredential(credential.trim());
+        userPlatform.setCredential(credentialCryptoService.encrypt(credential.trim()));
 
         userPlatformRepository.save(userPlatform);
 
@@ -235,7 +239,7 @@ public class SettingsController {
         Map<String, Object> result = new LinkedHashMap<>();
         for (UserPlatform up : userPlatforms) {
             Map<String, Object> cred = new LinkedHashMap<>();
-            cred.put("credential", up.getCredential());
+            cred.put("credential", credentialCryptoService.decrypt(up.getCredential()));
             cred.put("updatedAt", up.getUpdatedAt().toString());
             result.put(up.getPlatform().toLowerCase(), cred);
         }
@@ -380,7 +384,7 @@ public class SettingsController {
         UserPlatform userPlatform = new UserPlatform();
         userPlatform.setUserId(userId);
         userPlatform.setPlatform("BILIBILI");
-        userPlatform.setCredential(cookieStr);
+        userPlatform.setCredential(credentialCryptoService.encrypt(cookieStr));
         userPlatformRepository.save(userPlatform);
     }
 
@@ -568,7 +572,7 @@ public class SettingsController {
         UserPlatform userPlatform = new UserPlatform();
         userPlatform.setUserId(userId);
         userPlatform.setPlatform("ZHIHU");
-        userPlatform.setCredential(cookieStr);
+        userPlatform.setCredential(credentialCryptoService.encrypt(cookieStr));
         userPlatformRepository.save(userPlatform);
     }
 

@@ -66,7 +66,7 @@ public class DashboardController {
         if ("daily".equalsIgnoreCase(type)) {
             startTime = now.toLocalDate().atStartOfDay();
         } else {
-            // weekly as default
+            // 周报展示滚动最近 7 天，便于实时观察数字饮食变化。
             startTime = now.minusDays(7).toLocalDate().atStartOfDay();
         }
 
@@ -105,18 +105,26 @@ public class DashboardController {
             if (item.getNutritionFiber() != null) fiberSeconds += itemSeconds * (item.getNutritionFiber() / 100.0);
         }
 
-        if (totalSeconds == 0) {
-            Map<String, Object> response = new LinkedHashMap<>();
-            response.put("data", buildWeeklyPieData());
-            response.put("totalHours", 0.0);
-            return ResponseEntity.ok(response);
+        int proteinPercent;
+        int carbsPercent;
+        int vitaminsPercent;
+        int fatsPercent;
+        int fiberPercent;
+        if (totalSeconds > 0) {
+            proteinPercent = (int) Math.round(proteinSeconds * 100.0 / totalSeconds);
+            carbsPercent = (int) Math.round(carbsSeconds * 100.0 / totalSeconds);
+            vitaminsPercent = (int) Math.round(vitaminsSeconds * 100.0 / totalSeconds);
+            fatsPercent = (int) Math.round(fatsSeconds * 100.0 / totalSeconds);
+            fiberPercent = Math.max(0, 100 - proteinPercent - carbsPercent - vitaminsPercent - fatsPercent);
+        } else {
+            // 没有可靠观看时长时仍展示 AI 营养评估，但不伪造摄入时长。
+            // 五维评分本身每条合计为 100，因此按条目求平均即可得到真实分布。
+            proteinPercent = averageNutrition(analyzedItems, InformationItem::getNutritionProtein);
+            carbsPercent = averageNutrition(analyzedItems, InformationItem::getNutritionCarbs);
+            vitaminsPercent = averageNutrition(analyzedItems, InformationItem::getNutritionVitamins);
+            fatsPercent = averageNutrition(analyzedItems, InformationItem::getNutritionFats);
+            fiberPercent = Math.max(0, 100 - proteinPercent - carbsPercent - vitaminsPercent - fatsPercent);
         }
-
-        int proteinPercent = (int) Math.round(proteinSeconds * 100.0 / totalSeconds);
-        int carbsPercent = (int) Math.round(carbsSeconds * 100.0 / totalSeconds);
-        int vitaminsPercent = (int) Math.round(vitaminsSeconds * 100.0 / totalSeconds);
-        int fatsPercent = (int) Math.round(fatsSeconds * 100.0 / totalSeconds);
-        int fiberPercent = (int) Math.round(fiberSeconds * 100.0 / totalSeconds);
 
         double totalHours = Math.round((totalSeconds / 3600.0) * 100.0) / 100.0;
 
@@ -731,7 +739,17 @@ public class DashboardController {
         return user.getId();
     }
 
-    // ==================== Mock 数据构建 ====================
+    // ==================== 空数据与展示结构 ====================
+
+    private int averageNutrition(List<InformationItem> items,
+                                 java.util.function.Function<InformationItem, Integer> getter) {
+        return (int) Math.round(items.stream()
+                .map(getter)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0));
+    }
 
     private List<Map<String, Object>> buildWeeklyPieData() {
         List<Map<String, Object>> list = new ArrayList<>();
