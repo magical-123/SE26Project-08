@@ -729,9 +729,13 @@ async function runOnce() {
   if (platform) {
     // 单平台
     if (platform === 'bilibili') await crawlBilibili(getToken);
-    else if (platform === 'zhihu') await crawlZhihu(getToken);
+    else if (platform === 'zhihu') {
+      console.error('知乎推荐流抓取已禁用，请使用浏览器扩展记录实际浏览内容');
+    }
     else if (platform === 'github') await crawlGitHub(getToken);
-    else if (platform === 'xiaohongshu') await crawlXiaohongshu(getToken);
+    else if (platform === 'xiaohongshu') {
+      console.error('小红书推荐流抓取已禁用，请使用浏览器扩展记录实际浏览内容');
+    }
     else console.error(`未知平台: ${platform}`);
   } else {
     // 所有启用平台：并行抓取各平台
@@ -740,9 +744,9 @@ async function runOnce() {
     
     const tasks = [];
     if (enabled.includes('bilibili')) tasks.push(crawlBilibili(getToken));
-    if (enabled.includes('zhihu')) tasks.push(crawlZhihu(getToken));
+    // 知乎只由浏览器扩展按实际浏览行为上报，不参与批量/定时抓取。
     if (enabled.includes('github')) tasks.push(crawlGitHub(getToken));
-    if (enabled.includes('xiaohongshu')) tasks.push(crawlXiaohongshu(getToken));
+    // 小红书只由浏览器扩展按实际浏览行为上报，不参与批量/定时抓取。
 
     await Promise.allSettled(tasks);
   }

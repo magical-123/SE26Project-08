@@ -1,6 +1,7 @@
 package com.infodigest.controller;
 
 import com.infodigest.entity.User;
+import com.infodigest.entity.Visibility;
 import com.infodigest.repository.UserRepository;
 import com.infodigest.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -83,6 +84,27 @@ public class UserController {
                     "email", user.getEmail(),
                     "avatarUrl", user.getAvatarUrl() != null ? user.getAvatarUrl() : "",
                     "message", "Profile updated successfully"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/privacy")
+    public ResponseEntity<?> updatePrivacy(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody Map<String, Object> body) {
+        try {
+            User user = getUserFromToken(authHeader);
+            Object publicGraph = body.get("publicGraph");
+            if (!(publicGraph instanceof Boolean)) {
+                return ResponseEntity.badRequest().body("publicGraph must be a boolean");
+            }
+            user.setDefaultVisibility((Boolean) publicGraph ? Visibility.PUBLIC : Visibility.PRIVATE);
+            userRepository.save(user);
+            return ResponseEntity.ok(Map.of(
+                    "publicGraph", user.getDefaultVisibility() == Visibility.PUBLIC,
+                    "defaultVisibility", user.getDefaultVisibility().name()
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());

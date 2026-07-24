@@ -21,6 +21,8 @@ export function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState({});
+  const [publicGraph, setPublicGraph] = useState(false);
+  const [privacySaving, setPrivacySaving] = useState(false);
 
   // B 站二维码弹窗状态
   const [showQrModal, setShowQrModal] = useState(false);
@@ -130,6 +132,28 @@ export function Settings() {
       });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    settingsApi.getPrivacy()
+      .then(data => setPublicGraph(Boolean(data.publicGraph)))
+      .catch(err => console.warn('加载隐私设置失败:', err.message));
+  }, []);
+
+  const handlePrivacyChange = async (event) => {
+    const nextValue = event.target.checked;
+    const previousValue = publicGraph;
+    setPublicGraph(nextValue);
+    setPrivacySaving(true);
+    try {
+      await settingsApi.updatePrivacy(nextValue);
+      toast.success('隐私设置已保存');
+    } catch (err) {
+      setPublicGraph(previousValue);
+      toast.error(`隐私设置保存失败: ${err.message}`);
+    } finally {
+      setPrivacySaving(false);
+    }
+  };
 
   // 加载 AI 配置
   useEffect(() => {
@@ -686,7 +710,12 @@ export function Settings() {
                 <p>允许好友查看您图谱中的非私密节点</p>
               </div>
               <label className="switch">
-                <input type="checkbox" defaultChecked />
+                <input
+                  type="checkbox"
+                  checked={publicGraph}
+                  disabled={privacySaving}
+                  onChange={handlePrivacyChange}
+                />
                 <span className="slider"></span>
               </label>
             </div>
