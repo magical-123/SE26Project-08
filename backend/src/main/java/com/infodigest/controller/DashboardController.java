@@ -184,18 +184,27 @@ public class DashboardController {
      * 词云中某关键词的溯源数据
      */
     @GetMapping("/wordcloud/{word}/sources")
-    public ResponseEntity<List<Map<String, Object>>> getWordSources(@PathVariable String word) {
+    public ResponseEntity<List<Map<String, Object>>> getWordSources(
+            @PathVariable String word,
+            @RequestParam(required = false) String date) {
         try {
             Long userId = getCurrentUserId();
-            LocalDate today = LocalDate.now();
+            // 如果传入了日期参数，使用该日期；否则使用今天
+            LocalDate queryDate = date != null ? LocalDate.parse(date) : LocalDate.now();
 
-            log.info("[溯源API] 查询词汇: {}, 用户ID: {}, 日期: {}", word, userId, today);
+            log.info("[溯源API] 查询词汇: {}, 用户ID: {}, 日期: {}", word, userId, queryDate);
 
-            // 获取今日词云数据
-            Map<String, Object> wordCloudData = wordCloudService.getWordCloud(userId, today);
+            // 获取指定日期的词云数据
+            Map<String, Object> wordCloudData = wordCloudService.getWordCloud(userId, queryDate);
             List<Map<String, Object>> keywords = (List<Map<String, Object>>) wordCloudData.get("keywords");
 
             log.info("[溯源API] 词云数据包含 {} 个关键词", keywords != null ? keywords.size() : 0);
+
+            // 打印所有关键词，便于调试
+            if (keywords != null) {
+                log.info("[溯源API] 所有关键词列表: {}",
+                    keywords.stream().map(k -> k.get("word")).collect(Collectors.toList()));
+            }
 
             if (keywords == null) {
                 log.warn("[溯源API] keywords为null");
