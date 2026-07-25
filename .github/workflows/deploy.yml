@@ -39,9 +39,6 @@ jobs:
           mkdir -p deploy
           cp backend/target/backend-0.0.1-SNAPSHOT.jar deploy/backend.jar
           cp -r frontend/dist deploy/frontend
-          cp deploy.sh deploy/
-          cp infodigest-backend.service deploy/
-          cp nginx.conf deploy/
 
       - name: Deploy to server via SCP
         uses: appleboy/scp-action@v0.1.7
