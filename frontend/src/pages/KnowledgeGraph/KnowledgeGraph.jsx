@@ -50,7 +50,7 @@ function KnowledgeGraphInner() {
   const [visibleConcepts, setVisibleConcepts] = useState(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const API_BASE = 'http://localhost:8080';
+  const API_BASE = '';
   const getAuthHeaders = () => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${sessionStorage.getItem('token')}`

@@ -32,8 +32,7 @@ export function AuthPage() {
       : { username: formData.username, email: formData.email, password: formData.password };
 
     try {
-      // Assuming backend is running on localhost:8080
-      const response = await fetch(`http://localhost:8080${endpoint}`, {
+      const response = await fetch(`${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

@@ -5,7 +5,7 @@ import { User, Mail, LogOut, Loader2, CheckCircle, AlertCircle, Camera, UserCirc
 import { useToast } from '../../components/Toast/Toast';
 import './ProfilePage.css';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = '';
 
 export function ProfilePage() {
   const navigate = useNavigate();

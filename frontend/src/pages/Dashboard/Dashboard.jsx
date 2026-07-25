@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { nutritionData, wordCloudData, aiQuotes, reviewCards } from '../../mock/dashboardData';
 import './Dashboard.css';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = '';
 
 function getAuthHeaders() {
   const token = sessionStorage.getItem('token');
@@ -42,7 +42,7 @@ export function Dashboard() {
         const token = sessionStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch('http://localhost:8080/api/dashboard/wordcloud/history', {
+        const response = await fetch('/api/dashboard/wordcloud/history', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -102,7 +102,7 @@ export function Dashboard() {
         if (!token) return;
 
         console.log('[Dashboard] 开始获取最新词云数据...');
-        const response = await fetch('http://localhost:8080/api/dashboard/wordcloud/history', {
+        const response = await fetch('/api/dashboard/wordcloud/history', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

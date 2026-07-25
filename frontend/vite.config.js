@@ -8,5 +8,13 @@ export default defineConfig({
     alias: {
       'echarts-wordcloud': 'echarts-wordcloud/index.js'
     }
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
   }
 })
