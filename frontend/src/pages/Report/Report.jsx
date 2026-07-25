@@ -9,7 +9,7 @@ import { InsightDrawer } from '../../components/InsightDrawer/InsightDrawer';
 import { useToast } from '../../components/Toast/Toast';
 import './Report.css';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = '';
 
 function getAuthHeaders() {
   const token = sessionStorage.getItem('token');
@@ -212,7 +212,7 @@ export function Report() {
     try {
       const token = sessionStorage.getItem('token');
       const type = activeTab.toUpperCase();
-      const response = await fetch(`http://localhost:8080/api/insights/generate?type=${type}`, {
+      const response = await fetch(`/api/insights/generate?type=${type}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

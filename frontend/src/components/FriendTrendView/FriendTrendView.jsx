@@ -4,7 +4,7 @@ import 'echarts-wordcloud';
 import { X, Loader2 } from 'lucide-react';
 import './FriendTrendView.css';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = '';
 
 function getAuthHeaders() {
   const token = sessionStorage.getItem('token');
