@@ -11,7 +11,7 @@ import { DetailDrawer } from '../DetailDrawer/DetailDrawer';
 import { buildGraphData, ConceptNode, SourceNode } from '../../pages/KnowledgeGraph/graphShared';
 import './FriendGraphView.css';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = '';
 
 function getAuthHeaders() {
   return { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` };

@@ -1,6 +1,7 @@
 package com.infodigest.controller;
 
 import com.infodigest.entity.InformationItem;
+import com.infodigest.service.DurationMetrics;
 import com.infodigest.entity.User;
 import com.infodigest.repository.AIConfigRepository;
 import com.infodigest.repository.InformationItemRepository;
@@ -89,12 +90,7 @@ public class DashboardController {
 
         for (InformationItem item : analyzedItems) {
             // 获取单条内容的有效时长（秒）
-            double itemSeconds = 0;
-            if (item.getWatchDurationSeconds() != null && item.getWatchDurationSeconds() > 0) {
-                itemSeconds = item.getWatchDurationSeconds();
-            } else if (item.getDurationMinutes() != null && item.getDurationMinutes() > 0) {
-                itemSeconds = item.getDurationMinutes() * 60.0;
-            }
+            double itemSeconds = DurationMetrics.effectiveSeconds(item);
 
             totalSeconds += itemSeconds;
 
@@ -442,12 +438,7 @@ public class DashboardController {
         double todaySeconds = items.stream()
                 .filter(item -> item.getCrawledAt() != null && item.getCrawledAt().toLocalDate().isEqual(today))
                 .mapToDouble(item -> {
-                    if (item.getWatchDurationSeconds() != null && item.getWatchDurationSeconds() > 0) {
-                        return item.getWatchDurationSeconds();
-                    } else if (item.getDurationMinutes() != null && item.getDurationMinutes() > 0) {
-                        return item.getDurationMinutes() * 60.0;
-                    }
-                    return 0.0;
+                    return DurationMetrics.effectiveSeconds(item);
                 })
                 .sum();
                 
