@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SocialReportController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.controller</a> &gt; <span class="el_source">SocialReportController.java</span></div><h1>SocialReportController.java</h1><pre class="source lang-java linenums">package com.infodigest.controller;
+
+import com.infodigest.entity.Friendship;
+import com.infodigest.entity.FriendshipStatus;
+import com.infodigest.entity.InformationItem;
+import com.infodigest.entity.User;
+import com.infodigest.entity.Visibility;
+import com.infodigest.repository.FriendshipRepository;
+import com.infodigest.repository.InformationItemRepository;
+import com.infodigest.repository.UserRepository;
+import com.infodigest.service.WordCloudService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.*;
+
+<span class="nc" id="L22">@Slf4j</span>
+@RestController
+@RequestMapping(&quot;/api/social/report&quot;)
+@RequiredArgsConstructor
+public class SocialReportController {
+
+    private final FriendshipRepository friendshipRepository;
+    private final UserRepository userRepository;
+    private final InformationItemRepository informationItemRepository;
+    private final WordCloudService wordCloudService;
+
+    private Long getCurrentUserId() {
+<span class="nc" id="L34">        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="nc" id="L35">        String username = authentication.getName();</span>
+<span class="nc" id="L36">        User user = userRepository.findByUsername(username)</span>
+<span class="nc" id="L37">                .orElseThrow(() -&gt; new RuntimeException(&quot;User not found&quot;));</span>
+<span class="nc" id="L38">        return user.getId();</span>
+    }
+
+    private boolean isFriend(Long currentUserId, Long targetUserId) {
+<span class="nc bnc" id="L42" title="All 2 branches missed.">        if (currentUserId.equals(targetUserId)) return true;</span>
+<span class="nc" id="L43">        List&lt;Friendship&gt; friendships = friendshipRepository.findByRequesterIdOrReceiverId(currentUserId, currentUserId);</span>
+<span class="nc" id="L44">        return friendships.stream().anyMatch(f -&gt;</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">                f.getStatus() == FriendshipStatus.ACCEPTED &amp;&amp;</span>
+<span class="nc bnc" id="L46" title="All 4 branches missed.">                (f.getRequesterId().equals(targetUserId) || f.getReceiverId().equals(targetUserId)));</span>
+    }
+
+    private boolean isDataVisibleToFriend(Long targetUserId) {
+<span class="nc" id="L50">        User targetUser = userRepository.findById(targetUserId).orElse(null);</span>
+<span class="nc bnc" id="L51" title="All 4 branches missed.">        return targetUser != null &amp;&amp; targetUser.getDefaultVisibility() != Visibility.PRIVATE;</span>
+    }
+
+    /**
+     * 查看好友的营养分类饼图数据
+     */
+    @GetMapping(&quot;/{userId}/nutrition&quot;)
+    public ResponseEntity&lt;?&gt; getFriendNutrition(@PathVariable Long userId) {
+<span class="nc" id="L59">        Long currentUserId = getCurrentUserId();</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (!isFriend(currentUserId, userId)) {</span>
+<span class="nc" id="L61">            return ResponseEntity.status(403).body(Map.of(&quot;error&quot;, &quot;只能查看好友的数据&quot;));</span>
+        }
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (!isDataVisibleToFriend(userId)) {</span>
+<span class="nc" id="L64">            return ResponseEntity.status(403).body(Map.of(&quot;error&quot;, &quot;对方已关闭数据公开分享&quot;));</span>
+        }
+
+<span class="nc" id="L67">        List&lt;InformationItem&gt; analyzedItems = informationItemRepository</span>
+<span class="nc" id="L68">                .findByUserIdAndProcessStatus(userId, &quot;PROCESSED&quot;);</span>
+
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        if (analyzedItems.isEmpty()) {</span>
+<span class="nc" id="L71">            Map&lt;String, Object&gt; response = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L72">            response.put(&quot;data&quot;, new ArrayList&lt;&gt;());</span>
+<span class="nc" id="L73">            response.put(&quot;totalHours&quot;, 0.0);</span>
+<span class="nc" id="L74">            return ResponseEntity.ok(response);</span>
+        }
+
+<span class="nc" id="L77">        int totalProtein = 0, totalCarbs = 0, totalVitamins = 0, totalFats = 0, totalFiber = 0;</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        for (InformationItem item : analyzedItems) {</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">            if (item.getNutritionProtein() != null) totalProtein += item.getNutritionProtein();</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">            if (item.getNutritionCarbs() != null) totalCarbs += item.getNutritionCarbs();</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            if (item.getNutritionVitamins() != null) totalVitamins += item.getNutritionVitamins();</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">            if (item.getNutritionFats() != null) totalFats += item.getNutritionFats();</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">            if (item.getNutritionFiber() != null) totalFiber += item.getNutritionFiber();</span>
+<span class="nc" id="L84">        }</span>
+
+<span class="nc" id="L86">        int total = totalProtein + totalCarbs + totalVitamins + totalFats + totalFiber;</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        if (total == 0) {</span>
+<span class="nc" id="L88">            Map&lt;String, Object&gt; response = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L89">            response.put(&quot;data&quot;, new ArrayList&lt;&gt;());</span>
+<span class="nc" id="L90">            response.put(&quot;totalHours&quot;, 0.0);</span>
+<span class="nc" id="L91">            return ResponseEntity.ok(response);</span>
+        }
+
+<span class="nc" id="L94">        int proteinPercent = Math.round((float) totalProtein * 100 / total);</span>
+<span class="nc" id="L95">        int carbsPercent = Math.round((float) totalCarbs * 100 / total);</span>
+<span class="nc" id="L96">        int vitaminsPercent = Math.round((float) totalVitamins * 100 / total);</span>
+<span class="nc" id="L97">        int fatsPercent = Math.round((float) totalFats * 100 / total);</span>
+<span class="nc" id="L98">        int fiberPercent = Math.round((float) totalFiber * 100 / total);</span>
+
+<span class="nc" id="L100">        double totalHours = analyzedItems.stream()</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">                .filter(item -&gt; item.getDurationMinutes() != null)</span>
+<span class="nc" id="L102">                .mapToInt(InformationItem::getDurationMinutes)</span>
+<span class="nc" id="L103">                .sum() / 60.0;</span>
+<span class="nc" id="L104">        totalHours = Math.round(totalHours * 100.0) / 100.0;</span>
+
+<span class="nc" id="L106">        List&lt;Map&lt;String, Object&gt;&gt; nutritionData = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L107">        nutritionData.add(Map.of(&quot;value&quot;, proteinPercent, &quot;name&quot;, &quot;深度知识&quot;, &quot;itemStyle&quot;, Map.of(&quot;color&quot;, &quot;#0EA5E9&quot;)));</span>
+<span class="nc" id="L108">        nutritionData.add(Map.of(&quot;value&quot;, carbsPercent, &quot;name&quot;, &quot;实用技能&quot;, &quot;itemStyle&quot;, Map.of(&quot;color&quot;, &quot;#F59E0B&quot;)));</span>
+<span class="nc" id="L109">        nutritionData.add(Map.of(&quot;value&quot;, vitaminsPercent, &quot;name&quot;, &quot;创意灵感&quot;, &quot;itemStyle&quot;, Map.of(&quot;color&quot;, &quot;#10B981&quot;)));</span>
+<span class="nc" id="L110">        nutritionData.add(Map.of(&quot;value&quot;, fatsPercent, &quot;name&quot;, &quot;纯娱乐&quot;, &quot;itemStyle&quot;, Map.of(&quot;color&quot;, &quot;#F43F5E&quot;)));</span>
+<span class="nc" id="L111">        nutritionData.add(Map.of(&quot;value&quot;, fiberPercent, &quot;name&quot;, &quot;哲思冥想&quot;, &quot;itemStyle&quot;, Map.of(&quot;color&quot;, &quot;#8B5CF6&quot;)));</span>
+
+<span class="nc" id="L113">        Map&lt;String, Object&gt; response = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L114">        response.put(&quot;data&quot;, nutritionData);</span>
+<span class="nc" id="L115">        response.put(&quot;totalHours&quot;, totalHours);</span>
+
+<span class="nc" id="L117">        return ResponseEntity.ok(response);</span>
+    }
+
+    /**
+     * 查看好友的今日词云数据
+     */
+    @GetMapping(&quot;/{userId}/wordcloud&quot;)
+    public ResponseEntity&lt;?&gt; getFriendWordCloud(@PathVariable Long userId) {
+<span class="nc" id="L125">        Long currentUserId = getCurrentUserId();</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (!isFriend(currentUserId, userId)) {</span>
+<span class="nc" id="L127">            return ResponseEntity.status(403).body(Map.of(&quot;error&quot;, &quot;只能查看好友的数据&quot;));</span>
+        }
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (!isDataVisibleToFriend(userId)) {</span>
+<span class="nc" id="L130">            return ResponseEntity.status(403).body(Map.of(&quot;error&quot;, &quot;对方已关闭数据公开分享&quot;));</span>
+        }
+
+<span class="nc" id="L133">        LocalDate today = LocalDate.now();</span>
+        try {
+<span class="nc" id="L135">            Map&lt;String, Object&gt; wordCloudData = wordCloudService.getWordCloud(userId, today);</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            List&lt;Map&lt;String, Object&gt;&gt; keywords = wordCloudData != null</span>
+<span class="nc" id="L137">                    ? (List&lt;Map&lt;String, Object&gt;&gt;) wordCloudData.get(&quot;keywords&quot;)</span>
+<span class="nc" id="L138">                    : null;</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">            return ResponseEntity.ok(keywords != null ? keywords : new ArrayList&lt;&gt;());</span>
+<span class="nc" id="L140">        } catch (Exception e) {</span>
+<span class="nc" id="L141">            log.warn(&quot;获取好友词云失败 userId={}: {}&quot;, userId, e.getMessage());</span>
+<span class="nc" id="L142">            return ResponseEntity.ok(new ArrayList&lt;&gt;());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReviewCardController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.controller</a> &gt; <span class="el_source">ReviewCardController.java</span></div><h1>ReviewCardController.java</h1><pre class="source lang-java linenums">package com.infodigest.controller;
+
+import com.infodigest.entity.ReviewCard;
+import com.infodigest.repository.ReviewCardRepository;
+import com.infodigest.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping(&quot;/api/review-cards&quot;)
+<span class="nc" id="L18">public class ReviewCardController {</span>
+
+    @Autowired
+    private ReviewCardRepository reviewCardRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    // 获取当前用户的复习卡片（按指定日期）
+    @GetMapping
+    public ResponseEntity&lt;List&lt;ReviewCard&gt;&gt; getReviewCards(
+            @RequestParam(required = false) LocalDate date) {
+<span class="nc" id="L30">        Long userId = getCurrentUserId();</span>
+<span class="nc bnc" id="L31" title="All 2 branches missed.">        LocalDate reviewDate = date != null ? date : LocalDate.now();</span>
+<span class="nc" id="L32">        List&lt;ReviewCard&gt; cards = reviewCardRepository.findByUserIdAndScheduledReviewDate(userId, reviewDate);</span>
+<span class="nc" id="L33">        return ResponseEntity.ok(cards);</span>
+    }
+
+    // 获取单个复习卡片
+    @GetMapping(&quot;/{id}&quot;)
+    public ResponseEntity&lt;ReviewCard&gt; getReviewCard(@PathVariable Long id) {
+<span class="nc" id="L39">        Long userId = getCurrentUserId();</span>
+<span class="nc" id="L40">        Optional&lt;ReviewCard&gt; card = reviewCardRepository.findById(id);</span>
+<span class="nc bnc" id="L41" title="All 4 branches missed.">        if (card.isPresent() &amp;&amp; card.get().getUserId().equals(userId)) {</span>
+<span class="nc" id="L42">            return ResponseEntity.ok(card.get());</span>
+        }
+<span class="nc" id="L44">        return ResponseEntity.notFound().build();</span>
+    }
+
+    // 创建复习卡片
+    @PostMapping
+    public ResponseEntity&lt;ReviewCard&gt; createReviewCard(@RequestBody ReviewCard card) {
+<span class="nc" id="L50">        Long userId = getCurrentUserId();</span>
+<span class="nc" id="L51">        card.setUserId(userId);</span>
+<span class="nc" id="L52">        card.setScheduledReviewDate(LocalDate.now());</span>
+<span class="nc" id="L53">        ReviewCard savedCard = reviewCardRepository.save(card);</span>
+<span class="nc" id="L54">        return ResponseEntity.ok(savedCard);</span>
+    }
+
+    // 更新复习卡片
+    @PutMapping(&quot;/{id}&quot;)
+    public ResponseEntity&lt;ReviewCard&gt; updateReviewCard(@PathVariable Long id, @RequestBody ReviewCard cardDetails) {
+<span class="nc" id="L60">        Long userId = getCurrentUserId();</span>
+<span class="nc" id="L61">        Optional&lt;ReviewCard&gt; existingCard = reviewCardRepository.findById(id);</span>
+        
+<span class="nc bnc" id="L63" title="All 4 branches missed.">        if (existingCard.isPresent() &amp;&amp; existingCard.get().getUserId().equals(userId)) {</span>
+<span class="nc" id="L64">            ReviewCard card = existingCard.get();</span>
+<span class="nc" id="L65">            card.setTitle(cardDetails.getTitle());</span>
+<span class="nc" id="L66">            card.setContent(cardDetails.getContent());</span>
+<span class="nc" id="L67">            card.setSourcePlatform(cardDetails.getSourcePlatform());</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">            if (cardDetails.getScheduledReviewDate() != null) {</span>
+<span class="nc" id="L69">                card.setScheduledReviewDate(cardDetails.getScheduledReviewDate());</span>
+            }
+<span class="nc" id="L71">            ReviewCard updatedCard = reviewCardRepository.save(card);</span>
+<span class="nc" id="L72">            return ResponseEntity.ok(updatedCard);</span>
+        } else {
+<span class="nc" id="L74">            return ResponseEntity.notFound().build();</span>
+        }
+    }
+
+    // 删除复习卡片
+    @DeleteMapping(&quot;/{id}&quot;)
+    public ResponseEntity&lt;Void&gt; deleteReviewCard(@PathVariable Long id) {
+<span class="nc" id="L81">        Long userId = getCurrentUserId();</span>
+<span class="nc" id="L82">        Optional&lt;ReviewCard&gt; card = reviewCardRepository.findById(id);</span>
+        
+<span class="nc bnc" id="L84" title="All 4 branches missed.">        if (card.isPresent() &amp;&amp; card.get().getUserId().equals(userId)) {</span>
+<span class="nc" id="L85">            reviewCardRepository.deleteById(id);</span>
+<span class="nc" id="L86">            return ResponseEntity.noContent().build();</span>
+        } else {
+<span class="nc" id="L88">            return ResponseEntity.notFound().build();</span>
+        }
+    }
+
+    private Long getCurrentUserId() {
+<span class="nc" id="L93">        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="nc" id="L94">        String username = authentication.getName();</span>
+<span class="nc" id="L95">        return userRepository.findByUsername(username)</span>
+<span class="nc" id="L96">                .orElseThrow(() -&gt; new RuntimeException(&quot;User not found&quot;))</span>
+<span class="nc" id="L97">                .getId();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
