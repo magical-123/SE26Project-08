@@ -114,10 +114,13 @@ public class SocialController {
      */
     @PutMapping("/requests/{id}/accept")
     public ResponseEntity<Void> acceptRequest(@PathVariable Long id) {
-        friendshipRepository.findById(id).ifPresent(friendship -> {
-            friendship.setStatus(FriendshipStatus.ACCEPTED);
-            friendshipRepository.save(friendship);
-        });
+        Long userId = getCurrentUserId();
+        Friendship friendship = friendshipRepository.findById(id).orElse(null);
+        if (friendship == null) return ResponseEntity.notFound().build();
+        if (!userId.equals(friendship.getReceiverId())) return ResponseEntity.status(403).build();
+        if (friendship.getStatus() != FriendshipStatus.PENDING) return ResponseEntity.badRequest().build();
+        friendship.setStatus(FriendshipStatus.ACCEPTED);
+        friendshipRepository.save(friendship);
         return ResponseEntity.ok().build();
     }
 
@@ -126,7 +129,13 @@ public class SocialController {
      */
     @DeleteMapping("/requests/{id}")
     public ResponseEntity<Void> rejectRequest(@PathVariable Long id) {
-        friendshipRepository.deleteById(id);
+        Long userId = getCurrentUserId();
+        Friendship friendship = friendshipRepository.findById(id).orElse(null);
+        if (friendship == null) return ResponseEntity.notFound().build();
+        if (!userId.equals(friendship.getRequesterId()) && !userId.equals(friendship.getReceiverId())) {
+            return ResponseEntity.status(403).build();
+        }
+        friendshipRepository.delete(friendship);
         return ResponseEntity.ok().build();
     }
 

@@ -1,5 +1,15 @@
 # InfoDigest
 
+### 当前实现边界（2026-07）
+
+- 后端定时调度器目前只自动抓取 Bilibili 和 GitHub，周期为 1 小时。
+- 知乎和小红书采用浏览器扩展捕获方案：用户打开详情页后，扩展在页面前台按 5 秒心跳记录浏览时长并写入 Inbox。
+- 知乎和小红书不会自动抓取推荐流，也不会回补历史浏览、点赞或收藏记录。
+- Inbox 最多返回最近 1000 条内容；报告真实浏览时长只使用 `watchDurationSeconds`。
+- 文档中早期“30 秒全平台自动抓取”等描述已废弃，以本节和 `爬虫情况.md` 为准。
+
+详细口径见 [当前实现与文档口径](docs/current-implementation.md)。
+
 > 帮助用户进行「信息消化与知识提炼」的数字饮食操作系统。
 
 InfoDigest 是一款面向碎片化信息时代的信息管理工具，通过收集、整理、分析与可视化，帮助用户把日常浏览的信息转化为可持续积累的结构化知识资产。
@@ -106,9 +116,9 @@ InfoDigest-
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://10.119.3.25:3306/info_digest?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: root123
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 ```
 
 > 注意：连接远程数据库需要处于校园网内，且服务器安全组已放行 3306 端口。详细说明请参考 [远程数据库连接指南.md](远程数据库连接指南.md)。
@@ -160,12 +170,12 @@ npx playwright install chromium
 
 ## 部署
 
-项目已部署到团队服务器 `10.119.3.25`（校园网内），前端通过 Nginx 托管，后端以 systemd 服务运行。
+部署地址和凭据不写入仓库，请通过部署平台的 Secret/环境变量配置。
 
 ### 在线访问
 
 ```text
-http://10.119.3.25
+http://<部署主机>
 ```
 
 ### 更新部署
@@ -173,7 +183,7 @@ http://10.119.3.25
 本地 push 代码到 GitHub main 分支后，SSH 登录服务器：
 
 ```bash
-ssh root@10.119.3.25
+ssh <部署用户>@<部署主机>
 cd /opt/infodigest/repo && git pull
 bash /opt/infodigest/auto-deploy.sh
 ```
