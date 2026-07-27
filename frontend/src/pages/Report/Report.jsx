@@ -9,7 +9,7 @@ import { InsightDrawer } from '../../components/InsightDrawer/InsightDrawer';
 import { useToast } from '../../components/Toast/Toast';
 import './Report.css';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = '';
 
 function getAuthHeaders() {
   const token = sessionStorage.getItem('token');
@@ -23,7 +23,7 @@ export function Report() {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('weekly');
   const [selectedWord, setSelectedWord] = useState(null);
-  const [timeIndex, setTimeIndex] = useState(6); // 默认显示最后一天（第7天，索引6）
+  const [timeIndex, setTimeIndex] = useState(0); // 默认显示第一天（最新日期）
   const [showPoster, setShowPoster] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [insight, setInsight] = useState(null);
@@ -89,10 +89,12 @@ export function Report() {
           if (response.ok) {
             const data = await response.json();
             console.log('[词云数据] 7天历史数据:', data);
+            console.log('[词云数据] 今天的日期:', new Date().toISOString().split('T')[0]);
+            console.log('[词云数据] 第一条的reportDate:', data.length > 0 ? data[0].reportDate : 'N/A');
             setWeeklyWordCloudHistory(data || []);
-            // 默认显示最后一天
+            // 默认显示第一天（最新日期，因为数据是降序排列的）
             if (data.length > 0) {
-              setTimeIndex(data.length - 1);
+              setTimeIndex(0);
             }
           }
         }
@@ -156,9 +158,35 @@ export function Report() {
         return;
       }
 
-      console.log('[溯源] 开始获取词汇溯源数据:', selectedWord);
+      console.log('[溯源] 开始获取词汇溯源数据:', selectedWord, 'timeIndex:', timeIndex, 'activeTab:', activeTab);
+      console.log('[溯源] weeklyWordCloudHistory.length:', weeklyWordCloudHistory.length);
+
       try {
-        const response = await fetch(`${API_BASE}/api/dashboard/wordcloud/${encodeURIComponent(selectedWord)}/sources`, {
+        // 根据当前activeTab和timeIndex确定查询日期
+        let queryDate = null;
+        if (activeTab === 'weekly' && weeklyWordCloudHistory.length > 0) {
+          // 周报模式：需要反向映射索引（与词云图表逻辑一致）
+          // 因为UI显示顺序是反转的（左边早，右边晚），所以需要反向映射
+          const actualIndex = weeklyWordCloudHistory.length - 1 - timeIndex;
+          console.log('[溯源] 反向映射后的actualIndex:', actualIndex);
+
+          if (actualIndex >= 0 && actualIndex < weeklyWordCloudHistory.length) {
+            const selectedData = weeklyWordCloudHistory[actualIndex];
+            console.log('[溯源] 选中的数据:', selectedData);
+            queryDate = selectedData?.reportDate;
+            console.log('[溯源] 周报模式，查询日期:', queryDate);
+          }
+        } else {
+          console.log('[溯源] 日报模式或数据未就绪，使用默认日期');
+        }
+        // daily模式或获取不到日期时使用今天的日期（后端默认）
+
+        const url = queryDate
+          ? `${API_BASE}/api/dashboard/wordcloud/${encodeURIComponent(selectedWord)}/sources?date=${queryDate}`
+          : `${API_BASE}/api/dashboard/wordcloud/${encodeURIComponent(selectedWord)}/sources`;
+
+        console.log('[溯源] 请求URL:', url);
+        const response = await fetch(url, {
           headers: getAuthHeaders()
         });
         console.log('[溯源] API响应状态:', response.ok, response.status);
@@ -168,6 +196,7 @@ export function Report() {
           setWordSources(data || []);
         } else {
           console.error('[溯源] API响应失败:', response.status);
+          setWordSources([]);
         }
       } catch (error) {
         console.error('获取词云溯源数据失败:', error);
@@ -175,7 +204,7 @@ export function Report() {
       }
     };
     fetchWordSources();
-  }, [selectedWord]);
+  }, [selectedWord, timeIndex, activeTab, weeklyWordCloudHistory]);
 
   // 生成/重新生成洞察
   const handleGenerateInsight = async () => {
@@ -183,7 +212,7 @@ export function Report() {
     try {
       const token = sessionStorage.getItem('token');
       const type = activeTab.toUpperCase();
-      const response = await fetch(`http://localhost:8080/api/insights/generate?type=${type}`, {
+      const response = await fetch(`/api/insights/generate?type=${type}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

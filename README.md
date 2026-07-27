@@ -158,6 +158,28 @@ npx playwright install chromium
 > node index.js --platform=bilibili
 > ```
 
+## 部署
+
+项目已部署到团队服务器 `10.119.3.25`（校园网内），前端通过 Nginx 托管，后端以 systemd 服务运行。
+
+### 在线访问
+
+```text
+http://10.119.3.25
+```
+
+### 更新部署
+
+本地 push 代码到 GitHub main 分支后，SSH 登录服务器：
+
+```bash
+ssh root@10.119.3.25
+cd /opt/infodigest/repo && git pull
+bash /opt/infodigest/auto-deploy.sh
+```
+
+详细部署流程请参考 [部署操作指南.md](部署操作指南.md)。
+
 ## API 认证
 
 后端使用 JWT 进行无状态认证。除 `/api/auth/**` 等公开接口外，其他请求需要在请求头中携带 Token：
@@ -211,6 +233,7 @@ Authorization: Bearer <Your-JWT-Token>
 ## 相关文档
 
 - [远程数据库连接指南.md](远程数据库连接指南.md) - 团队共享数据库配置与排错
+- [部署操作指南.md](部署操作指南.md) - 服务器部署与更新流程
 - [爬虫情况.md](爬虫情况.md) - 各平台爬虫数据、技术实现和已知限制
 - [frontend/README.md](frontend/README.md) - 前端详细说明
 - [backend/README.md](backend/README.md) - 后端详细说明
