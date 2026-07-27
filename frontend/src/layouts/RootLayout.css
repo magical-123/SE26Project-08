@@ -249,7 +249,13 @@
   }
 }
 
-@media (max-width: 768px) {
+/*
+ * Use the compact shell up to 1024px. Some mobile browsers expose a
+ * fallback layout viewport close to 980px for cached documents or embedded
+ * webviews; the wider breakpoint keeps the desktop rail from rendering
+ * vertically on phones.
+ */
+@media (max-width: 1024px) {
   .root-layout {
     height: 100dvh;
     min-height: 100dvh;
