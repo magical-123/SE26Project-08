@@ -2,8 +2,8 @@ spring:
   application:
     name: infodigest-backend
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/info_digest?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
