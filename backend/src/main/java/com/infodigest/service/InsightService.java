@@ -389,13 +389,7 @@ public class InsightService {
     }
 
     private double getEffectiveDurationSeconds(InformationItem item) {
-        if (item.getWatchDurationSeconds() != null && item.getWatchDurationSeconds() > 0) {
-            return item.getWatchDurationSeconds();
-        }
-        if (item.getDurationMinutes() != null && item.getDurationMinutes() > 0) {
-            return item.getDurationMinutes() * 60.0;
-        }
-        return 0;
+        return DurationMetrics.effectiveSeconds(item);
     }
 
     private int averageNutrition(
