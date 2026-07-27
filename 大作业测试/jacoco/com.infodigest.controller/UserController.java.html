@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.controller</a> &gt; <span class="el_source">UserController.java</span></div><h1>UserController.java</h1><pre class="source lang-java linenums">package com.infodigest.controller;
+
+import com.infodigest.entity.User;
+import com.infodigest.entity.Visibility;
+import com.infodigest.repository.UserRepository;
+import com.infodigest.security.JwtUtil;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping(&quot;/api/user&quot;)
+@RequiredArgsConstructor
+public class UserController {
+
+    private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
+
+    private User getUserFromToken(String authHeader) {
+<span class="nc" id="L22">        String token = authHeader.replace(&quot;Bearer &quot;, &quot;&quot;);</span>
+<span class="nc" id="L23">        Long userId = jwtUtil.extractUserId(token);</span>
+<span class="nc" id="L24">        return userRepository.findById(userId)</span>
+<span class="nc" id="L25">                .orElseThrow(() -&gt; new RuntimeException(&quot;User not found&quot;));</span>
+    }
+
+    @GetMapping(&quot;/profile&quot;)
+    public ResponseEntity&lt;?&gt; getProfile(@RequestHeader(&quot;Authorization&quot;) String authHeader) {
+        try {
+<span class="nc" id="L31">            User user = getUserFromToken(authHeader);</span>
+<span class="nc" id="L32">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L33">                    &quot;id&quot;, user.getId(),</span>
+<span class="nc" id="L34">                    &quot;username&quot;, user.getUsername(),</span>
+<span class="nc" id="L35">                    &quot;email&quot;, user.getEmail(),</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">                    &quot;avatarUrl&quot;, user.getAvatarUrl() != null ? user.getAvatarUrl() : &quot;&quot;,</span>
+<span class="nc" id="L37">                    &quot;defaultVisibility&quot;, user.getDefaultVisibility().name(),</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">                    &quot;hiddenPlatforms&quot;, user.getHiddenPlatforms() != null ? user.getHiddenPlatforms() : &quot;[]&quot;,</span>
+<span class="nc" id="L39">                    &quot;createdAt&quot;, user.getCreatedAt(),</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">                    &quot;selfPortrait&quot;, user.getSelfPortrait() != null ? user.getSelfPortrait() : &quot;&quot;</span>
+            ));
+<span class="nc" id="L42">        } catch (Exception e) {</span>
+<span class="nc" id="L43">            return ResponseEntity.badRequest().body(e.getMessage());</span>
+        }
+    }
+
+    @PutMapping(&quot;/profile&quot;)
+    public ResponseEntity&lt;?&gt; updateProfile(
+            @RequestHeader(&quot;Authorization&quot;) String authHeader,
+            @RequestBody Map&lt;String, String&gt; body) {
+        try {
+<span class="nc" id="L52">            User user = getUserFromToken(authHeader);</span>
+
+<span class="nc bnc" id="L54" title="All 2 branches missed.">            if (body.containsKey(&quot;username&quot;)) {</span>
+<span class="nc" id="L55">                String newUsername = body.get(&quot;username&quot;);</span>
+<span class="nc bnc" id="L56" title="All 4 branches missed.">                if (newUsername == null || newUsername.trim().isEmpty()) {</span>
+<span class="nc" id="L57">                    return ResponseEntity.badRequest().body(&quot;Username cannot be empty&quot;);</span>
+                }
+<span class="nc bnc" id="L59" title="All 2 branches missed.">                if (!newUsername.equals(user.getUsername()) &amp;&amp;</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">                        userRepository.findByUsername(newUsername).isPresent()) {</span>
+<span class="nc" id="L61">                    return ResponseEntity.badRequest().body(&quot;Username is already taken!&quot;);</span>
+                }
+<span class="nc" id="L63">                user.setUsername(newUsername);</span>
+            }
+
+<span class="nc bnc" id="L66" title="All 2 branches missed.">            if (body.containsKey(&quot;email&quot;)) {</span>
+<span class="nc" id="L67">                String newEmail = body.get(&quot;email&quot;);</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">                if (!newEmail.equals(user.getEmail()) &amp;&amp;</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">                        userRepository.findByEmail(newEmail).isPresent()) {</span>
+<span class="nc" id="L70">                    return ResponseEntity.badRequest().body(&quot;Email is already taken!&quot;);</span>
+                }
+<span class="nc" id="L72">                user.setEmail(newEmail);</span>
+            }
+
+<span class="nc bnc" id="L75" title="All 2 branches missed.">            if (body.containsKey(&quot;selfPortrait&quot;)) {</span>
+<span class="nc" id="L76">                user.setSelfPortrait(body.get(&quot;selfPortrait&quot;));</span>
+            }
+
+<span class="nc" id="L79">            userRepository.save(user);</span>
+
+<span class="nc" id="L81">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L82">                    &quot;id&quot;, user.getId(),</span>
+<span class="nc" id="L83">                    &quot;username&quot;, user.getUsername(),</span>
+<span class="nc" id="L84">                    &quot;email&quot;, user.getEmail(),</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">                    &quot;avatarUrl&quot;, user.getAvatarUrl() != null ? user.getAvatarUrl() : &quot;&quot;,</span>
+                    &quot;message&quot;, &quot;Profile updated successfully&quot;
+            ));
+<span class="nc" id="L88">        } catch (Exception e) {</span>
+<span class="nc" id="L89">            return ResponseEntity.badRequest().body(e.getMessage());</span>
+        }
+    }
+
+    @PutMapping(&quot;/privacy&quot;)
+    public ResponseEntity&lt;?&gt; updatePrivacy(
+            @RequestHeader(&quot;Authorization&quot;) String authHeader,
+            @RequestBody Map&lt;String, Object&gt; body) {
+        try {
+<span class="nc" id="L98">            User user = getUserFromToken(authHeader);</span>
+<span class="nc" id="L99">            Object publicGraph = body.get(&quot;publicGraph&quot;);</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            if (!(publicGraph instanceof Boolean)) {</span>
+<span class="nc" id="L101">                return ResponseEntity.badRequest().body(&quot;publicGraph must be a boolean&quot;);</span>
+            }
+<span class="nc bnc" id="L103" title="All 2 branches missed.">            user.setDefaultVisibility((Boolean) publicGraph ? Visibility.PUBLIC : Visibility.PRIVATE);</span>
+<span class="nc" id="L104">            userRepository.save(user);</span>
+<span class="nc" id="L105">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                    &quot;publicGraph&quot;, user.getDefaultVisibility() == Visibility.PUBLIC,</span>
+<span class="nc" id="L107">                    &quot;defaultVisibility&quot;, user.getDefaultVisibility().name()</span>
+            ));
+<span class="nc" id="L109">        } catch (Exception e) {</span>
+<span class="nc" id="L110">            return ResponseEntity.badRequest().body(e.getMessage());</span>
+        }
+    }
+
+    @PutMapping(&quot;/avatar&quot;)
+    public ResponseEntity&lt;?&gt; updateAvatar(
+            @RequestHeader(&quot;Authorization&quot;) String authHeader,
+            @RequestBody Map&lt;String, String&gt; body) {
+        try {
+<span class="nc" id="L119">            User user = getUserFromToken(authHeader);</span>
+<span class="nc" id="L120">            String avatarUrl = body.get(&quot;avatarUrl&quot;);</span>
+
+<span class="nc bnc" id="L122" title="All 4 branches missed.">            if (avatarUrl == null || avatarUrl.isEmpty()) {</span>
+<span class="nc" id="L123">                return ResponseEntity.badRequest().body(&quot;avatarUrl is required&quot;);</span>
+            }
+
+<span class="nc" id="L126">            user.setAvatarUrl(avatarUrl);</span>
+<span class="nc" id="L127">            userRepository.save(user);</span>
+
+<span class="nc" id="L129">            return ResponseEntity.ok(Map.of(</span>
+                    &quot;avatarUrl&quot;, avatarUrl,
+                    &quot;message&quot;, &quot;Avatar updated successfully&quot;
+            ));
+<span class="nc" id="L133">        } catch (Exception e) {</span>
+<span class="nc" id="L134">            return ResponseEntity.badRequest().body(e.getMessage());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

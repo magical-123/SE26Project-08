@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WordCloudService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.service</a> &gt; <span class="el_source">WordCloudService.java</span></div><h1>WordCloudService.java</h1><pre class="source lang-java linenums">package com.infodigest.service;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.infodigest.entity.InformationItem;
+import com.infodigest.entity.UserWordCloud;
+import com.infodigest.repository.InformationItemRepository;
+import com.infodigest.repository.UserWordCloudRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+<span class="nc" id="L21">@Slf4j</span>
+public class WordCloudService {
+
+    private final InformationItemRepository itemRepository;
+    private final UserWordCloudRepository wordCloudRepository;
+    private final AIService aiService;
+    private final ObjectMapper objectMapper;
+
+    private static final String KEYWORD_EXTRACTION_PROMPT = &quot;&quot;&quot;
+            请从以下视频列表中提取最重要的主题关键词。每个视频提取3-5个关键词。
+
+            视频列表：
+            %s
+
+            要求：
+            1. 提取名词、领域、概念形式的关键词（避免动词和形容词）
+            2. 自动合并同义词和相关概念（如&quot;人工智能&quot;和&quot;AI&quot;、&quot;编程&quot;和&quot;代码&quot;）
+            3. 过滤无意义的词（如&quot;视频&quot;、&quot;内容&quot;、&quot;分享&quot;、&quot;推荐&quot;等）
+            4. 关键词应该是实质性主题（如&quot;机器学习&quot;、&quot;健康饮食&quot;、&quot;投资理财&quot;）
+
+            返回JSON格式（严格遵守格式，不要添加任何其他文字）：
+            {
+              &quot;keywords&quot;: [
+                {
+                  &quot;keyword&quot;: &quot;关键词&quot;,
+                  &quot;videoIds&quot;: [视频ID列表]
+                }
+              ]
+            }
+            &quot;&quot;&quot;;
+
+    /**
+     * 生成指定日期的词云数据
+     */
+    @Transactional
+    public UserWordCloud generateWordCloud(Long userId, LocalDate reportDate) throws Exception {
+<span class="nc" id="L57">        log.info(&quot;开始生成词云数据 - userId: {}, date: {}&quot;, userId, reportDate);</span>
+
+        // 1. 获取当天所有已分析的视频
+<span class="nc" id="L60">        LocalDateTime startOfDay = reportDate.atStartOfDay();</span>
+<span class="nc" id="L61">        LocalDateTime endOfDay = reportDate.plusDays(1).atStartOfDay();</span>
+
+        // 先尝试使用analyzedAt查询
+<span class="nc" id="L64">        List&lt;InformationItem&gt; items = itemRepository</span>
+<span class="nc" id="L65">                .findByUserIdAndProcessStatusAndAnalyzedAtBetween(</span>
+                        userId, &quot;PROCESSED&quot;, startOfDay, endOfDay);
+
+        // 如果没有数据，尝试使用crawledAt查询
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if (items.isEmpty()) {</span>
+<span class="nc" id="L70">            log.info(&quot;analyzedAt字段无数据，尝试使用crawledAt查询&quot;);</span>
+<span class="nc" id="L71">            items = itemRepository.findByUserIdAndProcessStatusAndCrawledAtBetween(</span>
+                    userId, &quot;PROCESSED&quot;, startOfDay, endOfDay);
+        }
+
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if (items.isEmpty()) {</span>
+<span class="nc" id="L76">            log.warn(&quot;没有找到已分析的视频数据 - userId: {}, date: {}&quot;, userId, reportDate);</span>
+<span class="nc" id="L77">            throw new Exception(&quot;当天没有已分析的视频数据&quot;);</span>
+        }
+
+<span class="nc" id="L80">        log.info(&quot;找到 {} 个已分析视频&quot;, items.size());</span>
+
+        // 2. 调用AI提取关键词
+<span class="nc" id="L83">        Map&lt;String, Object&gt; extractedData = extractKeywordsWithAI(items);</span>
+<span class="nc" id="L84">        List&lt;Map&lt;String, Object&gt;&gt; keywordList = (List&lt;Map&lt;String, Object&gt;&gt;) extractedData.get(&quot;keywords&quot;);</span>
+
+<span class="nc bnc" id="L86" title="All 4 branches missed.">        if (keywordList == null || keywordList.isEmpty()) {</span>
+<span class="nc" id="L87">            log.warn(&quot;AI未提取到任何关键词&quot;);</span>
+<span class="nc" id="L88">            throw new Exception(&quot;未能提取到关键词&quot;);</span>
+        }
+
+        // 3. 计算权重
+<span class="nc" id="L92">        List&lt;Map&lt;String, Object&gt;&gt; weightedKeywords = calculateWeights(keywordList, items);</span>
+
+        // 4. 保存到数据库
+<span class="nc" id="L95">        UserWordCloud wordCloud = saveWordCloud(userId, reportDate, weightedKeywords);</span>
+
+<span class="nc" id="L97">        log.info(&quot;词云数据生成成功 - {} 个关键词&quot;, weightedKeywords.size());</span>
+<span class="nc" id="L98">        return wordCloud;</span>
+    }
+
+    /**
+     * 调用AI提取关键词
+     */
+    private Map&lt;String, Object&gt; extractKeywordsWithAI(List&lt;InformationItem&gt; items) throws Exception {
+        // 构建视频列表文本
+<span class="nc" id="L106">        StringBuilder videoListBuilder = new StringBuilder();</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        for (int i = 0; i &lt; items.size(); i++) {</span>
+<span class="nc" id="L108">            InformationItem item = items.get(i);</span>
+<span class="nc" id="L109">            videoListBuilder.append(String.format(</span>
+                    &quot;视频%d (ID: %d):\n标题: %s\n摘要: %s\n\n&quot;,
+<span class="nc" id="L111">                    i + 1,</span>
+<span class="nc" id="L112">                    item.getId(),</span>
+<span class="nc" id="L113">                    item.getTitle(),</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">                    item.getAiSummary() != null ? item.getAiSummary() : &quot;无摘要&quot;</span>
+            ));
+        }
+
+<span class="nc" id="L118">        String prompt = String.format(KEYWORD_EXTRACTION_PROMPT, videoListBuilder.toString());</span>
+
+        // 调用AI
+<span class="nc" id="L121">        Long userId = items.get(0).getUserId();</span>
+<span class="nc" id="L122">        String aiResponse = aiService.generateInsight(prompt, userId);</span>
+
+        // 解析JSON响应
+        try {
+            // 清理可能的markdown代码块标记
+<span class="nc" id="L127">            String cleanedResponse = aiResponse.trim();</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">            if (cleanedResponse.startsWith(&quot;```json&quot;)) {</span>
+<span class="nc" id="L129">                cleanedResponse = cleanedResponse.substring(7);</span>
+            }
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            if (cleanedResponse.startsWith(&quot;```&quot;)) {</span>
+<span class="nc" id="L132">                cleanedResponse = cleanedResponse.substring(3);</span>
+            }
+<span class="nc bnc" id="L134" title="All 2 branches missed.">            if (cleanedResponse.endsWith(&quot;```&quot;)) {</span>
+<span class="nc" id="L135">                cleanedResponse = cleanedResponse.substring(0, cleanedResponse.length() - 3);</span>
+            }
+<span class="nc" id="L137">            cleanedResponse = cleanedResponse.trim();</span>
+
+<span class="nc" id="L139">            return objectMapper.readValue(cleanedResponse, new TypeReference&lt;Map&lt;String, Object&gt;&gt;() {});</span>
+<span class="nc" id="L140">        } catch (Exception e) {</span>
+<span class="nc" id="L141">            log.error(&quot;解析AI响应失败: {}&quot;, aiResponse, e);</span>
+<span class="nc" id="L142">            throw new Exception(&quot;解析关键词数据失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    /**
+     * 计算关键词权重
+     * 权重 = 基础权重 × 完播率加成 × 时间权重
+     */
+    private List&lt;Map&lt;String, Object&gt;&gt; calculateWeights(
+            List&lt;Map&lt;String, Object&gt;&gt; keywordList,
+            List&lt;InformationItem&gt; allItems) {
+
+        // 构建视频ID到视频对象的映射
+<span class="nc" id="L155">        Map&lt;Long, InformationItem&gt; itemMap = allItems.stream()</span>
+<span class="nc" id="L156">                .collect(Collectors.toMap(InformationItem::getId, item -&gt; item));</span>
+
+<span class="nc" id="L158">        List&lt;Map&lt;String, Object&gt;&gt; result = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        for (Map&lt;String, Object&gt; keywordData : keywordList) {</span>
+<span class="nc" id="L161">            String keyword = (String) keywordData.get(&quot;keyword&quot;);</span>
+<span class="nc" id="L162">            List&lt;Integer&gt; videoIds = (List&lt;Integer&gt;) keywordData.get(&quot;videoIds&quot;);</span>
+
+<span class="nc bnc" id="L164" title="All 6 branches missed.">            if (keyword == null || videoIds == null || videoIds.isEmpty()) {</span>
+<span class="nc" id="L165">                continue;</span>
+            }
+
+            // 1. 基础权重 = 关联视频数量
+<span class="nc" id="L169">            double baseWeight = videoIds.size();</span>
+
+            // 2. 计算平均完播率
+<span class="nc" id="L172">            double totalCompletionRate = 0;</span>
+<span class="nc" id="L173">            int validCompletionCount = 0;</span>
+<span class="nc" id="L174">            List&lt;Long&gt; relatedVideoIds = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L176" title="All 2 branches missed.">            for (Integer videoId : videoIds) {</span>
+<span class="nc" id="L177">                Long id = videoId.longValue();</span>
+<span class="nc" id="L178">                InformationItem item = itemMap.get(id);</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">                if (item != null) {</span>
+<span class="nc" id="L180">                    relatedVideoIds.add(id);</span>
+<span class="nc bnc" id="L181" title="All 2 branches missed.">                    if (item.getCompletionRate() != null) {</span>
+<span class="nc" id="L182">                        totalCompletionRate += item.getCompletionRate();</span>
+<span class="nc" id="L183">                        validCompletionCount++;</span>
+                    }
+                }
+<span class="nc" id="L186">            }</span>
+
+<span class="nc bnc" id="L188" title="All 2 branches missed.">            double avgCompletionRate = validCompletionCount &gt; 0</span>
+<span class="nc" id="L189">                    ? totalCompletionRate / validCompletionCount</span>
+<span class="nc" id="L190">                    : 0.5; // 默认完播率50%</span>
+
+            // 完播率加成 = 1 + (平均完播率 × 0.5)
+<span class="nc" id="L193">            double completionBonus = 1 + (avgCompletionRate * 0.5);</span>
+
+            // 3. 计算时间权重（根据观看时间段）
+<span class="nc" id="L196">            double timeWeight = calculateTimeWeight(relatedVideoIds, itemMap);</span>
+
+            // 4. 最终权重
+<span class="nc" id="L199">            double finalWeight = baseWeight * completionBonus * timeWeight;</span>
+
+            // 构建结果
+<span class="nc" id="L202">            Map&lt;String, Object&gt; weightedKeyword = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L203">            weightedKeyword.put(&quot;word&quot;, keyword);</span>
+<span class="nc" id="L204">            weightedKeyword.put(&quot;value&quot;, Math.round(finalWeight * 10)); // 放大10倍便于展示</span>
+<span class="nc" id="L205">            weightedKeyword.put(&quot;relatedVideos&quot;, relatedVideoIds);</span>
+
+<span class="nc" id="L207">            result.add(weightedKeyword);</span>
+<span class="nc" id="L208">        }</span>
+
+        // 按权重排序
+<span class="nc" id="L211">        result.sort((a, b) -&gt; {</span>
+<span class="nc" id="L212">            Long valueA = (Long) a.get(&quot;value&quot;);</span>
+<span class="nc" id="L213">            Long valueB = (Long) b.get(&quot;value&quot;);</span>
+<span class="nc" id="L214">            return valueB.compareTo(valueA);</span>
+        });
+
+<span class="nc" id="L217">        return result;</span>
+    }
+
+    /**
+     * 计算时间权重
+     * 根据视频分析时间（代表观看时间）计算权重
+     * 早上(6-12): 0.9, 下午(12-18): 1.0, 晚上(18-24): 1.2, 深夜(0-6): 1.1
+     */
+    private double calculateTimeWeight(List&lt;Long&gt; videoIds, Map&lt;Long, InformationItem&gt; itemMap) {
+<span class="nc bnc" id="L226" title="All 2 branches missed.">        if (videoIds.isEmpty()) {</span>
+<span class="nc" id="L227">            return 1.0;</span>
+        }
+
+<span class="nc" id="L230">        double totalWeight = 0;</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        for (Long videoId : videoIds) {</span>
+<span class="nc" id="L232">            InformationItem item = itemMap.get(videoId);</span>
+<span class="nc bnc" id="L233" title="All 4 branches missed.">            if (item != null &amp;&amp; item.getAnalyzedAt() != null) {</span>
+<span class="nc" id="L234">                int hour = item.getAnalyzedAt().getHour();</span>
+
+                double weight;
+<span class="nc bnc" id="L237" title="All 4 branches missed.">                if (hour &gt;= 6 &amp;&amp; hour &lt; 12) {</span>
+<span class="nc" id="L238">                    weight = 0.9; // 早上</span>
+<span class="nc bnc" id="L239" title="All 4 branches missed.">                } else if (hour &gt;= 12 &amp;&amp; hour &lt; 18) {</span>
+<span class="nc" id="L240">                    weight = 1.0; // 下午</span>
+<span class="nc bnc" id="L241" title="All 4 branches missed.">                } else if (hour &gt;= 18 &amp;&amp; hour &lt; 24) {</span>
+<span class="nc" id="L242">                    weight = 1.2; // 晚上（黄金时间）</span>
+                } else {
+<span class="nc" id="L244">                    weight = 1.1; // 深夜</span>
+                }
+
+<span class="nc" id="L247">                totalWeight += weight;</span>
+<span class="nc" id="L248">            } else {</span>
+<span class="nc" id="L249">                totalWeight += 1.0; // 默认权重</span>
+            }
+<span class="nc" id="L251">        }</span>
+
+<span class="nc" id="L253">        return totalWeight / videoIds.size();</span>
+    }
+
+    /**
+     * 保存词云数据
+     */
+    private UserWordCloud saveWordCloud(Long userId, LocalDate reportDate,
+                                        List&lt;Map&lt;String, Object&gt;&gt; keywords) throws Exception {
+        try {
+<span class="nc" id="L262">            String keywordsJson = objectMapper.writeValueAsString(keywords);</span>
+
+<span class="nc" id="L264">            UserWordCloud wordCloud = wordCloudRepository</span>
+<span class="nc" id="L265">                    .findByUserIdAndReportDate(userId, reportDate)</span>
+<span class="nc" id="L266">                    .orElse(new UserWordCloud());</span>
+
+<span class="nc" id="L268">            wordCloud.setUserId(userId);</span>
+<span class="nc" id="L269">            wordCloud.setReportDate(reportDate);</span>
+<span class="nc" id="L270">            wordCloud.setKeywords(keywordsJson);</span>
+
+<span class="nc" id="L272">            return wordCloudRepository.save(wordCloud);</span>
+<span class="nc" id="L273">        } catch (Exception e) {</span>
+<span class="nc" id="L274">            log.error(&quot;保存词云数据失败&quot;, e);</span>
+<span class="nc" id="L275">            throw new Exception(&quot;保存词云数据失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    /**
+     * 获取指定日期的词云数据
+     */
+    public Map&lt;String, Object&gt; getWordCloud(Long userId, LocalDate reportDate) throws Exception {
+<span class="nc" id="L283">        Optional&lt;UserWordCloud&gt; wordCloudOpt = wordCloudRepository</span>
+<span class="nc" id="L284">                .findByUserIdAndReportDate(userId, reportDate);</span>
+
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        if (wordCloudOpt.isEmpty()) {</span>
+<span class="nc" id="L287">            throw new Exception(&quot;未找到该日期的词云数据&quot;);</span>
+        }
+
+<span class="nc" id="L290">        UserWordCloud wordCloud = wordCloudOpt.get();</span>
+
+        try {
+<span class="nc" id="L293">            List&lt;Map&lt;String, Object&gt;&gt; keywords = objectMapper.readValue(</span>
+<span class="nc" id="L294">                    wordCloud.getKeywords(),</span>
+<span class="nc" id="L295">                    new TypeReference&lt;List&lt;Map&lt;String, Object&gt;&gt;&gt;() {});</span>
+
+<span class="nc" id="L297">            Map&lt;String, Object&gt; result = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L298">            result.put(&quot;reportDate&quot;, wordCloud.getReportDate());</span>
+<span class="nc" id="L299">            result.put(&quot;keywords&quot;, keywords);</span>
+<span class="nc" id="L300">            result.put(&quot;updatedAt&quot;, wordCloud.getUpdatedAt());</span>
+
+<span class="nc" id="L302">            return result;</span>
+<span class="nc" id="L303">        } catch (Exception e) {</span>
+<span class="nc" id="L304">            log.error(&quot;解析词云数据失败&quot;, e);</span>
+<span class="nc" id="L305">            throw new Exception(&quot;解析词云数据失败: &quot; + e.getMessage());</span>
+        }
+    }
+
+    /**
+     * 获取周词云数据（最近7天）
+     */
+    public List&lt;Map&lt;String, Object&gt;&gt; getWeeklyWordClouds(Long userId, LocalDate endDate) {
+<span class="nc" id="L313">        LocalDate startDate = endDate.minusDays(6);</span>
+
+<span class="nc" id="L315">        List&lt;UserWordCloud&gt; wordClouds = wordCloudRepository</span>
+<span class="nc" id="L316">                .findByUserIdAndReportDateBetweenOrderByReportDateDesc(userId, startDate, endDate);</span>
+
+<span class="nc" id="L318">        return wordClouds.stream().map(wc -&gt; {</span>
+            try {
+<span class="nc" id="L320">                List&lt;Map&lt;String, Object&gt;&gt; keywords = objectMapper.readValue(</span>
+<span class="nc" id="L321">                        wc.getKeywords(),</span>
+<span class="nc" id="L322">                        new TypeReference&lt;List&lt;Map&lt;String, Object&gt;&gt;&gt;() {});</span>
+
+<span class="nc" id="L324">                Map&lt;String, Object&gt; result = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L325">                result.put(&quot;reportDate&quot;, wc.getReportDate());</span>
+<span class="nc" id="L326">                result.put(&quot;keywords&quot;, keywords);</span>
+
+<span class="nc" id="L328">                return result;</span>
+<span class="nc" id="L329">            } catch (Exception e) {</span>
+<span class="nc" id="L330">                log.error(&quot;解析词云数据失败&quot;, e);</span>
+<span class="nc" id="L331">                return null;</span>
+            }
+<span class="nc" id="L333">        }).filter(Objects::nonNull).collect(Collectors.toList());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

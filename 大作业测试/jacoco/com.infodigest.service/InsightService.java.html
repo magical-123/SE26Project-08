@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InsightService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.service</a> &gt; <span class="el_source">InsightService.java</span></div><h1>InsightService.java</h1><pre class="source lang-java linenums">package com.infodigest.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.infodigest.entity.InformationItem;
+import com.infodigest.entity.ReportType;
+import com.infodigest.entity.UserReport;
+import com.infodigest.repository.InformationItemRepository;
+import com.infodigest.repository.UserReportRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.DayOfWeek;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * 洞察生成服务
+ */
+@Service
+<span class="fc" id="L23">@Slf4j</span>
+<span class="fc" id="L24">public class InsightService {</span>
+
+    @Autowired
+    private UserReportRepository reportRepository;
+
+    @Autowired
+    private InformationItemRepository itemRepository;
+
+    @Autowired
+    private AIService aiService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private static final String INSIGHT_PROMPT_TEMPLATE = &quot;&quot;&quot;
+            你是一位专业的数字内容分析师。请基于用户在%s的视频观看数据生成一份深度洞察报告。
+
+            【用户数据】
+            - 时间范围：%s
+            - 观看视频数量：%d
+            - 五维度营养分布：
+              * 蛋白质（深度认知）：%d%%
+              * 碳水化合物（实用技能）：%d%%
+              * 维生素（创意灵感）：%d%%
+              * 脂肪（娱乐消遣）：%d%%
+              * 膳食纤维（哲思反思）：%d%%
+
+            【视频列表】
+            %s
+
+            请生成一份洞察报告，包含以下内容：
+            1. **标题**：简洁有力的主题标题（10字以内）
+            2. **核心洞察**：用2-3句话概括本%s最突出的特点和趋势
+            3. **关键发现**：列出3个关键发现点，每个用一句话说明
+            4. **建议**：给出1-2条针对性的内容摄入建议
+
+            请用JSON格式返回：
+            {
+              &quot;title&quot;: &quot;洞察标题&quot;,
+              &quot;summary&quot;: &quot;核心洞察（2-3句话）&quot;,
+              &quot;fullText&quot;: &quot;完整洞察内容，包含关键发现和建议&quot;
+            }
+            &quot;&quot;&quot;;
+
+    private static final String WEEKLY_INSIGHT_PROMPT_TEMPLATE = &quot;&quot;&quot;
+            你是一位专业的数字内容分析师。请基于用户本周的每日洞察报告生成一份周度总结报告。
+
+            【本周数据】
+            - 时间范围：%s
+            - 本周五维度营养分布：
+              * 蛋白质（深度认知）：%d%%
+              * 碳水化合物（实用技能）：%d%%
+              * 维生素（创意灵感）：%d%%
+              * 脂肪（娱乐消遣）：%d%%
+              * 膳食纤维（哲思反思）：%d%%
+
+            【每日洞察汇总】
+            %s
+
+            重要：报告中凡是提到营养维度百分比，必须严格使用上方“本周五维度营养分布”的数值，
+            禁止根据每日洞察自行重新计算、推测或改写百分比。
+
+            请生成一份周报，包含以下内容：
+            1. **标题**：简洁有力的主题标题（10字以内）
+            2. **核心洞察**：用3-4句话概括本周整体的内容消费特点和变化趋势
+            3. **关键发现**：列出3-4个关键发现点，可以包括：
+               - 本周营养摄入的亮点和不足
+               - 与上周相比的明显变化
+               - 持续的兴趣点或新出现的关注领域
+            4. **建议**：给出2-3条针对下周的内容摄入建议
+
+            请用JSON格式返回：
+            {
+              &quot;title&quot;: &quot;周报标题&quot;,
+              &quot;summary&quot;: &quot;核心洞察（3-4句话）&quot;,
+              &quot;fullText&quot;: &quot;完整周报内容，包含关键发现和建议&quot;
+            }
+            &quot;&quot;&quot;;
+
+    /**
+     * 生成或重新生成洞察
+     */
+    public UserReport generateInsight(Long userId, ReportType type, LocalDate reportDate) throws Exception {
+<span class="nc" id="L107">        log.info(&quot;开始为用户 {} 生成 {} 洞察，日期：{}&quot;, userId, type, reportDate);</span>
+
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (type == ReportType.WEEKLY) {</span>
+            // 周报：基于日报生成
+<span class="nc" id="L111">            return generateWeeklyInsightFromDailyReports(userId, reportDate);</span>
+        } else {
+            // 日报：基于视频列表生成
+<span class="nc" id="L114">            return generateDailyInsightFromVideos(userId, reportDate);</span>
+        }
+    }
+
+    /**
+     * 基于视频列表生成日报
+     */
+    private UserReport generateDailyInsightFromVideos(Long userId, LocalDate reportDate) throws Exception {
+<span class="nc" id="L122">        log.info(&quot;基于视频列表生成日报：userId={}, date={}&quot;, userId, reportDate);</span>
+
+        // 1. 按内容捕获时间统计当天的摄入，避免把延迟分析的内容算到错误日期
+<span class="nc" id="L125">        List&lt;InformationItem&gt; items = itemRepository</span>
+<span class="nc" id="L126">                .findByUserIdAndProcessStatusAndCrawledAtBetween(</span>
+                        userId, &quot;PROCESSED&quot;,
+<span class="nc" id="L128">                        reportDate.atStartOfDay(),</span>
+<span class="nc" id="L129">                        reportDate.atTime(23, 59, 59)</span>
+                );
+
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (items.isEmpty()) {</span>
+<span class="nc" id="L133">            throw new RuntimeException(&quot;该日期没有已分析的视频数据&quot;);</span>
+        }
+
+        // 2. 计算营养分布
+<span class="nc" id="L137">        Map&lt;String, Integer&gt; nutrition = calculateNutritionDistribution(items);</span>
+
+        // 3. 构建提示词
+<span class="nc" id="L140">        String videoList = buildVideoList(items);</span>
+<span class="nc" id="L141">        String timeRange = reportDate.toString();</span>
+<span class="nc" id="L142">        String periodName = &quot;日&quot;;</span>
+
+<span class="nc" id="L144">        String prompt = String.format(</span>
+                INSIGHT_PROMPT_TEMPLATE,
+                periodName,
+                timeRange,
+<span class="nc" id="L148">                items.size(),</span>
+<span class="nc" id="L149">                nutrition.get(&quot;protein&quot;),</span>
+<span class="nc" id="L150">                nutrition.get(&quot;carbs&quot;),</span>
+<span class="nc" id="L151">                nutrition.get(&quot;vitamins&quot;),</span>
+<span class="nc" id="L152">                nutrition.get(&quot;fats&quot;),</span>
+<span class="nc" id="L153">                nutrition.get(&quot;fiber&quot;),</span>
+                videoList,
+                periodName
+        );
+
+        // 4. 调用 AI 生成洞察
+<span class="nc" id="L159">        log.info(&quot;调用 AI 生成日报洞察...&quot;);</span>
+<span class="nc" id="L160">        String aiResponse = aiService.generateInsight(prompt, userId);</span>
+
+        // 5. 解析 AI 响应
+<span class="nc" id="L163">        Map&lt;String, String&gt; insightData = parseInsightResponse(aiResponse);</span>
+
+        // 6. 保存报告
+<span class="nc" id="L166">        return saveReport(userId, ReportType.DAILY, reportDate, nutrition, insightData);</span>
+    }
+
+    /**
+     * 基于每日报告生成周报
+     */
+    private UserReport generateWeeklyInsightFromDailyReports(Long userId, LocalDate reportDate) throws Exception {
+<span class="nc" id="L173">        log.info(&quot;基于日报生成周报：userId={}, date={}&quot;, userId, reportDate);</span>
+
+        // 1. AI 周报用于解释左侧营养表，因此采用相同的滚动最近 7 天范围。
+<span class="nc" id="L176">        LocalDate startDate = reportDate.minusDays(7);</span>
+<span class="nc" id="L177">        LocalDate endDate = reportDate;</span>
+        // 存储键继续使用自然周周一，兼容既有报告查询和版本历史。
+<span class="nc" id="L179">        LocalDate storageDate = reportDate.with(DayOfWeek.MONDAY);</span>
+
+        // 2. 获取本周所有日报
+<span class="nc" id="L182">        List&lt;UserReport&gt; dailyReports = reportRepository.findByUserIdAndTypeAndReportDateBetween(</span>
+                userId, ReportType.DAILY, startDate, endDate);
+
+        // 3. 获取本周内容。即使历史日报尚未生成，也可以直接从内容生成周报。
+<span class="nc" id="L186">        List&lt;InformationItem&gt; weekItems = itemRepository</span>
+<span class="nc" id="L187">                .findByUserIdAndProcessStatusAndCrawledAtBetween(</span>
+                        userId, &quot;PROCESSED&quot;,
+<span class="nc" id="L189">                        startDate.atStartOfDay(),</span>
+<span class="nc" id="L190">                        endDate.atTime(23, 59, 59)</span>
+                );
+
+<span class="nc bnc" id="L193" title="All 2 branches missed.">        if (weekItems.isEmpty()) {</span>
+<span class="nc" id="L194">            throw new RuntimeException(&quot;本周没有已分析的内容数据&quot;);</span>
+        }
+
+<span class="nc" id="L197">        Map&lt;String, Integer&gt; weeklyNutrition = calculateNutritionDistribution(weekItems);</span>
+
+        // 4. 优先使用日报汇总；没有历史日报时直接使用本周内容摘要，保证周报链路可独立运行。
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        String dailyInsightsSummary = dailyReports.isEmpty()</span>
+<span class="nc" id="L201">                ? buildVideoList(weekItems)</span>
+<span class="nc" id="L202">                : buildDailyInsightsSummary(dailyReports);</span>
+
+        // 5. 构建周报提示词
+<span class="nc" id="L205">        String timeRange = startDate + &quot; 至 &quot; + endDate;</span>
+<span class="nc" id="L206">        String prompt = String.format(</span>
+                WEEKLY_INSIGHT_PROMPT_TEMPLATE,
+                timeRange,
+<span class="nc" id="L209">                weeklyNutrition.get(&quot;protein&quot;),</span>
+<span class="nc" id="L210">                weeklyNutrition.get(&quot;carbs&quot;),</span>
+<span class="nc" id="L211">                weeklyNutrition.get(&quot;vitamins&quot;),</span>
+<span class="nc" id="L212">                weeklyNutrition.get(&quot;fats&quot;),</span>
+<span class="nc" id="L213">                weeklyNutrition.get(&quot;fiber&quot;),</span>
+                dailyInsightsSummary
+        );
+
+        // 6. 调用 AI 生成周报洞察
+<span class="nc" id="L218">        log.info(&quot;调用 AI 生成周报洞察...&quot;);</span>
+<span class="nc" id="L219">        String aiResponse = aiService.generateInsight(prompt, userId);</span>
+
+        // 7. 解析 AI 响应
+<span class="nc" id="L222">        Map&lt;String, String&gt; insightData = parseInsightResponse(aiResponse);</span>
+
+        // 8. 保存周报（存储键仍使用周一日期）
+<span class="nc" id="L225">        return saveReport(userId, ReportType.WEEKLY, storageDate, weeklyNutrition, insightData);</span>
+    }
+
+    /**
+     * 保存报告（统一处理版本管理）
+     */
+    private UserReport saveReport(Long userId, ReportType type, LocalDate reportDate,
+                                   Map&lt;String, Integer&gt; nutrition, Map&lt;String, String&gt; insightData) throws Exception {
+        // 查找是否已有该日期的报告
+<span class="nc" id="L234">        Optional&lt;UserReport&gt; existingReport = reportRepository</span>
+<span class="nc" id="L235">                .findFirstByUserIdAndTypeAndReportDateOrderByVersionDesc(userId, type, reportDate);</span>
+
+        UserReport report;
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        if (existingReport.isPresent()) {</span>
+            // 重新生成：创建新版本
+<span class="nc" id="L240">            UserReport oldReport = existingReport.get();</span>
+<span class="nc" id="L241">            report = new UserReport();</span>
+<span class="nc" id="L242">            report.setUserId(userId);</span>
+<span class="nc" id="L243">            report.setType(type);</span>
+<span class="nc" id="L244">            report.setReportDate(reportDate);</span>
+<span class="nc" id="L245">            report.setVersion(oldReport.getVersion() + 1);</span>
+<span class="nc" id="L246">        } else {</span>
+            // 首次生成
+<span class="nc" id="L248">            report = new UserReport();</span>
+<span class="nc" id="L249">            report.setUserId(userId);</span>
+<span class="nc" id="L250">            report.setType(type);</span>
+<span class="nc" id="L251">            report.setReportDate(reportDate);</span>
+<span class="nc" id="L252">            report.setVersion(1);</span>
+        }
+
+        // 填充报告数据
+<span class="nc" id="L256">        report.setNutritionData(objectMapper.writeValueAsString(nutrition));</span>
+<span class="nc" id="L257">        report.setInsightTitle(insightData.get(&quot;title&quot;));</span>
+<span class="nc" id="L258">        report.setInsightSummary(insightData.get(&quot;summary&quot;));</span>
+<span class="nc" id="L259">        report.setInsightFullText(insightData.get(&quot;fullText&quot;));</span>
+
+        // 保存报告
+<span class="nc" id="L262">        report = reportRepository.save(report);</span>
+<span class="nc" id="L263">        log.info(&quot;报告生成完成：type={}, reportDate={}, version={}&quot;, type, reportDate, report.getVersion());</span>
+
+<span class="nc" id="L265">        return report;</span>
+    }
+
+    /**
+     * 构建每日洞察汇总文本
+     */
+    private String buildDailyInsightsSummary(List&lt;UserReport&gt; dailyReports) {
+<span class="nc" id="L272">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L273">        int dayNum = 1;</span>
+
+<span class="nc bnc" id="L275" title="All 2 branches missed.">        for (UserReport report : dailyReports) {</span>
+<span class="nc" id="L276">            sb.append(String.format(&quot;【%s %s】\n&quot;,</span>
+<span class="nc" id="L277">                    report.getReportDate().getDayOfWeek().toString(),</span>
+<span class="nc" id="L278">                    report.getReportDate()));</span>
+<span class="nc" id="L279">            sb.append(String.format(&quot;标题：%s\n&quot;, report.getInsightTitle()));</span>
+<span class="nc" id="L280">            sb.append(String.format(&quot;核心洞察：%s\n&quot;, report.getInsightSummary()));</span>
+<span class="nc" id="L281">            sb.append(&quot;\n&quot;);</span>
+<span class="nc" id="L282">            dayNum++;</span>
+<span class="nc" id="L283">        }</span>
+
+<span class="nc" id="L285">        return sb.toString();</span>
+    }
+
+    /**
+     * 获取最新洞察
+     */
+    public Optional&lt;UserReport&gt; getLatestInsight(Long userId, ReportType type, LocalDate reportDate) {
+        // 对于周报，需要查询本周的报告（reportDate 为本周周一）
+<span class="nc bnc" id="L293" title="All 2 branches missed.">        if (type == ReportType.WEEKLY) {</span>
+<span class="nc" id="L294">            LocalDate weekStart = reportDate.with(java.time.DayOfWeek.MONDAY);</span>
+<span class="nc" id="L295">            return reportRepository.findFirstByUserIdAndTypeAndReportDateOrderByVersionDesc(</span>
+                    userId, type, weekStart);
+        }
+
+        // 对于日报，直接使用传入的日期
+<span class="nc" id="L300">        return reportRepository.findFirstByUserIdAndTypeAndReportDateOrderByVersionDesc(</span>
+                userId, type, reportDate);
+    }
+
+    /**
+     * 获取历史洞察列表
+     */
+    public List&lt;UserReport&gt; getHistoryInsights(Long userId, ReportType type, LocalDate reportDate) {
+<span class="nc" id="L308">        return reportRepository.findByUserIdAndTypeAndReportDateOrderByVersionDesc(</span>
+                userId, type, reportDate);
+    }
+
+    /**
+     * 获取所有历史报告（每个日期只返回最新版本）
+     */
+    public List&lt;UserReport&gt; getAllHistoryReports(Long userId, ReportType type) {
+<span class="nc" id="L316">        return reportRepository.findLatestReportsByUserIdAndType(userId, type);</span>
+    }
+
+    /**
+     * 计算营养分布
+     */
+    private Map&lt;String, Integer&gt; calculateNutritionDistribution(List&lt;InformationItem&gt; items) {
+<span class="pc bpc" id="L323" title="2 of 4 branches missed.">        if (items == null || items.isEmpty()) {</span>
+<span class="nc" id="L324">            return Map.of(</span>
+<span class="nc" id="L325">                    &quot;protein&quot;, 0,</span>
+<span class="nc" id="L326">                    &quot;carbs&quot;, 0,</span>
+<span class="nc" id="L327">                    &quot;vitamins&quot;, 0,</span>
+<span class="nc" id="L328">                    &quot;fats&quot;, 0,</span>
+<span class="nc" id="L329">                    &quot;fiber&quot;, 0</span>
+            );
+        }
+
+<span class="fc" id="L333">        double totalSeconds = 0;</span>
+<span class="fc" id="L334">        double proteinSeconds = 0;</span>
+<span class="fc" id="L335">        double carbsSeconds = 0;</span>
+<span class="fc" id="L336">        double vitaminsSeconds = 0;</span>
+<span class="fc" id="L337">        double fatsSeconds = 0;</span>
+<span class="fc" id="L338">        double fiberSeconds = 0;</span>
+
+<span class="fc bfc" id="L340" title="All 2 branches covered.">        for (InformationItem item : items) {</span>
+<span class="fc" id="L341">            double itemSeconds = getEffectiveDurationSeconds(item);</span>
+<span class="fc" id="L342">            totalSeconds += itemSeconds;</span>
+
+<span class="pc bpc" id="L344" title="1 of 2 branches missed.">            if (item.getNutritionProtein() != null) {</span>
+<span class="fc" id="L345">                proteinSeconds += itemSeconds * item.getNutritionProtein() / 100.0;</span>
+            }
+<span class="pc bpc" id="L347" title="1 of 2 branches missed.">            if (item.getNutritionCarbs() != null) {</span>
+<span class="nc" id="L348">                carbsSeconds += itemSeconds * item.getNutritionCarbs() / 100.0;</span>
+            }
+<span class="pc bpc" id="L350" title="1 of 2 branches missed.">            if (item.getNutritionVitamins() != null) {</span>
+<span class="nc" id="L351">                vitaminsSeconds += itemSeconds * item.getNutritionVitamins() / 100.0;</span>
+            }
+<span class="fc bfc" id="L353" title="All 2 branches covered.">            if (item.getNutritionFats() != null) {</span>
+<span class="fc" id="L354">                fatsSeconds += itemSeconds * item.getNutritionFats() / 100.0;</span>
+            }
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">            if (item.getNutritionFiber() != null) {</span>
+<span class="nc" id="L357">                fiberSeconds += itemSeconds * item.getNutritionFiber() / 100.0;</span>
+            }
+<span class="fc" id="L359">        }</span>
+
+        int protein;
+        int carbs;
+        int vitamins;
+        int fats;
+        int fiber;
+<span class="pc bpc" id="L366" title="1 of 2 branches missed.">        if (totalSeconds &gt; 0) {</span>
+            // 与 Dashboard 营养成分表保持一致：按照真实观看时长加权。
+<span class="fc" id="L368">            protein = (int) Math.round(proteinSeconds * 100.0 / totalSeconds);</span>
+<span class="fc" id="L369">            carbs = (int) Math.round(carbsSeconds * 100.0 / totalSeconds);</span>
+<span class="fc" id="L370">            vitamins = (int) Math.round(vitaminsSeconds * 100.0 / totalSeconds);</span>
+<span class="fc" id="L371">            fats = (int) Math.round(fatsSeconds * 100.0 / totalSeconds);</span>
+<span class="fc" id="L372">            fiber = Math.max(0, 100 - protein - carbs - vitamins - fats);</span>
+        } else {
+            // 所有内容都没有可靠时长时才退回等权平均，且不伪造观看时长。
+<span class="nc" id="L375">            protein = averageNutrition(items, InformationItem::getNutritionProtein);</span>
+<span class="nc" id="L376">            carbs = averageNutrition(items, InformationItem::getNutritionCarbs);</span>
+<span class="nc" id="L377">            vitamins = averageNutrition(items, InformationItem::getNutritionVitamins);</span>
+<span class="nc" id="L378">            fats = averageNutrition(items, InformationItem::getNutritionFats);</span>
+<span class="nc" id="L379">            fiber = Math.max(0, 100 - protein - carbs - vitamins - fats);</span>
+        }
+
+<span class="fc" id="L382">        return Map.of(</span>
+<span class="fc" id="L383">                &quot;protein&quot;, protein,</span>
+<span class="fc" id="L384">                &quot;carbs&quot;, carbs,</span>
+<span class="fc" id="L385">                &quot;vitamins&quot;, vitamins,</span>
+<span class="fc" id="L386">                &quot;fats&quot;, fats,</span>
+<span class="fc" id="L387">                &quot;fiber&quot;, fiber</span>
+        );
+    }
+
+    private double getEffectiveDurationSeconds(InformationItem item) {
+<span class="fc" id="L392">        return DurationMetrics.effectiveSeconds(item);</span>
+    }
+
+    private int averageNutrition(
+            List&lt;InformationItem&gt; items,
+            java.util.function.Function&lt;InformationItem, Integer&gt; getter) {
+<span class="nc" id="L398">        return (int) Math.round(items.stream()</span>
+<span class="nc" id="L399">                .map(getter)</span>
+<span class="nc" id="L400">                .filter(java.util.Objects::nonNull)</span>
+<span class="nc" id="L401">                .mapToInt(Integer::intValue)</span>
+<span class="nc" id="L402">                .average()</span>
+<span class="nc" id="L403">                .orElse(0));</span>
+    }
+
+    /**
+     * 构建视频列表文本（包含摘要）
+     */
+    private String buildVideoList(List&lt;InformationItem&gt; items) {
+<span class="nc" id="L410">        StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L411">        int count = 0;</span>
+<span class="nc bnc" id="L412" title="All 2 branches missed.">        for (InformationItem item : items) {</span>
+<span class="nc bnc" id="L413" title="All 2 branches missed.">            if (count &gt;= 10) break; // 最多列出10个</span>
+<span class="nc" id="L414">            sb.append(String.format(</span>
+                    &quot;%d. [%s] %s\n   营养分布：蛋白质:%d%% 碳水:%d%% 维生素:%d%% 脂肪:%d%% 纤维:%d%%\n   摘要：%s\n\n&quot;,
+<span class="nc" id="L416">                    ++count,</span>
+<span class="nc" id="L417">                    item.getPlatform(),</span>
+<span class="nc" id="L418">                    item.getTitle(),</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                    item.getNutritionProtein() != null ? item.getNutritionProtein() : 0,</span>
+<span class="nc bnc" id="L420" title="All 2 branches missed.">                    item.getNutritionCarbs() != null ? item.getNutritionCarbs() : 0,</span>
+<span class="nc bnc" id="L421" title="All 2 branches missed.">                    item.getNutritionVitamins() != null ? item.getNutritionVitamins() : 0,</span>
+<span class="nc bnc" id="L422" title="All 2 branches missed.">                    item.getNutritionFats() != null ? item.getNutritionFats() : 0,</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">                    item.getNutritionFiber() != null ? item.getNutritionFiber() : 0,</span>
+<span class="nc bnc" id="L424" title="All 2 branches missed.">                    item.getAiSummary() != null ? item.getAiSummary() : &quot;暂无摘要&quot;</span>
+            ));
+<span class="nc" id="L426">        }</span>
+<span class="nc bnc" id="L427" title="All 2 branches missed.">        if (items.size() &gt; 10) {</span>
+<span class="nc" id="L428">            sb.append(String.format(&quot;... 还有 %d 个视频未列出\n&quot;, items.size() - 10));</span>
+        }
+<span class="nc" id="L430">        return sb.toString();</span>
+    }
+
+    /**
+     * 解析 AI 响应
+     */
+    private Map&lt;String, String&gt; parseInsightResponse(String response) throws Exception {
+        // 清理可能的 markdown 代码块标记
+<span class="nc" id="L438">        String cleanedResponse = response.trim();</span>
+<span class="nc bnc" id="L439" title="All 2 branches missed.">        if (cleanedResponse.startsWith(&quot;```json&quot;)) {</span>
+<span class="nc" id="L440">            cleanedResponse = cleanedResponse.substring(7).trim();</span>
+        }
+<span class="nc bnc" id="L442" title="All 2 branches missed.">        if (cleanedResponse.startsWith(&quot;```&quot;)) {</span>
+<span class="nc" id="L443">            cleanedResponse = cleanedResponse.substring(3).trim();</span>
+        }
+<span class="nc bnc" id="L445" title="All 2 branches missed.">        if (cleanedResponse.endsWith(&quot;```&quot;)) {</span>
+<span class="nc" id="L446">            cleanedResponse = cleanedResponse.substring(0, cleanedResponse.length() - 3).trim();</span>
+        }
+
+        // 解析 JSON
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L451">        Map&lt;String, String&gt; result = objectMapper.readValue(cleanedResponse, Map.class);</span>
+
+        // 验证必需字段
+<span class="nc bnc" id="L454" title="All 6 branches missed.">        if (!result.containsKey(&quot;title&quot;) || !result.containsKey(&quot;summary&quot;) || !result.containsKey(&quot;fullText&quot;)) {</span>
+<span class="nc" id="L455">            throw new RuntimeException(&quot;AI 返回的 JSON 格式不正确，缺少必需字段&quot;);</span>
+        }
+
+<span class="nc" id="L458">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

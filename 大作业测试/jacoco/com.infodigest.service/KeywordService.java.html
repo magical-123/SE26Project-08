@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KeywordService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.service</a> &gt; <span class="el_source">KeywordService.java</span></div><h1>KeywordService.java</h1><pre class="source lang-java linenums">package com.infodigest.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.infodigest.entity.AIConfig;
+import com.infodigest.entity.Concept;
+import com.infodigest.entity.InformationItem;
+import com.infodigest.entity.ItemConcept;
+import com.infodigest.repository.AIConfigRepository;
+import com.infodigest.repository.ConceptRepository;
+import com.infodigest.repository.InformationItemRepository;
+import com.infodigest.repository.ItemConceptRepository;
+import com.infodigest.security.CredentialCryptoService;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Service
+<span class="nc" id="L34">@Slf4j</span>
+<span class="nc" id="L35">public class KeywordService {</span>
+    @Autowired
+    private CredentialCryptoService credentialCryptoService;
+
+    @Autowired
+    private ConceptRepository conceptRepository;
+
+    @Autowired
+    private ItemConceptRepository itemConceptRepository;
+
+    @Autowired
+    private AIConfigRepository aiConfigRepository;
+
+    @Autowired
+    private InformationItemRepository informationItemRepository;
+
+    @Value(&quot;${ai.deepseek.api-url}&quot;)
+    private String defaultApiUrl;
+
+    @Value(&quot;${ai.deepseek.api-key}&quot;)
+    private String defaultApiKey;
+
+    @Value(&quot;${ai.deepseek.model}&quot;)
+    private String defaultModel;
+
+<span class="nc" id="L60">    private final HttpClient httpClient = HttpClient.newBuilder()</span>
+<span class="nc" id="L61">            .connectTimeout(Duration.ofSeconds(60))</span>
+<span class="nc" id="L62">            .build();</span>
+
+<span class="nc" id="L64">    private final ObjectMapper objectMapper = new ObjectMapper();</span>
+
+    @Data
+    public static class KeywordSuggestion {
+        private String label;
+        private boolean isNew;
+        private boolean isSelected = true;
+        private boolean highlighted = true;
+    }
+
+    @Async
+    @Transactional
+    public void analyzeAndApplyKeywordsAsync(InformationItem item, String userNote) {
+<span class="nc" id="L77">        log.info(&quot;[KeywordService] 异步生成关键词: {}&quot;, item.getTitle());</span>
+        try {
+<span class="nc" id="L79">            List&lt;KeywordSuggestion&gt; keywords = analyzeKeywords(item, userNote);</span>
+<span class="nc bnc" id="L80" title="All 4 branches missed.">            if (keywords != null &amp;&amp; !keywords.isEmpty()) {</span>
+<span class="nc" id="L81">                applyKeywords(item.getId(), item.getUserId(), keywords);</span>
+<span class="nc" id="L82">                log.info(&quot;[KeywordService] ✅ 完成关键词生成: {}&quot;, keywords.stream().map(KeywordSuggestion::getLabel).collect(Collectors.joining(&quot;, &quot;)));</span>
+            } else {
+<span class="nc" id="L84">                log.warn(&quot;[KeywordService] ⚠️ 生成关键词为空&quot;);</span>
+            }
+<span class="nc" id="L86">        } catch (Exception e) {</span>
+<span class="nc" id="L87">            log.error(&quot;[KeywordService] ❌ 生成关键词失败: {}&quot;, item.getTitle(), e);</span>
+<span class="nc" id="L88">        }</span>
+<span class="nc" id="L89">    }</span>
+
+    public List&lt;KeywordSuggestion&gt; analyzeKeywords(InformationItem item, String userNote) {
+        try {
+<span class="nc" id="L93">            String apiUrl = defaultApiUrl;</span>
+<span class="nc" id="L94">            String apiKey = defaultApiKey;</span>
+<span class="nc" id="L95">            String model = defaultModel;</span>
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            if (item.getUserId() != null) {</span>
+<span class="nc" id="L98">                Optional&lt;AIConfig&gt; userConfig = aiConfigRepository.findByUserId(item.getUserId());</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">                if (userConfig.isPresent()) {</span>
+<span class="nc" id="L100">                    AIConfig config = userConfig.get();</span>
+                    // 兼容旧数据：读取时去除首尾空格
+<span class="nc bnc" id="L102" title="All 4 branches missed.">                    if (config.getApiEndpoint() != null &amp;&amp; !config.getApiEndpoint().isEmpty()) apiUrl = config.getApiEndpoint().trim();</span>
+<span class="nc bnc" id="L103" title="All 4 branches missed.">                    if (config.getApiKey() != null &amp;&amp; !config.getApiKey().isEmpty()) {</span>
+<span class="nc" id="L104">                        apiKey = credentialCryptoService.decrypt(config.getApiKey()).trim();</span>
+                    }
+<span class="nc bnc" id="L106" title="All 4 branches missed.">                    if (config.getCustomModelName() != null &amp;&amp; !config.getCustomModelName().isEmpty()) model = config.getCustomModelName().trim();</span>
+                }
+            }
+
+<span class="nc" id="L110">            List&lt;Concept&gt; existingConcepts = conceptRepository.findByUserId(item.getUserId());</span>
+<span class="nc" id="L111">            String existingKeywordsStr = existingConcepts.stream()</span>
+<span class="nc" id="L112">                    .map(Concept::getLabel)</span>
+<span class="nc" id="L113">                    .collect(Collectors.joining(&quot;, &quot;));</span>
+
+<span class="nc" id="L115">            log.info(&quot;[KeywordService] 分析关键词: title='{}', contentLength={}, note='{}'&quot;,</span>
+<span class="nc" id="L116">                    item.getTitle(),</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">                    item.getContentRaw() != null ? item.getContentRaw().length() : 0,</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">                    userNote != null ? userNote.substring(0, Math.min(50, userNote.length())) : &quot;null&quot;);</span>
+
+<span class="nc" id="L120">            String prompt = buildKeywordPrompt(item, userNote, existingKeywordsStr);</span>
+<span class="nc" id="L121">            String response = callDeepSeek(prompt, apiUrl, apiKey, model);</span>
+            
+<span class="nc" id="L123">            List&lt;KeywordSuggestion&gt; result = parseKeywordResponse(response);</span>
+<span class="nc" id="L124">            log.info(&quot;[KeywordService] 返回 {} 个关键词: {}&quot;, result.size(),</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">                    result.stream().map(k -&gt; k.getLabel() + (k.isSelected() ? &quot;✓&quot; : &quot;&quot;)).collect(Collectors.joining(&quot;, &quot;)));</span>
+<span class="nc" id="L126">            return result;</span>
+
+<span class="nc" id="L128">        } catch (Exception e) {</span>
+<span class="nc" id="L129">            log.error(&quot;[KeywordService] 分析关键词失败 item={}, title='{}': {}&quot;, item.getId(), item.getTitle(), e.getMessage(), e);</span>
+<span class="nc" id="L130">            return new ArrayList&lt;&gt;();</span>
+        }
+    }
+
+    private String buildKeywordPrompt(InformationItem item, String note, String existingKeywords) {
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        String title = item.getTitle() != null ? item.getTitle() : &quot;无标题&quot;;</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        String content = item.getContentRaw() != null ? item.getContentRaw() : &quot;&quot;;</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (content.length() &gt; 2000) content = content.substring(0, 2000) + &quot;...&quot;;</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">        String userNote = note != null ? note : &quot;&quot;;</span>
+
+        // 当内容为空时，提示 AI 基于标题推断
+        String contentSection;
+<span class="nc bnc" id="L142" title="All 4 branches missed.">        if (content.isEmpty() &amp;&amp; userNote.isEmpty()) {</span>
+<span class="nc" id="L143">            contentSection = &quot;信息源标题：&quot; + title + &quot;\n&quot;</span>
+                    + &quot;信息源内容：（无正文内容，请完全基于标题进行推断）\n&quot;
+                    + &quot;用户笔记：（无笔记）\n\n&quot;;
+        } else {
+<span class="nc" id="L147">            contentSection = &quot;信息源标题：&quot; + title + &quot;\n&quot;</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">                    + &quot;信息源内容：&quot; + (content.isEmpty() ? &quot;（无正文内容，请基于标题和笔记推断）&quot; : content) + &quot;\n&quot;</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">                    + &quot;用户笔记：&quot; + (userNote.isEmpty() ? &quot;（无笔记）&quot; : userNote) + &quot;\n\n&quot;;</span>
+        }
+
+<span class="nc" id="L152">        return &quot;你是一个内容关键词提取专家。请根据以下信息源的标题、内容和用户笔记，推荐最相关的领域关键词。\n\n&quot;</span>
+                + &quot;关键词要求：\n&quot;
+                + &quot;- 2-4 个字的简洁中文短语\n&quot;
+                + &quot;- 反映信息源的核心主题、价值或打动用户的关键点\n&quot;
+                + &quot;- 可以是具体主题（如\&quot;微服务架构\&quot;）也可以是抽象概念（如\&quot;认知升级\&quot;、\&quot;生命力\&quot;）\n\n&quot;
+                + &quot;用户当前已有的关键词列表：\n[&quot; + existingKeywords + &quot;]\n\n&quot;
+                + &quot;规则（非常重要）：\n&quot;
+                + &quot;1. 优先考虑从上述已有列表中选择合适的关键词，但**绝不要仅仅为了匹配而引入不相关的已有领域**。宁缺毋滥。\n&quot;
+                + &quot;2. 如果已有列表中没有合适的，可以造新关键词。避免造出与已有关键词含义重叠的新词。\n&quot;
+                + &quot;3. 返回 2 到 5 个最相关的关键词（具体数量由你根据内容的丰富度自主决定，不相关的不写）。\n&quot;
+                + &quot;4. 在你返回的关键词中，你需要评估它们的相关度。将最核心、最能代表该信息的领域（通常 1-3 个）的 isSelected 设为 true。稍微次要或延伸的领域，作为备选推荐，isSelected 设为 false。\n&quot;
+                + &quot;5. **即使信息很少（比如只有标题），你也必须至少返回 2 个关键词。**不允许返回空数组。\n\n&quot;
+                + contentSection
+                + &quot;请严格返回 JSON（不要 markdown 代码块标记）：\n&quot;
+                + &quot;{\n&quot;
+                + &quot;  \&quot;keywords\&quot;: [\n&quot;
+                + &quot;    {\&quot;label\&quot;: \&quot;核心领域名称\&quot;, \&quot;isNew\&quot;: false, \&quot;isSelected\&quot;: true},\n&quot;
+                + &quot;    {\&quot;label\&quot;: \&quot;次要领域名称\&quot;, \&quot;isNew\&quot;: true, \&quot;isSelected\&quot;: false}\n&quot;
+                + &quot;  ]\n&quot;
+                + &quot;}&quot;;
+    }
+
+    private String callDeepSeek(String prompt, String apiUrl, String apiKey, String model) throws Exception {
+<span class="nc" id="L175">        Map&lt;String, Object&gt; body = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L176">        body.put(&quot;model&quot;, model);</span>
+<span class="nc" id="L177">        body.put(&quot;temperature&quot;, 0.3);</span>
+<span class="nc" id="L178">        body.put(&quot;max_tokens&quot;, 8192);</span>
+<span class="nc" id="L179">        body.put(&quot;messages&quot;, List.of(</span>
+<span class="nc" id="L180">                Map.of(&quot;role&quot;, &quot;system&quot;, &quot;content&quot;, &quot;你是一个内容关键词提取专家，返回纯 JSON，不要用 markdown 代码块包裹。&quot;),</span>
+<span class="nc" id="L181">                Map.of(&quot;role&quot;, &quot;user&quot;, &quot;content&quot;, prompt)</span>
+        ));
+
+<span class="nc" id="L184">        String jsonBody = objectMapper.writeValueAsString(body);</span>
+
+<span class="nc" id="L186">        HttpRequest request = HttpRequest.newBuilder()</span>
+<span class="nc" id="L187">                .uri(URI.create(apiUrl))</span>
+<span class="nc" id="L188">                .header(&quot;Content-Type&quot;, &quot;application/json&quot;)</span>
+<span class="nc" id="L189">                .header(&quot;Authorization&quot;, &quot;Bearer &quot; + apiKey)</span>
+<span class="nc" id="L190">                .timeout(Duration.ofSeconds(60))</span>
+<span class="nc" id="L191">                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))</span>
+<span class="nc" id="L192">                .build();</span>
+
+<span class="nc" id="L194">        HttpResponse&lt;String&gt; response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());</span>
+
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        if (response.statusCode() != 200) {</span>
+<span class="nc" id="L197">            throw new RuntimeException(&quot;API 返回 &quot; + response.statusCode() + &quot;: &quot; + response.body());</span>
+        }
+<span class="nc" id="L199">        return response.body();</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private List&lt;KeywordSuggestion&gt; parseKeywordResponse(String responseBody) throws Exception {
+<span class="nc" id="L204">        log.info(&quot;[KeywordService] 原始 API 响应: {}&quot;, responseBody);</span>
+
+<span class="nc" id="L206">        Map&lt;String, Object&gt; root = objectMapper.readValue(responseBody, Map.class);</span>
+<span class="nc" id="L207">        List&lt;Map&lt;String, Object&gt;&gt; choices = (List&lt;Map&lt;String, Object&gt;&gt;) root.get(&quot;choices&quot;);</span>
+<span class="nc bnc" id="L208" title="All 4 branches missed.">        if (choices == null || choices.isEmpty()) throw new RuntimeException(&quot;无 choices&quot;);</span>
+<span class="nc" id="L209">        Map&lt;String, Object&gt; message = (Map&lt;String, Object&gt;) choices.get(0).get(&quot;message&quot;);</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        if (message == null) throw new RuntimeException(&quot;无 message&quot;);</span>
+<span class="nc" id="L211">        String content = (String) message.get(&quot;content&quot;);</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">        if (content == null) throw new RuntimeException(&quot;无 content&quot;);</span>
+
+<span class="nc" id="L214">        content = content.trim();</span>
+<span class="nc" id="L215">        log.info(&quot;[KeywordService] DeepSeek returned content: {}&quot;, content);</span>
+        
+<span class="nc bnc" id="L217" title="All 2 branches missed.">        if (content.isEmpty()) {</span>
+<span class="nc" id="L218">            log.warn(&quot;[KeywordService] API 返回了空的 content，可能遭遇模型输出截断或审核过滤&quot;);</span>
+<span class="nc" id="L219">            return new ArrayList&lt;&gt;();</span>
+        }
+
+        // 1. 去除 markdown 代码块标记
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        if (content.startsWith(&quot;```json&quot;)) {</span>
+<span class="nc" id="L224">            content = content.substring(7);</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">        } else if (content.startsWith(&quot;```&quot;)) {</span>
+<span class="nc" id="L226">            content = content.substring(3);</span>
+        }
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        if (content.endsWith(&quot;```&quot;)) {</span>
+<span class="nc" id="L229">            content = content.substring(0, content.length() - 3);</span>
+        }
+<span class="nc" id="L231">        content = content.trim();</span>
+
+        // 2. 提取 JSON 对象
+<span class="nc" id="L234">        int startIdx = content.indexOf(&quot;{&quot;);</span>
+<span class="nc" id="L235">        int endIdx = content.lastIndexOf(&quot;}&quot;);</span>
+<span class="nc bnc" id="L236" title="All 4 branches missed.">        if (startIdx &gt;= 0 &amp;&amp; endIdx &gt; startIdx) {</span>
+<span class="nc" id="L237">            content = content.substring(startIdx, endIdx + 1);</span>
+<span class="nc bnc" id="L238" title="All 4 branches missed.">        } else if (startIdx &gt;= 0 &amp;&amp; endIdx &lt; startIdx) {</span>
+            // JSON 不完整（只有 { 没有 }），尝试修复
+<span class="nc" id="L240">            log.warn(&quot;[KeywordService] JSON 不完整，尝试从 keywords 数组中提取数据&quot;);</span>
+            // 尝试找到最后一个完整的 } 并补全
+<span class="nc" id="L242">            String partial = content.substring(startIdx);</span>
+            // 检查是否有 &quot;keywords&quot; 数组中的完整元素
+<span class="nc bnc" id="L244" title="All 2 branches missed.">            if (partial.contains(&quot;\&quot;label\&quot;&quot;)) {</span>
+                // 尝试补全 JSON
+<span class="nc bnc" id="L246" title="All 2 branches missed.">                if (!partial.endsWith(&quot;}&quot;)) {</span>
+<span class="nc" id="L247">                    partial = partial + &quot;]}&quot;;</span>
+                }
+<span class="nc" id="L249">                content = partial;</span>
+<span class="nc" id="L250">                log.info(&quot;[KeywordService] 尝试修复后的 JSON: {}&quot;, content);</span>
+            } else {
+<span class="nc" id="L252">                throw new RuntimeException(&quot;AI 返回内容中 JSON 不完整，无法提取关键词: &quot; + content);</span>
+            }
+<span class="nc" id="L254">        } else {</span>
+<span class="nc" id="L255">            throw new RuntimeException(&quot;AI 返回内容中未找到 JSON 对象: &quot; + content);</span>
+        }
+
+        // 3. 解析 JSON
+        Map&lt;String, Object&gt; parsed;
+        try {
+<span class="nc" id="L261">            parsed = objectMapper.readValue(content, Map.class);</span>
+<span class="nc" id="L262">        } catch (Exception e) {</span>
+<span class="nc" id="L263">            log.error(&quot;[KeywordService] JSON 解析失败, 原文: {}&quot;, content);</span>
+<span class="nc" id="L264">            throw new RuntimeException(&quot;AI 返回的 JSON 格式无法解析: &quot; + e.getMessage());</span>
+<span class="nc" id="L265">        }</span>
+
+<span class="nc" id="L267">        List&lt;Map&lt;String, Object&gt;&gt; keywordsList = (List&lt;Map&lt;String, Object&gt;&gt;) parsed.get(&quot;keywords&quot;);</span>
+        
+<span class="nc" id="L269">        List&lt;KeywordSuggestion&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        if (keywordsList != null) {</span>
+<span class="nc bnc" id="L271" title="All 2 branches missed.">            for (Map&lt;String, Object&gt; kw : keywordsList) {</span>
+<span class="nc" id="L272">                KeywordSuggestion suggestion = new KeywordSuggestion();</span>
+<span class="nc" id="L273">                suggestion.setLabel((String) kw.get(&quot;label&quot;));</span>
+<span class="nc" id="L274">                suggestion.setNew(Boolean.TRUE.equals(kw.get(&quot;isNew&quot;)));</span>
+<span class="nc" id="L275">                Object isSelectedObj = kw.get(&quot;isSelected&quot;);</span>
+<span class="nc bnc" id="L276" title="All 4 branches missed.">                suggestion.setSelected(isSelectedObj == null || Boolean.TRUE.equals(isSelectedObj));</span>
+<span class="nc" id="L277">                result.add(suggestion);</span>
+<span class="nc" id="L278">            }</span>
+        }
+<span class="nc" id="L280">        return result;</span>
+    }
+
+    @Transactional
+    public void applyKeywords(Long itemId, Long userId, List&lt;KeywordSuggestion&gt; keywords) {
+        // 先删除已有的映射
+<span class="nc" id="L286">        List&lt;ItemConcept&gt; existingMappings = itemConceptRepository.findByItemId(itemId);</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">        if (!existingMappings.isEmpty()) {</span>
+<span class="nc" id="L288">            itemConceptRepository.deleteByItemId(itemId);</span>
+        }
+
+<span class="nc" id="L291">        String[] defaultColors = {&quot;#10B981&quot;, &quot;#0EA5E9&quot;, &quot;#F59E0B&quot;, &quot;#F43F5E&quot;, &quot;#8B5CF6&quot;, &quot;#EC4899&quot;, &quot;#3B82F6&quot;};</span>
+
+<span class="nc bnc" id="L293" title="All 2 branches missed.">        for (KeywordSuggestion kw : keywords) {</span>
+<span class="nc" id="L294">            String label = kw.getLabel();</span>
+<span class="nc bnc" id="L295" title="All 4 branches missed.">            if (label == null || label.trim().isEmpty()) continue;</span>
+<span class="nc" id="L296">            label = label.trim();</span>
+
+<span class="nc" id="L298">            Optional&lt;Concept&gt; existingConcept = conceptRepository.findByUserIdAndLabel(userId, label);</span>
+            Concept concept;
+<span class="nc bnc" id="L300" title="All 2 branches missed.">            if (existingConcept.isPresent()) {</span>
+<span class="nc" id="L301">                concept = existingConcept.get();</span>
+            } else {
+<span class="nc" id="L303">                concept = new Concept();</span>
+<span class="nc" id="L304">                concept.setUserId(userId);</span>
+<span class="nc" id="L305">                concept.setName(label);</span>
+<span class="nc" id="L306">                concept.setLabel(label);</span>
+                // Assign a random color from the list
+<span class="nc" id="L308">                concept.setColor(defaultColors[Math.abs(label.hashCode()) % defaultColors.length]);</span>
+<span class="nc" id="L309">                concept = conceptRepository.save(concept);</span>
+            }
+
+<span class="nc" id="L312">            ItemConcept mapping = new ItemConcept();</span>
+<span class="nc" id="L313">            mapping.setItemId(itemId);</span>
+<span class="nc" id="L314">            mapping.setConceptId(concept.getId());</span>
+<span class="nc" id="L315">            itemConceptRepository.save(mapping);</span>
+<span class="nc" id="L316">        }</span>
+<span class="nc" id="L317">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

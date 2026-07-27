@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InsightController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.controller</a> &gt; <span class="el_source">InsightController.java</span></div><h1>InsightController.java</h1><pre class="source lang-java linenums">package com.infodigest.controller;
+
+import com.infodigest.entity.ReportType;
+import com.infodigest.entity.User;
+import com.infodigest.entity.UserReport;
+import com.infodigest.repository.UserRepository;
+import com.infodigest.service.InsightService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * 洞察报告控制器
+ */
+@RestController
+@RequestMapping(&quot;/api/insights&quot;)
+<span class="nc" id="L26">@Slf4j</span>
+<span class="nc" id="L27">public class InsightController {</span>
+
+    @Autowired
+    private InsightService insightService;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    /**
+     * 生成或重新生成洞察
+     */
+    @PostMapping(&quot;/generate&quot;)
+    public ResponseEntity&lt;?&gt; generateInsight(
+            @RequestParam String type, // &quot;DAILY&quot; or &quot;WEEKLY&quot;
+            @RequestParam(required = false) String date // 格式: &quot;2026-07-16&quot;，不传则使用今天
+    ) {
+        try {
+<span class="nc" id="L44">            Long userId = getCurrentUserId();</span>
+<span class="nc" id="L45">            ReportType reportType = ReportType.valueOf(type.toUpperCase());</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">            LocalDate reportDate = date != null ? LocalDate.parse(date) : LocalDate.now();</span>
+
+<span class="nc" id="L48">            log.info(&quot;开始生成洞察：userId={}, type={}, date={}&quot;, userId, reportType, reportDate);</span>
+
+<span class="nc" id="L50">            UserReport report = insightService.generateInsight(userId, reportType, reportDate);</span>
+
+<span class="nc" id="L52">            Map&lt;String, Object&gt; result = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L53">            result.put(&quot;success&quot;, true);</span>
+<span class="nc" id="L54">            result.put(&quot;message&quot;, &quot;洞察生成成功&quot;);</span>
+<span class="nc" id="L55">            result.put(&quot;report&quot;, buildReportResponse(report));</span>
+
+<span class="nc" id="L57">            return ResponseEntity.ok(result);</span>
+
+<span class="nc" id="L59">        } catch (Exception e) {</span>
+<span class="nc" id="L60">            log.error(&quot;生成洞察失败：{}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L61">            return ResponseEntity.badRequest().body(Map.of(</span>
+<span class="nc" id="L62">                    &quot;success&quot;, false,</span>
+<span class="nc" id="L63">                    &quot;error&quot;, &quot;生成洞察失败: &quot; + e.getMessage()</span>
+            ));
+        }
+    }
+
+    /**
+     * 获取最新洞察
+     */
+    @GetMapping(&quot;/latest&quot;)
+    public ResponseEntity&lt;?&gt; getLatestInsight(
+            @RequestParam String type,
+            @RequestParam(required = false) String date
+    ) {
+        try {
+<span class="nc" id="L77">            Long userId = getCurrentUserId();</span>
+<span class="nc" id="L78">            ReportType reportType = ReportType.valueOf(type.toUpperCase());</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">            LocalDate reportDate = date != null ? LocalDate.parse(date) : LocalDate.now();</span>
+
+<span class="nc" id="L81">            Optional&lt;UserReport&gt; reportOpt = insightService.getLatestInsight(userId, reportType, reportDate);</span>
+
+<span class="nc bnc" id="L83" title="All 2 branches missed.">            if (reportOpt.isPresent()) {</span>
+<span class="nc" id="L84">                return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L85">                        &quot;success&quot;, true,</span>
+<span class="nc" id="L86">                        &quot;hasReport&quot;, true,</span>
+<span class="nc" id="L87">                        &quot;report&quot;, buildReportResponse(reportOpt.get())</span>
+                ));
+            } else {
+<span class="nc" id="L90">                return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L91">                        &quot;success&quot;, true,</span>
+<span class="nc" id="L92">                        &quot;hasReport&quot;, false,</span>
+                        &quot;message&quot;, &quot;还未有洞察，快去生成吧&quot;
+                ));
+            }
+
+<span class="nc" id="L97">        } catch (Exception e) {</span>
+<span class="nc" id="L98">            log.error(&quot;获取洞察失败：{}&quot;, e.getMessage());</span>
+<span class="nc" id="L99">            return ResponseEntity.badRequest().body(Map.of(</span>
+<span class="nc" id="L100">                    &quot;success&quot;, false,</span>
+<span class="nc" id="L101">                    &quot;error&quot;, &quot;获取洞察失败: &quot; + e.getMessage()</span>
+            ));
+        }
+    }
+
+    /**
+     * 获取历史洞察列表（同一天的所有版本）
+     */
+    @GetMapping(&quot;/history&quot;)
+    public ResponseEntity&lt;?&gt; getHistoryInsights(
+            @RequestParam String type,
+            @RequestParam String date
+    ) {
+        try {
+<span class="nc" id="L115">            Long userId = getCurrentUserId();</span>
+<span class="nc" id="L116">            ReportType reportType = ReportType.valueOf(type.toUpperCase());</span>
+<span class="nc" id="L117">            LocalDate reportDate = LocalDate.parse(date);</span>
+
+<span class="nc" id="L119">            List&lt;UserReport&gt; reports = insightService.getHistoryInsights(userId, reportType, reportDate);</span>
+
+<span class="nc" id="L121">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L122">                    &quot;success&quot;, true,</span>
+<span class="nc" id="L123">                    &quot;count&quot;, reports.size(),</span>
+<span class="nc" id="L124">                    &quot;reports&quot;, reports.stream().map(this::buildReportResponse).toList()</span>
+            ));
+
+<span class="nc" id="L127">        } catch (Exception e) {</span>
+<span class="nc" id="L128">            log.error(&quot;获取历史洞察失败：{}&quot;, e.getMessage());</span>
+<span class="nc" id="L129">            return ResponseEntity.badRequest().body(Map.of(</span>
+<span class="nc" id="L130">                    &quot;success&quot;, false,</span>
+<span class="nc" id="L131">                    &quot;error&quot;, &quot;获取历史洞察失败: &quot; + e.getMessage()</span>
+            ));
+        }
+    }
+
+    /**
+     * 获取所有历史报告（每个日期只返回最新版本）
+     */
+    @GetMapping(&quot;/all-history&quot;)
+    public ResponseEntity&lt;?&gt; getAllHistoryReports(
+            @RequestParam String type
+    ) {
+        try {
+<span class="nc" id="L144">            Long userId = getCurrentUserId();</span>
+<span class="nc" id="L145">            ReportType reportType = ReportType.valueOf(type.toUpperCase());</span>
+
+<span class="nc" id="L147">            List&lt;UserReport&gt; reports = insightService.getAllHistoryReports(userId, reportType);</span>
+
+<span class="nc" id="L149">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L150">                    &quot;success&quot;, true,</span>
+<span class="nc" id="L151">                    &quot;count&quot;, reports.size(),</span>
+<span class="nc" id="L152">                    &quot;reports&quot;, reports.stream().map(this::buildReportResponse).toList()</span>
+            ));
+
+<span class="nc" id="L155">        } catch (Exception e) {</span>
+<span class="nc" id="L156">            log.error(&quot;获取所有历史报告失败：{}&quot;, e.getMessage());</span>
+<span class="nc" id="L157">            return ResponseEntity.badRequest().body(Map.of(</span>
+<span class="nc" id="L158">                    &quot;success&quot;, false,</span>
+<span class="nc" id="L159">                    &quot;error&quot;, &quot;获取所有历史报告失败: &quot; + e.getMessage()</span>
+            ));
+        }
+    }
+
+    // 获取当前登录用户的ID
+    private Long getCurrentUserId() {
+<span class="nc" id="L166">        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="nc" id="L167">        String username = authentication.getName();</span>
+<span class="nc" id="L168">        User user = userRepository.findByUsername(username)</span>
+<span class="nc" id="L169">                .orElseThrow(() -&gt; new RuntimeException(&quot;User not found&quot;));</span>
+<span class="nc" id="L170">        return user.getId();</span>
+    }
+
+    /**
+     * 构建报告响应对象
+     */
+    private Map&lt;String, Object&gt; buildReportResponse(UserReport report) {
+<span class="nc" id="L177">        Map&lt;String, Object&gt; result = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L178">        result.put(&quot;id&quot;, report.getId());</span>
+<span class="nc" id="L179">        result.put(&quot;userId&quot;, report.getUserId());</span>
+<span class="nc" id="L180">        result.put(&quot;type&quot;, report.getType());</span>
+<span class="nc" id="L181">        result.put(&quot;reportDate&quot;, report.getReportDate().toString());</span>
+<span class="nc" id="L182">        result.put(&quot;insightTitle&quot;, report.getInsightTitle());</span>
+<span class="nc" id="L183">        result.put(&quot;insightSummary&quot;, report.getInsightSummary());</span>
+<span class="nc" id="L184">        result.put(&quot;insightFullText&quot;, report.getInsightFullText());</span>
+<span class="nc" id="L185">        result.put(&quot;nutritionData&quot;, report.getNutritionData());</span>
+<span class="nc" id="L186">        result.put(&quot;version&quot;, report.getVersion());</span>
+<span class="nc" id="L187">        result.put(&quot;createdAt&quot;, report.getCreatedAt());</span>
+<span class="nc" id="L188">        result.put(&quot;updatedAt&quot;, report.getUpdatedAt());</span>
+<span class="nc" id="L189">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
