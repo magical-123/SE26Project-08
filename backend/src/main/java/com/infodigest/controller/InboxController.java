@@ -6,6 +6,7 @@ import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.UserRepository;
 import com.infodigest.service.AiSummaryService;
 import com.infodigest.service.KeywordService;
+import com.infodigest.service.InformationItemPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -105,6 +106,11 @@ public class InboxController {
     public ResponseEntity<InformationItem> createInboxItem(@RequestBody InformationItem item) {
         Long userId = getCurrentUserId();
         item.setUserId(userId);
+
+        if (!InformationItemPolicy.isValidTitle(item.getTitle())
+                || item.getPlatform() == null || item.getPlatform().isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
 
         // 去重检查：同一用户下，同标题+平台已存在则直接跳过，不更新不重新分析
         if (item.getTitle() != null && item.getPlatform() != null) {
@@ -323,10 +329,7 @@ public class InboxController {
     }
 
     private static boolean isMetadataTitle(String title) {
-        return title == null || title.isBlank()
-                || title.startsWith("发布于")
-                || title.startsWith("编辑于")
-                || title.matches("^[?？]{2,}\\s*\\d{4}[-/.年\\s].*");
+        return InformationItemPolicy.isMetadataTitle(title);
     }
 
     private static boolean isMissingAuthor(String author) {
