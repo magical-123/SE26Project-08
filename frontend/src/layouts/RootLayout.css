@@ -66,6 +66,11 @@
   opacity: 0.7;
 }
 
+.mobile-menu-toggle,
+.mobile-nav-backdrop {
+  display: none;
+}
+
 .logo-box {
   width: 48px;
   height: 48px;
@@ -228,8 +233,8 @@
   padding: 8px;
 }
 
-/* Responsive shell: the desktop rail becomes a compact, horizontally
-   scrollable toolbar on phones and small tablets. */
+/* Responsive shell: phones and small tablets use a compact top bar and
+   reveal the navigation as an off-canvas drawer on demand. */
 @media (max-width: 1024px) {
   .root-layout {
     padding: 20px;
@@ -274,6 +279,7 @@
   .cascade-nav-container {
     width: 100%;
     flex: 0 0 auto;
+    z-index: 140;
   }
 
   .brand-header {
@@ -292,36 +298,81 @@
   .subtitle { font-size: 7px; letter-spacing: .6px; }
   .brand-avatar { width: 32px; height: 32px; margin-right: 0; }
 
+  .mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-left: 4px;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    flex: 0 0 40px;
+    z-index: 140;
+  }
+
+  .mobile-menu-toggle:focus-visible {
+    outline: 2px solid var(--text-main);
+    outline-offset: 2px;
+  }
+
   .nav-container-inner {
-    padding-top: 0;
+    display: none;
+    position: fixed;
+    z-index: 130;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(84vw, 320px);
+    padding: 88px 16px 20px;
+    background: rgba(250, 248, 242, 0.96);
+    border-right: 1px solid var(--border-glass);
+    box-shadow: 20px 0 45px rgba(0, 0, 0, 0.14);
+    overflow-y: auto;
+    transform: translateX(-105%);
+    transition: transform 0.24s ease;
+  }
+
+  .cascade-nav-container.mobile-nav-open .nav-container-inner {
+    display: flex;
+    transform: translateX(0);
+  }
+
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    z-index: 110;
+    inset: 0;
     width: 100%;
-    overflow: visible;
+    height: 100%;
+    padding: 0;
+    background: rgba(17, 17, 17, 0.28);
+    cursor: pointer;
   }
 
   .plain-nav-stack {
-    flex-direction: row;
-    gap: 8px;
+    flex-direction: column;
+    gap: 10px;
     width: 100%;
-    overflow-x: auto;
-    padding: 2px 2px 6px;
-    scrollbar-width: none;
+    overflow: visible;
+    padding: 0;
   }
 
-  .plain-nav-stack::-webkit-scrollbar { display: none; }
-
   .plain-nav-stack .nav-item {
-    width: auto;
-    min-width: 74px;
-    height: 44px;
-    padding: 0 10px;
-    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    height: 52px;
+    padding: 0 16px;
+    justify-content: flex-start;
     transform: none;
   }
 
   .plain-nav-stack .nav-item:hover { transform: none; }
-  .nav-content { gap: 6px; }
-  .nav-icon { width: 17px; height: 17px; }
-  .nav-label { font-size: 10px; letter-spacing: .3px; }
+  .nav-content { gap: 12px; }
+  .nav-icon { width: 19px; height: 19px; }
+  .nav-label { font-size: 12px; letter-spacing: .5px; }
   .nav-red-dot { top: 6px; right: 6px; width: 6px; height: 6px; }
 
   .main-glass-board {
