@@ -222,6 +222,13 @@ function classifyBilibili(tagName) {
 /** B 站 → InformationItem */
 function transformBilibiliItem(historyItem, subtitleText = '', isLiked = false, isFavorite = false) {
   const duration = historyItem.duration || 0;
+  const rawProgress = Number(historyItem.progress);
+  const watchDurationSeconds = rawProgress === -1
+    ? Math.max(0, duration)
+    : Math.max(0, Math.min(Number.isFinite(rawProgress) ? rawProgress : 0, duration || rawProgress || 0));
+  const completionRate = duration > 0
+    ? Math.min(1, watchDurationSeconds / duration)
+    : 0;
   const bvid = historyItem.history?.bvid || '';
   const aid = historyItem.history?.oid || historyItem.oid || historyItem.aid || '';
   let url = '';
@@ -247,6 +254,8 @@ function transformBilibiliItem(historyItem, subtitleText = '', isLiked = false, 
       || '',
     category: classifyBilibili(historyItem.tag_name),
     durationMinutes: Math.round(duration / 60) || 1,
+    watchDurationSeconds,
+    completionRate,
     contentRaw: subtitleText || historyItem.title || '',  // 移除字幕截断限制
     isLiked: !!isLiked,
     isFavorite: !!isFavorite,

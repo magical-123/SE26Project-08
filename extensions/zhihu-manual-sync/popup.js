@@ -1,5 +1,4 @@
 const $ = (id) => document.getElementById(id);
-const hint = $('hint');
 const result = $('result');
 
 function show(message, isError = false) {
@@ -9,14 +8,16 @@ function show(message, isError = false) {
 
 async function request(message) {
   const response = await chrome.runtime.sendMessage(message);
-  if (!response.ok) throw new Error(response.error);
+  if (!response?.ok) throw new Error(response?.error || '扩展通信失败');
   return response.result;
 }
 
 async function refreshStatus() {
   const status = await request({ type: 'GET_STATUS' });
   $('apiBase').value = status.apiBase;
-  hint.textContent = status.loggedIn ? '已登录 InfoDigest，可同步当前页面。' : '请先登录 InfoDigest。';
+  $('hint').textContent = status.loggedIn
+    ? '已登录 InfoDigest。打开知乎详情页后将每 5 秒自动记录。'
+    : '请先登录 InfoDigest，登录状态会安全保存在扩展中。';
 }
 
 $('login').addEventListener('click', async () => {
@@ -27,16 +28,22 @@ $('login').addEventListener('click', async () => {
     await request({ type: 'LOGIN', apiBase: $('apiBase').value.trim(), username, password });
     $('password').value = '';
     await refreshStatus();
-    show('登录成功');
-  } catch (error) { show(error.message, true); }
+    show('登录成功，自动记录已启用');
+  } catch (error) {
+    show(error.message, true);
+  }
 });
 
 $('sync').addEventListener('click', async () => {
   try {
-    show('正在读取当前页面…');
-    const summary = await request({ type: 'SYNC_CURRENT_ZHIHU' });
-    show(`识别 ${summary.found} 条；新增 ${summary.count || 0} 条，跳过 ${summary.skipped || 0} 条。`);
-  } catch (error) { show(error.message, true); }
+    show('正在识别当前知乎详情页…');
+    const captured = await request({ type: 'CAPTURE_CURRENT' });
+    show(captured.created
+      ? `已新增当前内容，开始记录浏览时长（${captured.watchDurationSeconds} 秒）`
+      : `已更新当前内容，累计浏览 ${captured.watchDurationSeconds} 秒`);
+  } catch (error) {
+    show(error.message, true);
+  }
 });
 
 refreshStatus().catch((error) => show(error.message, true));

@@ -5,7 +5,7 @@ import { FriendTrendView } from '../../components/FriendTrendView/FriendTrendVie
 import { UserPlus, Search, X, Check, Loader2, Eye, ChevronDown, TrendingUp } from 'lucide-react';
 import './Social.css';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = '';
 
 function getAuthHeaders() {
   const token = sessionStorage.getItem('token');

@@ -189,6 +189,7 @@ public class DashboardController {
             @RequestParam(required = false) String date) {
         try {
             Long userId = getCurrentUserId();
+            // 如果传入了日期参数，使用该日期；否则使用今天
             LocalDate queryDate = date != null ? LocalDate.parse(date) : LocalDate.now();
 
             log.info("[溯源API] 查询词汇: {}, 用户ID: {}, 日期: {}", word, userId, queryDate);
@@ -198,6 +199,12 @@ public class DashboardController {
             List<Map<String, Object>> keywords = (List<Map<String, Object>>) wordCloudData.get("keywords");
 
             log.info("[溯源API] 词云数据包含 {} 个关键词", keywords != null ? keywords.size() : 0);
+
+            // 打印所有关键词，便于调试
+            if (keywords != null) {
+                log.info("[溯源API] 所有关键词列表: {}",
+                    keywords.stream().map(k -> k.get("word")).collect(Collectors.toList()));
+            }
 
             if (keywords == null) {
                 log.warn("[溯源API] keywords为null");

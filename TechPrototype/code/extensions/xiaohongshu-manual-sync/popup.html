@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InfoDigest 小红书自动记录</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>小红书自动记录</h1>
+      <p id="hint">正在读取设置…</p>
+      <label>InfoDigest 地址<input id="apiBase" value="http://127.0.0.1:8080" /></label>
+      <label>用户名<input id="username" autocomplete="username" /></label>
+      <label>密码<input id="password" type="password" autocomplete="current-password" /></label>
+      <button id="login">登录 InfoDigest</button>
+      <hr />
+      <button id="sync" class="primary">立即记录当前小红书笔记</button>
+      <p id="result" role="status"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

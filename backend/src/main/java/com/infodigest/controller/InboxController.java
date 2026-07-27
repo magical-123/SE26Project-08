@@ -165,8 +165,37 @@ public class InboxController {
                                     userId, item.getTitle(), item.getPlatform());
                     if (existing.isPresent()) {
                         InformationItem existingItem = existing.get();
+                        boolean changed = false;
                         if (shouldUpdateAuthor(existingItem.getAuthor(), item.getAuthor())) {
                             existingItem.setAuthor(item.getAuthor().trim());
+                            changed = true;
+                        }
+                        if (item.getWatchDurationSeconds() != null
+                                && !item.getWatchDurationSeconds().equals(existingItem.getWatchDurationSeconds())) {
+                            existingItem.setWatchDurationSeconds(item.getWatchDurationSeconds());
+                            changed = true;
+                        }
+                        if (item.getCompletionRate() != null
+                                && !item.getCompletionRate().equals(existingItem.getCompletionRate())) {
+                            existingItem.setCompletionRate(item.getCompletionRate());
+                            changed = true;
+                        }
+                        if (item.getDurationMinutes() != null
+                                && !item.getDurationMinutes().equals(existingItem.getDurationMinutes())) {
+                            existingItem.setDurationMinutes(item.getDurationMinutes());
+                            changed = true;
+                        }
+                        if (item.getIsLiked() != null
+                                && !item.getIsLiked().equals(existingItem.getIsLiked())) {
+                            existingItem.setIsLiked(item.getIsLiked());
+                            changed = true;
+                        }
+                        if (item.getIsFavorite() != null
+                                && !item.getIsFavorite().equals(existingItem.getIsFavorite())) {
+                            existingItem.setIsFavorite(item.getIsFavorite());
+                            changed = true;
+                        }
+                        if (changed) {
                             informationItemRepository.save(existingItem);
                         }
                         skipped++;
