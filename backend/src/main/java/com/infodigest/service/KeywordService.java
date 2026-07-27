@@ -69,6 +69,8 @@ public class KeywordService {
         private boolean isNew;
         private boolean isSelected = true;
         private boolean highlighted = true;
+        private Double confidence;
+        private String reason;
     }
 
     @Async
@@ -117,7 +119,9 @@ public class KeywordService {
                     item.getContentRaw() != null ? item.getContentRaw().length() : 0,
                     userNote != null ? userNote.substring(0, Math.min(50, userNote.length())) : "null");
 
-            String prompt = buildKeywordPrompt(item, userNote, existingKeywordsStr);
+            String prompt = buildKeywordPrompt(item, userNote, existingKeywordsStr)
+                    + "\nEach keyword object MUST also include confidence (0.0-1.0) and a short reason grounded in the source text. "
+                    + "Avoid assigning a category based only on superficial title words.";
             String response = callDeepSeek(prompt, apiUrl, apiKey, model);
             
             List<KeywordSuggestion> result = parseKeywordResponse(response);
@@ -274,6 +278,11 @@ public class KeywordService {
                 suggestion.setNew(Boolean.TRUE.equals(kw.get("isNew")));
                 Object isSelectedObj = kw.get("isSelected");
                 suggestion.setSelected(isSelectedObj == null || Boolean.TRUE.equals(isSelectedObj));
+                Object confidence = kw.get("confidence");
+                if (confidence instanceof Number) {
+                    suggestion.setConfidence(Math.max(0.0, Math.min(1.0, ((Number) confidence).doubleValue())));
+                }
+                suggestion.setReason(kw.get("reason") instanceof String ? (String) kw.get("reason") : null);
                 result.add(suggestion);
             }
         }
@@ -312,6 +321,8 @@ public class KeywordService {
             ItemConcept mapping = new ItemConcept();
             mapping.setItemId(itemId);
             mapping.setConceptId(concept.getId());
+            mapping.setConfidence(kw.getConfidence());
+            mapping.setReason(kw.getReason());
             itemConceptRepository.save(mapping);
         }
     }

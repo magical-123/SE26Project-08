@@ -54,6 +54,23 @@
   gap: 24px;
 }
 
+@media (max-width: 1024px) {
+  .social-page { padding: 24px; }
+  .friends-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+}
+
+@media (max-width: 640px) {
+  .social-page { padding: 16px 12px; }
+  .social-header { align-items: stretch; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+  .social-header h1 { font-size: 23px; }
+  .social-actions { width: 100%; gap: 8px; }
+  .search-box { flex: 1; min-width: 0; }
+  .search-box input { width: 100%; }
+  .add-friend-btn { white-space: nowrap; }
+  .friends-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .friend-card { padding: 16px; }
+}
+
 .friend-card {
   padding: 24px;
   display: flex;

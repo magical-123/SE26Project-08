@@ -55,4 +55,34 @@ class AuthServiceTest {
         when(users.findByUsername("missing")).thenReturn(Optional.empty());
         assertThrows(RuntimeException.class, () -> service.login(login));
     }
+
+    @Test
+    void rejectsDuplicateEmailAndWrongPassword() {
+        UserRepository users = mock(UserRepository.class);
+        PasswordEncoder encoder = mock(PasswordEncoder.class);
+        JwtUtil jwt = mock(JwtUtil.class);
+        when(users.findByUsername("bob")).thenReturn(Optional.empty());
+        when(users.findByEmail("bob@example.com")).thenReturn(Optional.of(new User()));
+        AuthService service = new AuthService(users, encoder, jwt);
+        RegisterRequest register = new RegisterRequest();
+        register.setUsername("bob"); register.setEmail("bob@example.com"); register.setPassword("secret");
+        assertThrows(RuntimeException.class, () -> service.register(register));
+        User user = new User(); user.setUsername("bob"); user.setPasswordHash("hash");
+        when(users.findByUsername("bob")).thenReturn(Optional.of(user));
+        when(encoder.matches("wrong", "hash")).thenReturn(false);
+        LoginRequest login = new LoginRequest(); login.setUsername("bob"); login.setPassword("wrong");
+        assertThrows(RuntimeException.class, () -> service.login(login));
+        verify(jwt, never()).generateToken(anyString(), any());
+    }
+
+    @Test
+    void logsInValidUser() {
+        UserRepository users = mock(UserRepository.class); PasswordEncoder encoder = mock(PasswordEncoder.class); JwtUtil jwt = mock(JwtUtil.class);
+        User user = new User(); user.setId(7L); user.setUsername("carol"); user.setPasswordHash("hash");
+        when(users.findByUsername("carol")).thenReturn(Optional.of(user));
+        when(encoder.matches("secret", "hash")).thenReturn(true); when(jwt.generateToken("carol", 7L)).thenReturn("token");
+        LoginRequest login = new LoginRequest(); login.setUsername("carol"); login.setPassword("secret");
+        assertEquals("token", new AuthService(users, encoder, jwt).login(login).getToken());
+        verify(jwt).generateToken("carol", 7L);
+    }
 }
