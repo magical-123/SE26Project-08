@@ -4,7 +4,7 @@ import { ExternalLink, X, Tag, RefreshCw } from 'lucide-react';
 import { GlassCard } from '../GlassCard/GlassCard';
 import './AIQuoteCard.css';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = '';
 
 function getAuthHeaders() {
   const token = localStorage.getItem('token');

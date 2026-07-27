@@ -37,7 +37,7 @@ export function NutritionLabel({ data }) {
   const fetchNutritionStats = async () => {
     try {
       const userId = 1;
-      const response = await fetch(`http://localhost:8080/api/analysis/nutrition-stats/${userId}`);
+      const response = await fetch(`/api/analysis/nutrition-stats/${userId}`);
       if (response.ok) {
         const result = await response.json();
         if (result.nutrition) {

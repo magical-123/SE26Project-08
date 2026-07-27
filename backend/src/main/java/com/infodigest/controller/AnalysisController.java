@@ -3,6 +3,7 @@ package com.infodigest.controller;
 import com.infodigest.dto.AnalysisResponse;
 import com.infodigest.entity.InformationItem;
 import com.infodigest.repository.InformationItemRepository;
+import com.infodigest.repository.UserRepository;
 import com.infodigest.scheduler.ContentAnalysisScheduler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @RestController
 @RequestMapping("/api/analysis")
@@ -19,6 +22,9 @@ public class AnalysisController {
 
     @Autowired
     private InformationItemRepository itemRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private ContentAnalysisScheduler analysisScheduler;
@@ -151,6 +157,15 @@ public class AnalysisController {
     @GetMapping("/nutrition-stats/{userId}")
     public ResponseEntity<?> getNutritionStats(@PathVariable Long userId) {
         try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(401).build();
+            }
+            Long currentUserId = userRepository.findByUsername(authentication.getName())
+                    .orElseThrow(() -> new RuntimeException("User not found")).getId();
+            if (!currentUserId.equals(userId)) {
+                return ResponseEntity.status(403).body(Map.of("error", "只能查看自己的营养统计"));
+            }
             // 获取该用户所有已分析的视频
             var processedItems = itemRepository.findByUserIdAndProcessStatus(userId, "PROCESSED");
 

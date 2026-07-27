@@ -22,7 +22,7 @@ export function ReviewModal({ cards, onClose }) {
     setSubmitting(true);
     try {
       const token = sessionStorage.getItem('token');
-      await fetch(`http://localhost:8080/api/dashboard/reviews/${currentCard.id}/feedback`, {
+      await fetch(`/api/dashboard/reviews/${currentCard.id}/feedback`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -48,7 +48,7 @@ export function ReviewModal({ cards, onClose }) {
     setSubmitting(true);
     try {
       const token = sessionStorage.getItem('token');
-      await fetch(`http://localhost:8080/api/dashboard/reviews/${currentCard.id}`, {
+      await fetch(`/api/dashboard/reviews/${currentCard.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

@@ -1,0 +1,86 @@
+package com.infodigest.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "information_items")
+@Data
+@NoArgsConstructor
+public class InformationItem {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private Long userId;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(length = 1000)
+    private String url;
+
+    private String platform; // Bilibili, Zhihu, etc.
+
+    private String author;   // 实际内容作者/UP主/答主
+
+    @Deprecated
+    private String category; // 深度知识, 娱乐短剧, etc. (Deprecated, use ItemConcept)
+
+    private Integer durationMinutes;
+
+    @Column(columnDefinition = "text")
+    private String contentRaw;
+
+    @Column(nullable = false)
+    private String processStatus = "UNPROCESSED"; // UNPROCESSED, PROCESSED, FAILED
+
+    // 用户手动标记的优质信息源（与 processStatus 独立）
+    private Boolean isPremium = false;
+
+    // 用户自己记的笔记
+    @Column(columnDefinition = "text")
+    private String userNote;
+
+    // AI 分析相关字段
+    private Integer knowledgeScore; // 知识含量评分(0-100)
+
+    @Column(length = 500)
+    private String scoreReasoning; // 评分理由
+
+    @Column(columnDefinition = "text")
+    private String aiSummary; // AI生成的内容摘要
+
+    private LocalDateTime analyzedAt; // 分析完成时间
+
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime crawledAt = LocalDateTime.now();
+
+    // hasNote: 前端用于判断是否标记为优质信息源，由 isPremium 字段控制
+    public Boolean getHasNote() {
+        return Boolean.TRUE.equals(this.isPremium);
+    }
+
+    // AI 分析结果字段 - 营养成分评估
+    private Integer nutritionProtein;      // 蛋白质：深度认知与硬核知识
+    private Integer nutritionCarbs;        // 碳水化合物：实用技能与行业快讯
+    private Integer nutritionVitamins;     // 维生素：创意灵感与美学体验
+    private Integer nutritionFats;         // 脂肪与糖分：纯娱乐与情绪多巴胺
+    private Integer nutritionFiber;        // 膳食纤维：哲思与心理复原力
+
+    @Column(length = 1000)
+    private String nutritionReasoning;     // 营养成分分析理由
+
+    // 用户行为数据字段
+    private Integer watchDurationSeconds;  // 实际观看时长（秒）
+    private Double completionRate;         // 完播率（0.0-1.0）
+
+    // 点赞/收藏
+    private Boolean isLiked = false;
+    private Boolean isFavorite = false;
+}
