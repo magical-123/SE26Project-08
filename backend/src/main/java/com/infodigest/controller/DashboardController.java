@@ -209,10 +209,12 @@ public class DashboardController {
 
             // 查找指定关键词的相关视频ID
             List<Long> relatedVideoIds = null;
+            Map<String, Object> matchedKeyword = null;
             for (Map<String, Object> keyword : keywords) {
                 String keywordWord = (String) keyword.get("word");
                 log.debug("[溯源API] 检查关键词: {}", keywordWord);
                 if (word.equals(keywordWord)) {
+                    matchedKeyword = keyword;
                     Object relatedVideosObj = keyword.get("relatedVideos");
                     log.info("[溯源API] 找到匹配关键词: {}, relatedVideos对象: {}, 类型: {}",
                             word, relatedVideosObj, relatedVideosObj != null ? relatedVideosObj.getClass() : "null");
@@ -242,8 +244,20 @@ public class DashboardController {
 
             // 查询相关视频的详细信息
             List<Map<String, Object>> sources = new ArrayList<>();
+            Map<Long, Map<String, Object>> snapshots = new HashMap<>();
+            if (matchedKeyword != null && matchedKeyword.get("relatedSources") instanceof List<?> sourceList) {
+                for (Object rawSource : sourceList) {
+                    if (rawSource instanceof Map<?, ?> rawMap && rawMap.get("itemId") instanceof Number id) {
+                        Map<String, Object> snapshot = new LinkedHashMap<>();
+                        rawMap.forEach((key, value) -> snapshot.put(String.valueOf(key), value));
+                        snapshots.put(id.longValue(), snapshot);
+                    }
+                }
+            }
             for (Long videoId : relatedVideoIds) {
-                informationItemRepository.findById(videoId).ifPresent(item -> {
+                Optional<InformationItem> liveItem = informationItemRepository.findByIdAndUserId(videoId, userId);
+                if (liveItem.isPresent()) {
+                    InformationItem item = liveItem.get();
                     Map<String, Object> source = new LinkedHashMap<>();
                     source.put("id", item.getId());
                     source.put("title", item.getTitle());
@@ -251,8 +265,29 @@ public class DashboardController {
                     source.put("link", item.getUrl());
                     source.put("summary", item.getAiSummary());
                     source.put("completionRate", item.getCompletionRate());
+                    source.put("deleted", false);
                     sources.add(source);
-                });
+                } else if (snapshots.containsKey(videoId)) {
+                    Map<String, Object> snapshot = snapshots.get(videoId);
+                    Map<String, Object> source = new LinkedHashMap<>();
+                    source.put("id", videoId);
+                    source.put("title", snapshot.getOrDefault("title", "原始数据已删除"));
+                    source.put("platform", snapshot.getOrDefault("platform", "历史来源"));
+                    source.put("link", snapshot.get("url"));
+                    source.put("summary", snapshot.get("summary"));
+                    source.put("author", snapshot.get("author"));
+                    source.put("deleted", true);
+                    source.put("snapshot", true);
+                    sources.add(source);
+                } else {
+                    Map<String, Object> deleted = new LinkedHashMap<>();
+                    deleted.put("id", videoId);
+                    deleted.put("title", "原始数据已删除");
+                    deleted.put("platform", "历史来源");
+                    deleted.put("deleted", true);
+                    deleted.put("snapshot", false);
+                    sources.add(deleted);
+                }
             }
 
             log.info("[溯源API] 返回 {} 条溯源记录", sources.size());

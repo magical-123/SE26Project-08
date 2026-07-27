@@ -30,6 +30,15 @@
   z-index: 10;
 }
 
+@media (max-width: 640px) {
+  .auth-page-container { padding: 20px 12px; }
+  .auth-glass-card { padding: 28px 20px; }
+  .auth-brand-header { top: 16px; left: 16px; gap: 10px; }
+  .auth-brand-header .auth-logo-box { width: 40px; height: 40px; }
+  .auth-brand-titles h1 { font-size: 20px; }
+  .auth-subtitle { font-size: 7px; }
+}
+
 .auth-header {
   text-align: center;
   margin-bottom: 32px;
@@ -226,4 +235,13 @@
 .auth-decor-circle-1,
 .auth-decor-circle-2 {
   display: none;
+}
+
+@media (max-width: 640px) {
+  .auth-page-container { padding: 20px 12px; }
+  .auth-glass-card { padding: 28px 20px; }
+  .auth-brand-header { top: 16px; left: 16px; gap: 10px; }
+  .auth-brand-header .auth-logo-box { width: 40px; height: 40px; }
+  .auth-brand-titles h1 { font-size: 20px; }
+  .auth-subtitle { font-size: 7px; }
 }

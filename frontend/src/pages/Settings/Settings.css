@@ -249,6 +249,18 @@
   }
 }
 
+@media (max-width: 640px) {
+  .settings-page { padding: 16px 12px; }
+  .settings-header { margin-bottom: 20px; }
+  .settings-header h1 { font-size: 23px; }
+  .settings-section { padding: 20px 16px; }
+  .capture-downloads, .ai-actions-group, .prompt-actions { flex-direction: column; }
+  .extension-download-btn, .test-config-btn, .save-config-btn { width: 100%; justify-content: center; }
+  .privacy-item { align-items: flex-start; gap: 12px; }
+  .notification { left: 12px; right: 12px; top: 12px; padding: 12px 16px; }
+  .qr-modal, .custom-prompt-modal { padding: 20px; }
+}
+
 .privacy-settings {
   display: flex;
   flex-direction: column;

@@ -28,6 +28,9 @@ public class ContentAnalysisService {
     private AIService aiService;
 
     @Autowired
+    private AiSummaryService aiSummaryService;
+
+    @Autowired
     private UserRepository userRepository;
 
     private static final int MAX_CONTENT_LENGTH = 100000;  // 提升到100k，支持完整字幕分析
@@ -166,20 +169,50 @@ public class ContentAnalysisService {
             }
         }
 
+        // 2. AI 摘要生成（如果还没有摘要）
+        if (!hasSummary) {
+            try {
+                // 重新从数据库加载最新的 item 状态（营养分析可能刚完成）
+                Optional<InformationItem> freshItem = itemRepository.findById(itemId);
+                if (freshItem.isPresent()) {
+                    boolean ok = aiSummaryService.generateSummary(freshItem.get());
+                    if (ok) {
+                        InformationItem updated = freshItem.get();
+                        itemRepository.updateAiSummaryFields(
+                                itemId,
+                                updated.getAiSummary(),
+                                updated.getKnowledgeScore(),
+                                updated.getScoreReasoning(),
+                                updated.getCategory(),
+                                LocalDateTime.now()
+                        );
+                        log.info("✅ AI summary generated for item {}: score={}, category={}",
+                                itemId, updated.getKnowledgeScore(), updated.getCategory());
+                    } else {
+                        log.warn("AI summary generation returned false for item {}", itemId);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("AI summary generation failed for item {}: {}", itemId, e.getMessage());
+                // 不抛异常：营养分析已经成功，摘要可以下次调度重试
+            }
+        }
+
         // 3. 清空字幕内容（AI分析完成后不再需要存储）
         // 只有当营养分析和AI摘要都完成后才清空，避免中途失败导致数据丢失
-        // 重新检查是否都已完成（不能用开始时的hasNutrition和hasSummary变量）
-        Optional<InformationItem> finalItem = itemRepository.findById(itemId);
-        if (finalItem.isPresent()) {
-            InformationItem item2 = finalItem.get();
-            boolean allDone = item2.getNutritionProtein() != null &&
-                              item2.getAiSummary() != null &&
-                              !item2.getAiSummary().isEmpty();
-            if (allDone && item2.getContentRaw() != null && !item2.getContentRaw().isEmpty()) {
-                // 只清空字幕内容，保留标题作为 contentRaw（避免完全为空）
-                String title = item2.getTitle() != null ? item2.getTitle() : "";
-                itemRepository.updateContentRaw(itemId, title);
-                log.info("✅ Cleared subtitle content for item {} after AI processing", itemId);
+        if (hasNutrition || !hasSummary) {
+            // 重新检查是否都已完成
+            Optional<InformationItem> finalItem = itemRepository.findById(itemId);
+            if (finalItem.isPresent()) {
+                InformationItem item2 = finalItem.get();
+                boolean allDone = item2.getNutritionProtein() != null &&
+                                  item2.getAiSummary() != null &&
+                                  !item2.getAiSummary().isEmpty();
+                if (allDone && item2.getContentRaw() != null && !item2.getContentRaw().isEmpty()) {
+                    // Preserve captured source text for provenance, re-analysis and classification.
+                    log.debug("Preserved source content for item {} after AI processing ({} chars)",
+                            itemId, item2.getContentRaw().length());
+                }
             }
         }
     }
