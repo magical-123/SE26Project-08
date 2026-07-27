@@ -208,6 +208,7 @@
 
 .main-glass-board {
   flex: 1;
+  min-width: 0;
   /* Extreme transparent glass to show the hexagon background */
   background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.0) 100%);
   backdrop-filter: blur(10px);
@@ -225,4 +226,112 @@
   position: relative;
   z-index: 10;
   padding: 8px;
+}
+
+/* Responsive shell: the desktop rail becomes a compact, horizontally
+   scrollable toolbar on phones and small tablets. */
+@media (max-width: 1024px) {
+  .root-layout {
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .cascade-nav-container {
+    width: 220px;
+  }
+
+  .nav-item {
+    width: 200px;
+  }
+
+  .decor-vertical-line {
+    left: 260px;
+  }
+}
+
+@media (max-width: 768px) {
+  .root-layout {
+    height: 100dvh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 12px;
+    overflow: hidden;
+  }
+
+  .decor-vertical-line,
+  .bg-decor-text {
+    display: none;
+  }
+
+  .cascade-nav-container {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .brand-header {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .logo-box {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+  }
+
+  .logo-mark { font-size: 17px; }
+  .brand-titles h1 { font-size: 20px; }
+  .subtitle { font-size: 7px; letter-spacing: .6px; }
+  .brand-avatar { width: 32px; height: 32px; margin-right: 0; }
+
+  .nav-container-inner {
+    padding-top: 0;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .plain-nav-stack {
+    flex-direction: row;
+    gap: 8px;
+    width: 100%;
+    overflow-x: auto;
+    padding: 2px 2px 6px;
+    scrollbar-width: none;
+  }
+
+  .plain-nav-stack::-webkit-scrollbar { display: none; }
+
+  .plain-nav-stack .nav-item {
+    width: auto;
+    min-width: 74px;
+    height: 44px;
+    padding: 0 10px;
+    justify-content: center;
+    transform: none;
+  }
+
+  .plain-nav-stack .nav-item:hover { transform: none; }
+  .nav-content { gap: 6px; }
+  .nav-icon { width: 17px; height: 17px; }
+  .nav-label { font-size: 10px; letter-spacing: .3px; }
+  .nav-red-dot { top: 6px; right: 6px; width: 6px; height: 6px; }
+
+  .main-glass-board {
+    min-height: 0;
+    width: 100%;
+    padding: 4px;
+    border-radius: 12px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 420px) {
+  .root-layout { padding: 8px; gap: 8px; }
+  .brand-titles h1 { font-size: 18px; }
+  .subtitle { display: none; }
+  .plain-nav-stack .nav-item { min-width: 62px; padding: 0 8px; }
+  .nav-label { font-size: 9px; }
 }

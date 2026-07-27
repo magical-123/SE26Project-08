@@ -15,6 +15,13 @@ import { buildGraphData, ConceptNode, SourceNode, MAX_LABEL_LENGTH } from './gra
 import { graphApi } from '../../utils/api';
 import './KnowledgeGraph.css';
 
+const toKeywordSuggestions = (concepts = []) => concepts.map(c => ({
+  label: c.label,
+  isNew: false,
+  confidence: c.confidence,
+  reason: c.reason,
+}));
+
 /* ------------------------------------------------------------------ */
 /*  Inner component (all logic lives here)                             */
 /* ------------------------------------------------------------------ */
@@ -187,7 +194,7 @@ function KnowledgeGraphInner() {
       const kws = concepts.map(c => c.label);
       const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
       setSelectedKeywords(highlighted);
-      setSuggestedKeywords(kws.map(label => ({ label, isNew: false })));
+      setSuggestedKeywords(toKeywordSuggestions(concepts));
       setRefreshKey(k => k + 1);
     }).catch(e => console.error('切换高亮失败:', e));
   };
@@ -363,7 +370,7 @@ function KnowledgeGraphInner() {
           const kws = concepts.map(c => c.label);
           const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
           setSelectedKeywords(highlighted.length > 0 ? highlighted : kws);
-          setSuggestedKeywords(kws.map(label => ({ label, isNew: false })));
+          setSuggestedKeywords(toKeywordSuggestions(concepts));
         }).catch(e => {
           console.error('获取关键词失败:', e);
           setSelectedKeywords([]);
