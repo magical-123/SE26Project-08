@@ -617,7 +617,10 @@ export function Report() {
             <GlassCard className="report-card source-list-card">
               <div className="sl-header">
                 <h3>🔍 溯源: {selectedWord}</h3>
-                <span className="sl-count">找到 {wordSources.length} 条记录</span>
+                <span className="sl-count">
+                  关联 {wordSources.length} 条来源
+                  {wordSources.some(src => src.deleted) && `，其中 ${wordSources.filter(src => src.deleted).length} 条原始数据已删除`}
+                </span>
               </div>
 
               {wordSources.length > 0 ? (
@@ -627,13 +630,20 @@ export function Report() {
                       <div className="sl-item-main">
                         <span className="sl-platform">{src.platform}</span>
                         <h4>{src.title}</h4>
+                        {src.deleted && (
+                          <p className="sl-summary">
+                            {src.snapshot ? '原始数据已删除，当前显示报告生成时保存的来源快照。' : '原始数据已删除，旧报告未保存来源快照。'}
+                          </p>
+                        )}
                         {src.summary && <p className="sl-summary">{src.summary}</p>}
                       </div>
                       <div className="sl-item-meta">
                         {src.completionRate && <span className="sl-completion">完播率: {(src.completionRate * 100).toFixed(0)}%</span>}
-                        <a href={src.link} target="_blank" rel="noreferrer" className="sl-go-btn">
-                          <ArrowRight size={14}/>
-                        </a>
+                        {src.link && !src.deleted && (
+                          <a href={src.link} target="_blank" rel="noreferrer" className="sl-go-btn">
+                            <ArrowRight size={14}/>
+                          </a>
+                        )}
                       </div>
                     </div>
                   ))}

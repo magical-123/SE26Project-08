@@ -209,6 +209,14 @@
   .kg-tip {
     display: none;
   }
+
+  .knowledge-graph-page { min-height: 560px; }
+  .kg-container { height: calc(100% - 100px); margin-top: 90px; min-height: 420px; }
+  .kg-controls { right: 10px; bottom: 12px; padding: 6px 8px; }
+  .kg-controls button { width: 36px; height: 36px; }
+  .kg-legend-bar { top: 10px; width: calc(100% - 20px); }
+  .kg-legend-bar-inner { max-width: 100%; padding: 6px 8px; gap: 4px; }
+  .kg-legend-item { padding: 5px 6px; font-size: 10px; }
 }
 
 /* ---- React Flow overrides ---- */
