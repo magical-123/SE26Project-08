@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WordCloudController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.controller</a> &gt; <span class="el_source">WordCloudController.java</span></div><h1>WordCloudController.java</h1><pre class="source lang-java linenums">package com.infodigest.controller;
+
+import com.infodigest.entity.InformationItem;
+import com.infodigest.repository.InformationItemRepository;
+import com.infodigest.service.WordCloudService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping(&quot;/api/wordcloud&quot;)
+@RequiredArgsConstructor
+<span class="nc" id="L19">@Slf4j</span>
+public class WordCloudController {
+
+    private final WordCloudService wordCloudService;
+    private final InformationItemRepository itemRepository;
+
+    /**
+     * 测试：查看已分析视频的日期分布
+     */
+    @GetMapping(&quot;/test/dates&quot;)
+    public ResponseEntity&lt;?&gt; getAnalyzedVideoDates(@RequestParam Long userId) {
+        try {
+<span class="nc" id="L31">            List&lt;InformationItem&gt; items = itemRepository.findByUserIdAndProcessStatus(userId, &quot;ANALYZED&quot;);</span>
+
+<span class="nc bnc" id="L33" title="All 2 branches missed.">            if (items.isEmpty()) {</span>
+<span class="nc" id="L34">                return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L35">                        &quot;success&quot;, true,</span>
+                        &quot;message&quot;, &quot;没有已分析的视频&quot;,
+<span class="nc" id="L37">                        &quot;count&quot;, 0</span>
+                ));
+            }
+
+            // 统计每天的视频数量（使用crawledAt）
+<span class="nc" id="L42">            Map&lt;String, Long&gt; dateCount = items.stream()</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">                    .filter(item -&gt; item.getCrawledAt() != null)</span>
+<span class="nc" id="L44">                    .collect(Collectors.groupingBy(</span>
+<span class="nc" id="L45">                            item -&gt; item.getCrawledAt().toLocalDate().toString(),</span>
+<span class="nc" id="L46">                            Collectors.counting()</span>
+                    ));
+
+            // 统计analyzedAt
+<span class="nc" id="L50">            Map&lt;String, Long&gt; analyzedDateCount = items.stream()</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">                    .filter(item -&gt; item.getAnalyzedAt() != null)</span>
+<span class="nc" id="L52">                    .collect(Collectors.groupingBy(</span>
+<span class="nc" id="L53">                            item -&gt; item.getAnalyzedAt().toLocalDate().toString(),</span>
+<span class="nc" id="L54">                            Collectors.counting()</span>
+                    ));
+
+<span class="nc" id="L57">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L58">                    &quot;success&quot;, true,</span>
+<span class="nc" id="L59">                    &quot;totalCount&quot;, items.size(),</span>
+                    &quot;crawledAtDates&quot;, dateCount,
+                    &quot;analyzedAtDates&quot;, analyzedDateCount,
+<span class="nc bnc" id="L62" title="All 2 branches missed.">                    &quot;hasAnalyzedAt&quot;, !analyzedDateCount.isEmpty()</span>
+            ));
+<span class="nc" id="L64">        } catch (Exception e) {</span>
+<span class="nc" id="L65">            log.error(&quot;获取日期分布失败: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L66">            return ResponseEntity.badRequest().body(Map.of(</span>
+<span class="nc" id="L67">                    &quot;success&quot;, false,</span>
+<span class="nc" id="L68">                    &quot;error&quot;, e.getMessage()</span>
+            ));
+        }
+    }
+
+    /**
+     * 生成指定日期的词云数据
+     */
+    @PostMapping(&quot;/generate&quot;)
+    public ResponseEntity&lt;?&gt; generateWordCloud(
+            @RequestParam Long userId,
+            @RequestParam(required = false) String date) {
+        try {
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            LocalDate reportDate = date != null ? LocalDate.parse(date) : LocalDate.now();</span>
+
+<span class="nc" id="L83">            var wordCloud = wordCloudService.generateWordCloud(userId, reportDate);</span>
+
+<span class="nc" id="L85">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L86">                    &quot;success&quot;, true,</span>
+                    &quot;message&quot;, &quot;词云生成成功&quot;,
+                    &quot;data&quot;, wordCloud
+            ));
+<span class="nc" id="L90">        } catch (Exception e) {</span>
+<span class="nc" id="L91">            log.error(&quot;生成词云失败: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L92">            return ResponseEntity.badRequest().body(Map.of(</span>
+<span class="nc" id="L93">                    &quot;success&quot;, false,</span>
+<span class="nc" id="L94">                    &quot;error&quot;, e.getMessage()</span>
+            ));
+        }
+    }
+
+    /**
+     * 获取指定日期的词云数据
+     */
+    @GetMapping(&quot;/daily&quot;)
+    public ResponseEntity&lt;?&gt; getDailyWordCloud(
+            @RequestParam Long userId,
+            @RequestParam(required = false) String date) {
+        try {
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            LocalDate reportDate = date != null ? LocalDate.parse(date) : LocalDate.now();</span>
+
+<span class="nc" id="L109">            Map&lt;String, Object&gt; wordCloud = wordCloudService.getWordCloud(userId, reportDate);</span>
+
+<span class="nc" id="L111">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L112">                    &quot;success&quot;, true,</span>
+                    &quot;data&quot;, wordCloud
+            ));
+<span class="nc" id="L115">        } catch (Exception e) {</span>
+<span class="nc" id="L116">            log.error(&quot;获取词云失败: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L117">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L118">                    &quot;success&quot;, false,</span>
+<span class="nc" id="L119">                    &quot;error&quot;, e.getMessage(),</span>
+<span class="nc" id="L120">                    &quot;hasData&quot;, false</span>
+            ));
+        }
+    }
+
+    /**
+     * 获取周词云数据（最近7天）
+     */
+    @GetMapping(&quot;/weekly&quot;)
+    public ResponseEntity&lt;?&gt; getWeeklyWordClouds(
+            @RequestParam Long userId,
+            @RequestParam(required = false) String endDate) {
+        try {
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            LocalDate date = endDate != null ? LocalDate.parse(endDate) : LocalDate.now();</span>
+
+<span class="nc" id="L135">            List&lt;Map&lt;String, Object&gt;&gt; wordClouds = wordCloudService.getWeeklyWordClouds(userId, date);</span>
+
+<span class="nc" id="L137">            return ResponseEntity.ok(Map.of(</span>
+<span class="nc" id="L138">                    &quot;success&quot;, true,</span>
+                    &quot;data&quot;, wordClouds
+            ));
+<span class="nc" id="L141">        } catch (Exception e) {</span>
+<span class="nc" id="L142">            log.error(&quot;获取周词云失败: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L143">            return ResponseEntity.badRequest().body(Map.of(</span>
+<span class="nc" id="L144">                    &quot;success&quot;, false,</span>
+<span class="nc" id="L145">                    &quot;error&quot;, e.getMessage()</span>
+            ));
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

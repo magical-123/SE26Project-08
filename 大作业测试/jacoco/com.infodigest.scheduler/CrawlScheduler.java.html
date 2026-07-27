@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CrawlScheduler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.scheduler</a> &gt; <span class="el_source">CrawlScheduler.java</span></div><h1>CrawlScheduler.java</h1><pre class="source lang-java linenums">package com.infodigest.scheduler;
+
+import com.infodigest.entity.User;
+import com.infodigest.entity.UserPlatform;
+import com.infodigest.repository.UserPlatformRepository;
+import com.infodigest.repository.UserRepository;
+import com.infodigest.security.JwtUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * 定时爬虫调度器：每隔 30 秒自动触发一次全平台抓取
+ */
+@Component
+<span class="nc" id="L25">public class CrawlScheduler {</span>
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private UserPlatformRepository userPlatformRepository;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Value(&quot;${crawler.script.path:../crawler/index.js}&quot;)
+    private String crawlerScriptPath;
+
+    /** 防止上一次爬虫周期还没结束就启动新的 */
+<span class="nc" id="L40">    private final AtomicBoolean running = new AtomicBoolean(false);</span>
+
+    /** 记录正在抓取的 (userId, platform) 对，防止同一用户同平台并发 */
+<span class="nc" id="L43">    private final Set&lt;String&gt; activeJobs = ConcurrentHashMap.newKeySet();</span>
+
+    /** 需要抓取的平台列表 */
+    // 小红书只允许浏览器扩展按用户实际浏览行为上报，不参与后台定时抓取。
+<span class="nc" id="L47">    private static final List&lt;String&gt; PLATFORMS = List.of(&quot;bilibili&quot;, &quot;github&quot;);</span>
+
+    /**
+     * 项目启动时执行一次，之后每隔 1 小时自动触发一次全平台爬虫
+     */
+    @Scheduled(initialDelay = 30000, fixedRate = 3600000)
+    public void scheduledCrawl() {
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (!running.compareAndSet(false, true)) {</span>
+<span class="nc" id="L55">            System.out.println(&quot;[CrawlScheduler] 上一次爬虫周期尚未结束，跳过本轮&quot;);</span>
+<span class="nc" id="L56">            return;</span>
+        }
+
+        try {
+<span class="nc" id="L60">            List&lt;User&gt; users = userRepository.findAll();</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">            if (users.isEmpty()) {</span>
+<span class="nc" id="L62">                System.out.println(&quot;[CrawlScheduler] 没有注册用户，跳过&quot;);</span>
+<span class="nc" id="L63">                return;</span>
+            }
+
+<span class="nc" id="L66">            System.out.println(&quot;[CrawlScheduler] 开始定时抓取，用户数=&quot; + users.size());</span>
+
+<span class="nc bnc" id="L68" title="All 2 branches missed.">            for (User user : users) {</span>
+<span class="nc" id="L69">                List&lt;UserPlatform&gt; platforms = userPlatformRepository.findByUserId(user.getId());</span>
+<span class="nc" id="L70">                Set&lt;String&gt; connectedPlatforms = ConcurrentHashMap.newKeySet();</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">                for (UserPlatform up : platforms) {</span>
+                    // 只要有平台记录就视为已连接（含空凭证的小红书等）
+<span class="nc" id="L73">                    connectedPlatforms.add(up.getPlatform().toLowerCase());</span>
+<span class="nc" id="L74">                }</span>
+
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                for (String platform : PLATFORMS) {</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                    if (!connectedPlatforms.contains(platform)) {</span>
+<span class="nc" id="L78">                        continue;</span>
+                    }
+
+<span class="nc" id="L81">                    String jobKey = user.getId() + &quot;:&quot; + platform;</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">                    if (!activeJobs.add(jobKey)) {</span>
+<span class="nc" id="L83">                        System.out.println(&quot;[CrawlScheduler] &quot; + jobKey + &quot; 正在抓取中，跳过&quot;);</span>
+<span class="nc" id="L84">                        continue;</span>
+                    }
+
+                    // 异步启动爬虫进程
+<span class="nc" id="L88">                    new Thread(() -&gt; {</span>
+                        try {
+<span class="nc" id="L90">                            crawlForUser(user, platform);</span>
+                        } finally {
+<span class="nc" id="L92">                            activeJobs.remove(jobKey);</span>
+                        }
+<span class="nc" id="L94">                    }, &quot;crawl-&quot; + user.getId() + &quot;-&quot; + platform).start();</span>
+<span class="nc" id="L95">                }</span>
+<span class="nc" id="L96">            }</span>
+<span class="nc" id="L97">        } catch (Exception e) {</span>
+<span class="nc" id="L98">            System.err.println(&quot;[CrawlScheduler] 调度异常: &quot; + e.getMessage());</span>
+<span class="nc" id="L99">            e.printStackTrace();</span>
+        } finally {
+<span class="nc" id="L101">            running.set(false);</span>
+        }
+<span class="nc" id="L103">    }</span>
+
+    private void crawlForUser(User user, String platform) {
+        try {
+<span class="nc" id="L107">            String crawlerToken = jwtUtil.generateToken(user.getUsername(), user.getId());</span>
+
+<span class="nc" id="L109">            List&lt;String&gt; command = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L110">            command.add(&quot;node&quot;);</span>
+<span class="nc" id="L111">            command.add(crawlerScriptPath);</span>
+<span class="nc" id="L112">            command.add(&quot;--platform=&quot; + platform);</span>
+<span class="nc" id="L113">            command.add(&quot;--auth-token=&quot; + crawlerToken);</span>
+<span class="nc" id="L114">            command.add(&quot;--user-id=&quot; + user.getId());</span>
+
+<span class="nc" id="L116">            ProcessBuilder processBuilder = new ProcessBuilder(command);</span>
+<span class="nc" id="L117">            String userDir = System.getProperty(&quot;user.dir&quot;);</span>
+<span class="nc" id="L118">            processBuilder.directory(new java.io.File(userDir));</span>
+<span class="nc" id="L119">            processBuilder.redirectErrorStream(true);</span>
+
+<span class="nc" id="L121">            Process process = processBuilder.start();</span>
+
+<span class="nc" id="L123">            System.out.println(&quot;[CrawlScheduler] 启动爬虫: user=&quot; + user.getUsername()</span>
+<span class="nc" id="L124">                    + &quot; platform=&quot; + platform + &quot; pid=&quot; + process.pid());</span>
+
+            // 等待进程结束（最多 2 分钟）
+<span class="nc" id="L127">            Thread outputReader = new Thread(() -&gt; {</span>
+<span class="nc" id="L128">                try (BufferedReader reader = new BufferedReader(</span>
+<span class="nc" id="L129">                        new InputStreamReader(process.getInputStream()))) {</span>
+                    String line;
+<span class="nc bnc" id="L131" title="All 2 branches missed.">                    while ((line = reader.readLine()) != null) {</span>
+<span class="nc" id="L132">                        System.out.println(&quot;[Crawler-&quot; + platform + &quot;-&quot; + user.getId() + &quot;] &quot; + line);</span>
+                    }
+<span class="nc" id="L134">                } catch (Exception e) {</span>
+<span class="nc" id="L135">                    e.printStackTrace();</span>
+<span class="nc" id="L136">                }</span>
+<span class="nc" id="L137">            });</span>
+<span class="nc" id="L138">            outputReader.start();</span>
+
+<span class="nc" id="L140">            boolean finished = process.waitFor(120, java.util.concurrent.TimeUnit.SECONDS);</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            if (!finished) {</span>
+<span class="nc" id="L142">                process.destroyForcibly();</span>
+<span class="nc" id="L143">                System.out.println(&quot;[CrawlScheduler] 爬虫超时，已强制终止: user=&quot; + user.getUsername()</span>
+                        + &quot; platform=&quot; + platform);
+            }
+
+<span class="nc" id="L147">            outputReader.join(5000);</span>
+<span class="nc" id="L148">        } catch (Exception e) {</span>
+<span class="nc" id="L149">            System.err.println(&quot;[CrawlScheduler] 爬虫异常: user=&quot; + user.getUsername()</span>
+<span class="nc" id="L150">                    + &quot; platform=&quot; + platform + &quot; - &quot; + e.getMessage());</span>
+<span class="nc" id="L151">        }</span>
+<span class="nc" id="L152">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AsyncConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.config</a> &gt; <span class="el_source">AsyncConfig.java</span></div><h1>AsyncConfig.java</h1><pre class="source lang-java linenums">package com.infodigest.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadPoolExecutor;
+
+@Configuration
+@EnableAsync
+<span class="nc" id="L13">public class AsyncConfig {</span>
+
+    @Bean(&quot;aiSummaryExecutor&quot;)
+    public Executor aiSummaryExecutor() {
+<span class="nc" id="L17">        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();</span>
+<span class="nc" id="L18">        executor.setCorePoolSize(8);</span>
+<span class="nc" id="L19">        executor.setMaxPoolSize(16);</span>
+<span class="nc" id="L20">        executor.setQueueCapacity(500);</span>
+<span class="nc" id="L21">        executor.setThreadNamePrefix(&quot;ai-summary-&quot;);</span>
+        // 当线程池和队列都满时，由调用线程自己执行
+<span class="nc" id="L23">        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());</span>
+<span class="nc" id="L24">        executor.setWaitForTasksToCompleteOnShutdown(true);</span>
+<span class="nc" id="L25">        executor.setAwaitTerminationSeconds(60);</span>
+<span class="nc" id="L26">        executor.initialize();</span>
+<span class="nc" id="L27">        return executor;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
