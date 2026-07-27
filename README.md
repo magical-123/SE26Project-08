@@ -106,9 +106,9 @@ InfoDigest-
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://10.119.3.25:3306/info_digest?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: root123
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 ```
 
 > 注意：连接远程数据库需要处于校园网内，且服务器安全组已放行 3306 端口。详细说明请参考 [远程数据库连接指南.md](远程数据库连接指南.md)。
@@ -160,12 +160,12 @@ npx playwright install chromium
 
 ## 部署
 
-项目已部署到团队服务器 `10.119.3.25`（校园网内），前端通过 Nginx 托管，后端以 systemd 服务运行。
+部署地址和凭据不写入仓库，请通过部署平台的 Secret/环境变量配置。
 
 ### 在线访问
 
 ```text
-http://10.119.3.25
+http://<部署主机>
 ```
 
 ### 更新部署
@@ -173,7 +173,7 @@ http://10.119.3.25
 本地 push 代码到 GitHub main 分支后，SSH 登录服务器：
 
 ```bash
-ssh root@10.119.3.25
+ssh <部署用户>@<部署主机>
 cd /opt/infodigest/repo && git pull
 bash /opt/infodigest/auto-deploy.sh
 ```
