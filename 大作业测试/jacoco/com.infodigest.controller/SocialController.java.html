@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SocialController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.controller</a> &gt; <span class="el_source">SocialController.java</span></div><h1>SocialController.java</h1><pre class="source lang-java linenums">package com.infodigest.controller;
+
+import com.infodigest.entity.Friendship;
+import com.infodigest.entity.FriendshipStatus;
+import com.infodigest.entity.User;
+import com.infodigest.repository.FriendshipRepository;
+import com.infodigest.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping(&quot;/api/social&quot;)
+@RequiredArgsConstructor
+public class SocialController {
+
+    private final FriendshipRepository friendshipRepository;
+    private final UserRepository userRepository;
+
+    /**
+     * 返回所有 ACCEPTED 好友列表。
+     * 返回格式：[{ id, name, initial, status, tags, activeColor }]
+     */
+    @GetMapping(&quot;/friends&quot;)
+    public ResponseEntity&lt;List&lt;Map&lt;String, Object&gt;&gt;&gt; getFriends() {
+<span class="nc" id="L31">        Long userId = getCurrentUserId();</span>
+
+<span class="nc" id="L33">        List&lt;Friendship&gt; friendships = friendshipRepository.findByRequesterIdOrReceiverId(userId, userId);</span>
+
+<span class="nc" id="L35">        List&lt;Friendship&gt; accepted = friendships.stream()</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">                .filter(f -&gt; f.getStatus() == FriendshipStatus.ACCEPTED)</span>
+<span class="nc" id="L37">                .collect(Collectors.toList());</span>
+
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        if (!accepted.isEmpty()) {</span>
+<span class="nc" id="L40">            List&lt;Map&lt;String, Object&gt;&gt; result = accepted.stream().map(f -&gt; {</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">                Long friendId = f.getRequesterId().equals(userId) ? f.getReceiverId() : f.getRequesterId();</span>
+<span class="nc" id="L42">                User friend = userRepository.findById(friendId).orElse(null);</span>
+<span class="nc" id="L43">                Map&lt;String, Object&gt; map = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L44">                map.put(&quot;id&quot;, friendId);</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">                map.put(&quot;name&quot;, friend != null ? friend.getUsername() : &quot;Unknown&quot;);</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">                map.put(&quot;initial&quot;, friend != null ? String.valueOf(friend.getUsername().charAt(0)).toUpperCase() : &quot;?&quot;);</span>
+                // 根据 lastActiveAt 判断在线状态（5 分钟内活跃视为在线）
+<span class="nc bnc" id="L48" title="All 4 branches missed.">                boolean isOnline = friend != null &amp;&amp; friend.getLastActiveAt() != null</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">                        &amp;&amp; friend.getLastActiveAt().isAfter(java.time.LocalDateTime.now().minusMinutes(5));</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">                map.put(&quot;status&quot;, isOnline ? &quot;在线&quot; : &quot;离线&quot;);</span>
+<span class="nc" id="L51">                map.put(&quot;isOnline&quot;, isOnline);</span>
+<span class="nc" id="L52">                map.put(&quot;tags&quot;, Collections.emptyList());</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                map.put(&quot;activeColor&quot;, isOnline ? &quot;#10B981&quot; : &quot;#9CA3AF&quot;);</span>
+<span class="nc" id="L54">                return map;</span>
+<span class="nc" id="L55">            }).collect(Collectors.toList());</span>
+<span class="nc" id="L56">            return ResponseEntity.ok(result);</span>
+        }
+
+        // 数据库为空，返回空列表
+<span class="nc" id="L60">        return ResponseEntity.ok(Collections.emptyList());</span>
+    }
+
+    /**
+     * 返回 PENDING 的好友请求（收到的和已发送的）
+     * 返回格式：[{ id, requesterId, receiverId, username, direction: &quot;received&quot;|&quot;sent&quot;, createdAt }]
+     */
+    @GetMapping(&quot;/requests&quot;)
+    public ResponseEntity&lt;List&lt;Map&lt;String, Object&gt;&gt;&gt; getRequests() {
+<span class="nc" id="L69">        Long userId = getCurrentUserId();</span>
+
+<span class="nc" id="L71">        List&lt;Friendship&gt; all = friendshipRepository.findByRequesterIdOrReceiverId(userId, userId);</span>
+<span class="nc" id="L72">        List&lt;Map&lt;String, Object&gt;&gt; result = all.stream()</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">                .filter(f -&gt; f.getStatus() == FriendshipStatus.PENDING)</span>
+<span class="nc" id="L74">                .map(f -&gt; {</span>
+<span class="nc" id="L75">                    Map&lt;String, Object&gt; item = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L76">                    item.put(&quot;id&quot;, f.getId());</span>
+<span class="nc" id="L77">                    item.put(&quot;requesterId&quot;, f.getRequesterId());</span>
+<span class="nc" id="L78">                    item.put(&quot;receiverId&quot;, f.getReceiverId());</span>
+<span class="nc" id="L79">                    item.put(&quot;createdAt&quot;, f.getCreatedAt());</span>
+<span class="nc" id="L80">                    boolean isReceived = f.getReceiverId().equals(userId);</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">                    item.put(&quot;direction&quot;, isReceived ? &quot;received&quot; : &quot;sent&quot;);</span>
+                    // 拿到对方用户名
+<span class="nc bnc" id="L83" title="All 2 branches missed.">                    Long otherId = isReceived ? f.getRequesterId() : f.getReceiverId();</span>
+<span class="nc" id="L84">                    User other = userRepository.findById(otherId).orElse(null);</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">                    item.put(&quot;username&quot;, other != null ? other.getUsername() : &quot;Unknown&quot;);</span>
+<span class="nc" id="L86">                    return item;</span>
+                })
+<span class="nc" id="L88">                .collect(Collectors.toList());</span>
+
+<span class="nc" id="L90">        return ResponseEntity.ok(result);</span>
+    }
+
+    /**
+     * 发送好友请求（创建 Friendship 记录，状态为 PENDING）
+     *
+     * @param body JSON { &quot;receiverId&quot;: number }
+     */
+    @PostMapping(&quot;/request&quot;)
+    public ResponseEntity&lt;Friendship&gt; sendRequest(@RequestBody Map&lt;String, Object&gt; body) {
+<span class="nc" id="L100">        Long userId = getCurrentUserId();</span>
+<span class="nc" id="L101">        Long receiverId = Long.valueOf(body.get(&quot;receiverId&quot;).toString());</span>
+
+<span class="nc" id="L103">        Friendship friendship = new Friendship();</span>
+<span class="nc" id="L104">        friendship.setRequesterId(userId);</span>
+<span class="nc" id="L105">        friendship.setReceiverId(receiverId);</span>
+<span class="nc" id="L106">        friendship.setStatus(FriendshipStatus.PENDING);</span>
+
+<span class="nc" id="L108">        Friendship saved = friendshipRepository.save(friendship);</span>
+<span class="nc" id="L109">        return ResponseEntity.ok(saved);</span>
+    }
+
+    /**
+     * 接受好友请求（将 PENDING 改为 ACCEPTED）
+     */
+    @PutMapping(&quot;/requests/{id}/accept&quot;)
+    public ResponseEntity&lt;Void&gt; acceptRequest(@PathVariable Long id) {
+<span class="fc" id="L117">        Long userId = getCurrentUserId();</span>
+<span class="fc" id="L118">        Friendship friendship = friendshipRepository.findById(id).orElse(null);</span>
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">        if (friendship == null) return ResponseEntity.notFound().build();</span>
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">        if (!userId.equals(friendship.getReceiverId())) return ResponseEntity.status(403).build();</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (friendship.getStatus() != FriendshipStatus.PENDING) return ResponseEntity.badRequest().build();</span>
+<span class="nc" id="L122">        friendship.setStatus(FriendshipStatus.ACCEPTED);</span>
+<span class="nc" id="L123">        friendshipRepository.save(friendship);</span>
+<span class="nc" id="L124">        return ResponseEntity.ok().build();</span>
+    }
+
+    /**
+     * 拒绝好友请求（删除记录）
+     */
+    @DeleteMapping(&quot;/requests/{id}&quot;)
+    public ResponseEntity&lt;Void&gt; rejectRequest(@PathVariable Long id) {
+<span class="fc" id="L132">        Long userId = getCurrentUserId();</span>
+<span class="fc" id="L133">        Friendship friendship = friendshipRepository.findById(id).orElse(null);</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">        if (friendship == null) return ResponseEntity.notFound().build();</span>
+<span class="pc bpc" id="L135" title="3 of 4 branches missed.">        if (!userId.equals(friendship.getRequesterId()) &amp;&amp; !userId.equals(friendship.getReceiverId())) {</span>
+<span class="nc" id="L136">            return ResponseEntity.status(403).build();</span>
+        }
+<span class="fc" id="L138">        friendshipRepository.delete(friendship);</span>
+<span class="fc" id="L139">        return ResponseEntity.ok().build();</span>
+    }
+
+    /**
+     * 搜索用户（按用户名模糊匹配，排除自己）
+     */
+    @GetMapping(&quot;/users/search&quot;)
+    public ResponseEntity&lt;List&lt;Map&lt;String, Object&gt;&gt;&gt; searchUsers(@RequestParam String q) {
+<span class="nc" id="L147">        Long userId = getCurrentUserId();</span>
+<span class="nc" id="L148">        List&lt;User&gt; users = userRepository.findByUsernameContainingIgnoreCase(q);</span>
+<span class="nc" id="L149">        List&lt;Map&lt;String, Object&gt;&gt; result = users.stream()</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                .filter(u -&gt; !u.getId().equals(userId))</span>
+<span class="nc" id="L151">                .map(u -&gt; {</span>
+<span class="nc" id="L152">                    Map&lt;String, Object&gt; item = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L153">                    item.put(&quot;id&quot;, u.getId());</span>
+<span class="nc" id="L154">                    item.put(&quot;username&quot;, u.getUsername());</span>
+<span class="nc" id="L155">                    return item;</span>
+                })
+<span class="nc" id="L157">                .collect(Collectors.toList());</span>
+<span class="nc" id="L158">        return ResponseEntity.ok(result);</span>
+    }
+
+    // ==================== 鉴权辅助 ====================
+
+    private Long getCurrentUserId() {
+<span class="fc" id="L164">        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="fc" id="L165">        String username = authentication.getName();</span>
+<span class="fc" id="L166">        User user = userRepository.findByUsername(username)</span>
+<span class="pc" id="L167">                .orElseThrow(() -&gt; new RuntimeException(&quot;User not found&quot;));</span>
+<span class="fc" id="L168">        return user.getId();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

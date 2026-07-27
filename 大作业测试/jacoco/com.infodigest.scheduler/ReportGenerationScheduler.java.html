@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReportGenerationScheduler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.scheduler</a> &gt; <span class="el_source">ReportGenerationScheduler.java</span></div><h1>ReportGenerationScheduler.java</h1><pre class="source lang-java linenums">package com.infodigest.scheduler;
+
+import com.infodigest.entity.ReportType;
+import com.infodigest.entity.User;
+import com.infodigest.repository.UserRepository;
+import com.infodigest.service.InsightService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
+import java.util.List;
+
+/**
+ * 自动生成数字饮食日报和周报。
+ *
+ * 日报在每天 23:50 汇总当天数据；周报在周日 23:55 汇总本周数据。
+ * 单个用户失败不会中断其他用户的报告生成。
+ */
+@Component
+<span class="nc" id="L22">@Slf4j</span>
+<span class="nc" id="L23">public class ReportGenerationScheduler {</span>
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private InsightService insightService;
+
+    @Scheduled(cron = &quot;0 50 23 * * ?&quot;, zone = &quot;Asia/Shanghai&quot;)
+    public void generateDailyReports() {
+<span class="nc" id="L33">        generateReports(ReportType.DAILY, LocalDate.now());</span>
+<span class="nc" id="L34">    }</span>
+
+    @Scheduled(cron = &quot;0 55 23 ? * SUN&quot;, zone = &quot;Asia/Shanghai&quot;)
+    public void generateWeeklyReports() {
+<span class="nc" id="L38">        generateReports(ReportType.WEEKLY, LocalDate.now());</span>
+<span class="nc" id="L39">    }</span>
+
+    private void generateReports(ReportType type, LocalDate reportDate) {
+<span class="nc" id="L42">        List&lt;User&gt; users = userRepository.findAll();</span>
+<span class="nc" id="L43">        int success = 0;</span>
+<span class="nc" id="L44">        int skippedOrFailed = 0;</span>
+
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        for (User user : users) {</span>
+            try {
+<span class="nc" id="L48">                insightService.generateInsight(user.getId(), type, reportDate);</span>
+<span class="nc" id="L49">                success++;</span>
+<span class="nc" id="L50">            } catch (Exception e) {</span>
+                // 没有有效摄入数据时属于正常跳过，不影响整个调度任务。
+<span class="nc" id="L52">                skippedOrFailed++;</span>
+<span class="nc" id="L53">                log.warn(&quot;用户 {} 的 {} 报告未生成: {}&quot;, user.getId(), type, e.getMessage());</span>
+<span class="nc" id="L54">            }</span>
+<span class="nc" id="L55">        }</span>
+
+<span class="nc" id="L57">        log.info(&quot;{} 报告生成结束：成功 {}，跳过或失败 {}&quot;, type, success, skippedOrFailed);</span>
+<span class="nc" id="L58">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

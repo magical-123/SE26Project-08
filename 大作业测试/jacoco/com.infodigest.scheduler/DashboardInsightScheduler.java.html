@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DashboardInsightScheduler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.scheduler</a> &gt; <span class="el_source">DashboardInsightScheduler.java</span></div><h1>DashboardInsightScheduler.java</h1><pre class="source lang-java linenums">package com.infodigest.scheduler;
+
+import com.infodigest.entity.User;
+import com.infodigest.repository.UserRepository;
+import com.infodigest.service.DashboardInsightService;
+import com.infodigest.service.ReviewCardGenerationService;
+import com.infodigest.service.WordCloudService;
+import com.infodigest.service.TopicClusterService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
+import java.util.List;
+
+/**
+ * 仪表盘数据生成调度器
+ * 每日 0 点自动为所有用户生成：洞察、复习卡片、词云
+ */
+@Component
+<span class="nc" id="L22">@Slf4j</span>
+<span class="nc" id="L23">public class DashboardInsightScheduler {</span>
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private DashboardInsightService dashboardInsightService;
+
+    @Autowired
+    private ReviewCardGenerationService reviewCardGenerationService;
+
+    @Autowired
+    private WordCloudService wordCloudService;
+
+    @Autowired
+    private TopicClusterService topicClusterService;
+
+    /**
+     * 每天凌晨 0 点执行
+     * cron 表达式：秒 分 时 日 月 周
+     */
+    @Scheduled(cron = &quot;0 0 0 * * ?&quot;)
+    public void generateDailyData() {
+<span class="nc" id="L46">        log.info(&quot;====== 开始执行每日仪表盘数据生成任务 ======&quot;);</span>
+
+        try {
+<span class="nc" id="L49">            List&lt;User&gt; allUsers = userRepository.findAll();</span>
+<span class="nc" id="L50">            int insightSuccessCount = 0;</span>
+<span class="nc" id="L51">            int insightFailCount = 0;</span>
+<span class="nc" id="L52">            int reviewSuccessCount = 0;</span>
+<span class="nc" id="L53">            int reviewFailCount = 0;</span>
+<span class="nc" id="L54">            int wordCloudSuccessCount = 0;</span>
+<span class="nc" id="L55">            int wordCloudFailCount = 0;</span>
+<span class="nc" id="L56">            int topicSuccessCount = 0;</span>
+<span class="nc" id="L57">            int topicFailCount = 0;</span>
+
+<span class="nc" id="L59">            LocalDate yesterday = LocalDate.now().minusDays(1); // 生成昨天的词云和话题</span>
+
+<span class="nc bnc" id="L61" title="All 2 branches missed.">            for (User user : allUsers) {</span>
+                // 生成洞察
+                try {
+<span class="nc" id="L64">                    log.info(&quot;为用户 {} ({}) 生成仪表盘洞察&quot;, user.getUsername(), user.getId());</span>
+<span class="nc" id="L65">                    dashboardInsightService.generateDashboardInsight(user.getId());</span>
+<span class="nc" id="L66">                    insightSuccessCount++;</span>
+<span class="nc" id="L67">                } catch (Exception e) {</span>
+<span class="nc" id="L68">                    log.error(&quot;为用户 {} ({}) 生成洞察失败: {}&quot;, user.getUsername(), user.getId(), e.getMessage());</span>
+<span class="nc" id="L69">                    insightFailCount++;</span>
+<span class="nc" id="L70">                }</span>
+
+                // 生成复习卡片
+                try {
+<span class="nc" id="L74">                    log.info(&quot;为用户 {} ({}) 生成复习卡片&quot;, user.getUsername(), user.getId());</span>
+<span class="nc" id="L75">                    reviewCardGenerationService.generateTodayReviewCard(user.getId());</span>
+<span class="nc" id="L76">                    reviewSuccessCount++;</span>
+<span class="nc" id="L77">                } catch (Exception e) {</span>
+<span class="nc" id="L78">                    log.error(&quot;为用户 {} ({}) 生成复习卡片失败: {}&quot;, user.getUsername(), user.getId(), e.getMessage());</span>
+<span class="nc" id="L79">                    reviewFailCount++;</span>
+<span class="nc" id="L80">                }</span>
+
+                // 生成昨天的词云
+                try {
+<span class="nc" id="L84">                    log.info(&quot;为用户 {} ({}) 生成词云数据&quot;, user.getUsername(), user.getId());</span>
+<span class="nc" id="L85">                    wordCloudService.generateWordCloud(user.getId(), yesterday);</span>
+<span class="nc" id="L86">                    wordCloudSuccessCount++;</span>
+<span class="nc" id="L87">                } catch (Exception e) {</span>
+<span class="nc" id="L88">                    log.error(&quot;为用户 {} ({}) 生成词云失败: {}&quot;, user.getUsername(), user.getId(), e.getMessage());</span>
+<span class="nc" id="L89">                    wordCloudFailCount++;</span>
+<span class="nc" id="L90">                }</span>
+
+                // 生成昨天的日报话题聚类
+                try {
+<span class="nc" id="L94">                    log.info(&quot;为用户 {} ({}) 生成日报话题聚类&quot;, user.getUsername(), user.getId());</span>
+<span class="nc" id="L95">                    topicClusterService.generateDailyTopicClusters(user.getId(), yesterday);</span>
+<span class="nc" id="L96">                    topicSuccessCount++;</span>
+<span class="nc" id="L97">                } catch (Exception e) {</span>
+<span class="nc" id="L98">                    log.error(&quot;为用户 {} ({}) 生成话题聚类失败: {}&quot;, user.getUsername(), user.getId(), e.getMessage());</span>
+<span class="nc" id="L99">                    topicFailCount++;</span>
+<span class="nc" id="L100">                }</span>
+<span class="nc" id="L101">            }</span>
+
+<span class="nc" id="L103">            log.info(&quot;====== 每日任务完成 ======&quot;);</span>
+<span class="nc" id="L104">            log.info(&quot;洞察：成功 {}，失败 {}&quot;, insightSuccessCount, insightFailCount);</span>
+<span class="nc" id="L105">            log.info(&quot;复习卡片：成功 {}，失败 {}&quot;, reviewSuccessCount, reviewFailCount);</span>
+<span class="nc" id="L106">            log.info(&quot;词云：成功 {}，失败 {}&quot;, wordCloudSuccessCount, wordCloudFailCount);</span>
+<span class="nc" id="L107">            log.info(&quot;话题聚类：成功 {}，失败 {}&quot;, topicSuccessCount, topicFailCount);</span>
+
+<span class="nc" id="L109">        } catch (Exception e) {</span>
+<span class="nc" id="L110">            log.error(&quot;每日数据生成任务执行失败: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L111">        }</span>
+<span class="nc" id="L112">    }</span>
+
+    /**
+     * 每2小时自动生成复习卡片
+     * cron 表达式：秒 分 时 日 月 周
+     * 0 0 星号斜杠2 星号 星号 ? 表示每2小时的整点执行
+     */
+    @Scheduled(cron = &quot;0 0 */2 * * ?&quot;)
+    public void generateReviewCardsEveryTwoHours() {
+<span class="nc" id="L121">        log.info(&quot;====== 开始执行每2小时复习卡片生成任务 ======&quot;);</span>
+
+        try {
+<span class="nc" id="L124">            List&lt;User&gt; allUsers = userRepository.findAll();</span>
+<span class="nc" id="L125">            int successCount = 0;</span>
+<span class="nc" id="L126">            int failCount = 0;</span>
+
+<span class="nc bnc" id="L128" title="All 2 branches missed.">            for (User user : allUsers) {</span>
+                try {
+<span class="nc" id="L130">                    log.info(&quot;为用户 {} ({}) 生成复习卡片&quot;, user.getUsername(), user.getId());</span>
+<span class="nc" id="L131">                    reviewCardGenerationService.generateTodayReviewCard(user.getId());</span>
+<span class="nc" id="L132">                    successCount++;</span>
+<span class="nc" id="L133">                } catch (Exception e) {</span>
+<span class="nc" id="L134">                    log.error(&quot;为用户 {} ({}) 生成复习卡片失败: {}&quot;, user.getUsername(), user.getId(), e.getMessage());</span>
+<span class="nc" id="L135">                    failCount++;</span>
+<span class="nc" id="L136">                }</span>
+<span class="nc" id="L137">            }</span>
+
+<span class="nc" id="L139">            log.info(&quot;====== 每2小时复习卡片生成任务完成 ======&quot;);</span>
+<span class="nc" id="L140">            log.info(&quot;成功：{}，失败：{}&quot;, successCount, failCount);</span>
+
+<span class="nc" id="L142">        } catch (Exception e) {</span>
+<span class="nc" id="L143">            log.error(&quot;每2小时复习卡片生成任务执行失败: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L144">        }</span>
+<span class="nc" id="L145">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

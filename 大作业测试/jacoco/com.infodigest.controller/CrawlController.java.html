@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CrawlController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">InfoDigest Backend</a> &gt; <a href="index.source.html" class="el_package">com.infodigest.controller</a> &gt; <span class="el_source">CrawlController.java</span></div><h1>CrawlController.java</h1><pre class="source lang-java linenums">package com.infodigest.controller;
+
+import com.infodigest.entity.User;
+import com.infodigest.repository.UserRepository;
+import com.infodigest.security.JwtUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.*;
+
+@RestController
+@RequestMapping(&quot;/api/crawl&quot;)
+<span class="nc" id="L17">public class CrawlController {</span>
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    // 爬虫脚本路径，相对于后端项目根目录
+    @Value(&quot;${crawler.script.path:../crawler/index.js}&quot;)
+    private String crawlerScriptPath;
+
+    /**
+     * 触发爬虫抓取指定平台
+     * POST /api/crawl/trigger?platform=xiaohongshu
+     * 
+     * 后端生成当前用户的 JWT Token，通过命令行参数传给爬虫进程。
+     * 爬虫不再依赖 config.js 中硬编码的 testuser/testpass。
+     */
+    @PostMapping(&quot;/trigger&quot;)
+    public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; triggerCrawl(@RequestParam(defaultValue = &quot;all&quot;) String platform) {
+<span class="nc" id="L38">        Map&lt;String, Object&gt; result = new LinkedHashMap&lt;&gt;();</span>
+
+<span class="nc bnc" id="L40" title="All 4 branches missed.">        if (&quot;xiaohongshu&quot;.equalsIgnoreCase(platform) || &quot;zhihu&quot;.equalsIgnoreCase(platform)) {</span>
+<span class="nc" id="L41">            result.put(&quot;status&quot;, &quot;disabled&quot;);</span>
+<span class="nc" id="L42">            result.put(&quot;platform&quot;, platform.toLowerCase());</span>
+<span class="nc" id="L43">            result.put(&quot;message&quot;, &quot;知乎和小红书仅通过浏览器扩展记录用户实际浏览的内容，不支持推荐流抓取&quot;);</span>
+<span class="nc" id="L44">            return ResponseEntity.badRequest().body(result);</span>
+        }
+        
+        try {
+            // 获取当前认证用户
+<span class="nc" id="L49">            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="nc" id="L50">            String username = authentication.getName();</span>
+<span class="nc" id="L51">            User user = userRepository.findByUsername(username)</span>
+<span class="nc" id="L52">                    .orElseThrow(() -&gt; new RuntimeException(&quot;User not found&quot;));</span>
+            
+            // 生成该用户的 JWT Token（有效期 1 小时，足够爬虫使用）
+<span class="nc" id="L55">            String crawlerToken = jwtUtil.generateToken(username, user.getId());</span>
+            
+            // 构建命令：node index.js [--platform=xxx] --auth-token=xxx --user-id=xxx --limit=10
+            // 手动触发（首次连接）抓取最近 10 条，避免大量历史数据涌入
+<span class="nc" id="L59">            List&lt;String&gt; command = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L60">            command.add(&quot;node&quot;);</span>
+<span class="nc" id="L61">            command.add(crawlerScriptPath);</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">            if (!&quot;all&quot;.equalsIgnoreCase(platform)) {</span>
+<span class="nc" id="L63">                command.add(&quot;--platform=&quot; + platform.toLowerCase());</span>
+            }
+<span class="nc" id="L65">            command.add(&quot;--auth-token=&quot; + crawlerToken);</span>
+<span class="nc" id="L66">            command.add(&quot;--user-id=&quot; + user.getId());</span>
+<span class="nc" id="L67">            command.add(&quot;--limit=10&quot;);</span>
+
+<span class="nc" id="L69">            ProcessBuilder processBuilder = new ProcessBuilder(command);</span>
+            // 设置工作目录。Spring Boot 运行时 user.dir 可能是项目根目录或 target
+<span class="nc" id="L71">            String userDir = System.getProperty(&quot;user.dir&quot;);</span>
+<span class="nc" id="L72">            processBuilder.directory(new java.io.File(userDir));</span>
+<span class="nc" id="L73">            processBuilder.redirectErrorStream(true);</span>
+
+<span class="nc" id="L75">            Process process = processBuilder.start();</span>
+
+            // 异步读取输出
+<span class="nc" id="L78">            new Thread(() -&gt; {</span>
+<span class="nc" id="L79">                try (java.io.BufferedReader reader = new java.io.BufferedReader(</span>
+<span class="nc" id="L80">                        new java.io.InputStreamReader(process.getInputStream()))) {</span>
+                    String line;
+<span class="nc bnc" id="L82" title="All 2 branches missed.">                    while ((line = reader.readLine()) != null) {</span>
+<span class="nc" id="L83">                        System.out.println(&quot;[Crawler-&quot; + platform + &quot;] &quot; + line);</span>
+                    }
+<span class="nc" id="L85">                } catch (Exception e) {</span>
+<span class="nc" id="L86">                    e.printStackTrace();</span>
+<span class="nc" id="L87">                }</span>
+<span class="nc" id="L88">            }).start();</span>
+
+<span class="nc" id="L90">            result.put(&quot;status&quot;, &quot;started&quot;);</span>
+<span class="nc" id="L91">            result.put(&quot;platform&quot;, platform);</span>
+<span class="nc" id="L92">            result.put(&quot;user&quot;, username);</span>
+<span class="nc" id="L93">            result.put(&quot;message&quot;, &quot;爬虫已启动，数据将在几分钟内同步到 Inbox&quot;);</span>
+<span class="nc" id="L94">            return ResponseEntity.ok(result);</span>
+
+<span class="nc" id="L96">        } catch (Exception e) {</span>
+<span class="nc" id="L97">            result.put(&quot;status&quot;, &quot;error&quot;);</span>
+<span class="nc" id="L98">            result.put(&quot;message&quot;, &quot;启动爬虫失败: &quot; + e.getMessage());</span>
+<span class="nc" id="L99">            result.put(&quot;platform&quot;, platform);</span>
+<span class="nc" id="L100">            return ResponseEntity.internalServerError().body(result);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
