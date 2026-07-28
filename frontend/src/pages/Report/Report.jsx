@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
-import { Download, ArrowRight, Sparkles, Info, RefreshCw, Eye } from 'lucide-react';
+import { Download, ArrowRight, Sparkles, Info, RefreshCw, Eye, WifiOff } from 'lucide-react';
+import { cacheData, getCachedData } from '../../utils/cache';
 import { PosterModal } from '../../components/PosterModal/PosterModal';
 import { InsightDrawer } from '../../components/InsightDrawer/InsightDrawer';
 import { useToast } from '../../components/Toast/Toast';
@@ -44,6 +45,13 @@ export function Report() {
   // 重新生成状态
   const [isRegeneratingWordCloud, setIsRegeneratingWordCloud] = useState(false);
   const [isRegeneratingTopics, setIsRegeneratingTopics] = useState(false);
+  const [offline, setOffline] = useState(false);
+
+  // 辅助函数：合并缓存
+  const updateReportCache = (partial) => {
+    const existing = getCachedData('report') || {};
+    cacheData('report', { ...existing, ...partial });
+  };
 
   // 获取营养数据
   useEffect(() => {
@@ -57,11 +65,18 @@ export function Report() {
           console.log('Nutrition API response:', result);
           setNutritionData(result.data || []);
           setTotalHours(result.totalHours || 0);
+          updateReportCache({ nutritionData: result.data || [], totalHours: result.totalHours || 0 });
         } else {
           console.error('Nutrition API error:', response.status);
         }
       } catch (error) {
         console.error('获取营养数据失败:', error);
+        const cached = getCachedData('report');
+        if (cached && cached.nutritionData) {
+          setNutritionData(cached.nutritionData);
+          setTotalHours(cached.totalHours || 0);
+          setOffline(true);
+        }
       }
     };
     fetchNutritionData();
@@ -80,6 +95,7 @@ export function Report() {
             const data = await response.json();
             console.log('[词云数据] 今日词云原始数据:', data);
             setDailyWordCloud(data || []);
+            updateReportCache({ dailyWordCloud: data || [] });
           }
         } else {
           // 获取近7天词云历史
@@ -92,6 +108,7 @@ export function Report() {
             console.log('[词云数据] 今天的日期:', new Date().toISOString().split('T')[0]);
             console.log('[词云数据] 第一条的reportDate:', data.length > 0 ? data[0].reportDate : 'N/A');
             setWeeklyWordCloudHistory(data || []);
+            updateReportCache({ weeklyWordCloudHistory: data || [] });
             // 默认显示第一天（最新日期，因为数据是降序排列的）
             if (data.length > 0) {
               setTimeIndex(0);
@@ -100,6 +117,16 @@ export function Report() {
         }
       } catch (error) {
         console.error('获取词云数据失败:', error);
+        const cached = getCachedData('report');
+        if (cached) {
+          if (cached.dailyWordCloud && activeTab === 'daily') {
+            setDailyWordCloud(cached.dailyWordCloud);
+          }
+          if (cached.weeklyWordCloudHistory && activeTab === 'weekly') {
+            setWeeklyWordCloudHistory(cached.weeklyWordCloudHistory);
+          }
+          setOffline(true);
+        }
       }
     };
     fetchWordCloudData();
@@ -117,9 +144,15 @@ export function Report() {
           const data = await response.json();
           console.log('[话题聚类] 数据:', data);
           setTopicClusters(data || []);
+          updateReportCache({ topicClusters: data || [] });
         }
       } catch (error) {
         console.error('获取话题聚类失败:', error);
+        const cached = getCachedData('report');
+        if (cached && cached.topicClusters) {
+          setTopicClusters(cached.topicClusters);
+          setOffline(true);
+        }
       }
     };
     fetchTopicClusters();
@@ -138,13 +171,21 @@ export function Report() {
           if (data.success && data.hasReport) {
             setInsight(data.report);
             setHasInsight(true);
+            updateReportCache({ insight: data.report, hasInsight: true });
           } else {
             setInsight(null);
             setHasInsight(false);
+            updateReportCache({ insight: null, hasInsight: false });
           }
         }
       } catch (error) {
         console.error('获取洞察失败:', error);
+        const cached = getCachedData('report');
+        if (cached && cached.insight) {
+          setInsight(cached.insight);
+          setHasInsight(cached.hasInsight);
+          setOffline(true);
+        }
       }
     };
     fetchInsight();
@@ -433,6 +474,13 @@ export function Report() {
           </button>
         </div>
       </header>
+
+      {offline && (
+        <div className="report-offline-banner">
+          <WifiOff size={16} />
+          <span>当前离线/服务超时，已切换为缓存模式</span>
+        </div>
+      )}
 
       <div className="report-grid">
         <GlassCard className="report-card pie-card" style={{ padding: '24px 32px' }}>

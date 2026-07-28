@@ -6,6 +6,27 @@
   background: transparent;
 }
 
+.kg-offline-banner {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 12px;
+  background: #FFF3CD;
+  border: 1px solid #FFEAA7;
+  color: #856404;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: auto;
+  animation: slideDown 0.3s ease;
+  white-space: nowrap;
+}
+
 .kg-container {
   width: 100%;
   height: calc(100% - 160px);
@@ -114,6 +135,31 @@
   max-width: 90vw;
 }
 
+/* Expanded state: items scrollable, actions always visible */
+.kg-legend-expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.kg-legend-items-scroll {
+  max-height: 160px;
+  overflow-y: auto;
+}
+.kg-legend-items-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.kg-legend-items-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+.kg-legend-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .kg-legend-items {
   display: flex;
   align-items: center;
@@ -180,6 +226,40 @@
 
 .kg-legend-toggle-all:hover {
   background: rgba(0, 0, 0, 0.06);
+}
+
+/* ---- Collapse Button & Collapsed State ---- */
+.kg-legend-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: transparent;
+  color: #666;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.kg-legend-collapse-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #2a2a2a;
+}
+.kg-legend-collapse-icon {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.kg-legend-bar-inner.collapsed {
+  padding: 4px 8px;
+  gap: 0;
+}
+.kg-legend-bar-inner.collapsed .kg-legend-collapse-btn {
+  padding: 4px 10px;
+  font-size: 11px;
 }
 
 /* ---- Focus Scrim Overlay ---- */

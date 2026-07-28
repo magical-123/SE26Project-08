@@ -7,9 +7,10 @@ import { NutritionLabel } from '../../components/NutritionLabel/NutritionLabel';
 import { StatBadge } from '../../components/StatBadge/StatBadge';
 import { RotatingQuoteCard } from '../../components/RotatingQuoteCard/RotatingQuoteCard';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
-import { BookOpen, Zap, Clock, RefreshCw } from 'lucide-react';
+import { BookOpen, Zap, Clock, RefreshCw, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { nutritionData, wordCloudData, aiQuotes, reviewCards } from '../../mock/dashboardData';
+import { cacheData, getCachedData } from '../../utils/cache';
 import './Dashboard.css';
 
 const API_BASE = '';
@@ -35,6 +36,7 @@ export function Dashboard() {
   const [realWordCloudData, setRealWordCloudData] = useState(null);
   const [loadingWordCloud, setLoadingWordCloud] = useState(true);
   const [isRegeneratingReview, setIsRegeneratingReview] = useState(false);
+  const [offline, setOffline] = useState(false);
 
   // 获取今日词云数据
   useEffect(() => {
@@ -207,8 +209,30 @@ export function Dashboard() {
         setQuoteExtracts(quotes);
         setReviewCards(reviews);
         setSummary(summaryData);
+        setOffline(false);
+
+        // 缓存成功获取的数据
+        cacheData('dashboard', {
+          nutrition: nutrition.data || nutrition,
+          wordCloud: formattedWordCloud,
+          insights,
+          quotes,
+          reviews,
+          summary: summaryData,
+        });
       } catch (error) {
         console.error('Dashboard data fetch error:', error);
+        // 从缓存读取降级数据
+        const cached = getCachedData('dashboard');
+        if (cached) {
+          setNutritionData(cached.nutrition);
+          setWordCloudData(cached.wordCloud);
+          setAiQuotes(cached.insights);
+          setQuoteExtracts(cached.quotes);
+          setReviewCards(cached.reviews);
+          setSummary(cached.summary);
+          setOffline(true);
+        }
       } finally {
         setLoading(false);
       }
@@ -356,6 +380,13 @@ export function Dashboard() {
       <header className="dashboard-header">
         <h1>仪表盘 (Dashboard)</h1>
       </header>
+
+      {offline && (
+        <div className="offline-banner">
+          <WifiOff size={16} />
+          <span>当前离线/服务超时，已切换为缓存模式</span>
+        </div>
+      )}
 
       <div className="stats-row">
         <StatBadge icon={<BookOpen />} label="浏览总量" value={summary.todayViews} onClick={() => navigate('/inbox')} />
