@@ -189,15 +189,15 @@ export function Inbox() {
     setSelectedItem(null);
   };
 
-  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [upgradingItems, setUpgradingItems] = useState(new Set());
 
   const handleUpgrade = async () => {
     if (!selectedItem) return;
-    
+
     // 保存本地修改和设为优质信息源
     saveNote(selectedItem.id, draftNote, selectedKeywords);
-    
-    setIsUpgrading(true);
+
+    setUpgradingItems(prev => new Set(prev).add(selectedItem.id));
     let analyzeSuccess = false;
     let newKeywords = [...suggestedKeywords];
     let newSelected = [...selectedKeywords];
@@ -205,7 +205,7 @@ export function Inbox() {
     try {
       // 第一步：调用 AI 推荐关键词
       const suggestions = await graphApi.analyzeKeywords(selectedItem.id, draftNote);
-      
+
       suggestions.forEach(s => {
         if (!newKeywords.find(k => k.label === s.label)) {
           newKeywords.push(s);
@@ -215,24 +215,28 @@ export function Inbox() {
           newSelected.push(s.label);
         }
       });
-      
+
       // 容错：如果 AI 没选中任何关键词，默认选中最多前两个
       if (newSelected.length === 0 && suggestions.length > 0) {
         newSelected.push(suggestions[0].label);
         if (suggestions.length > 1) newSelected.push(suggestions[1].label);
       }
-      
+
       // 立刻更新 UI 状态，让用户看到推荐的标签
       setSuggestedKeywords(newKeywords);
       setSelectedKeywords(newSelected);
       analyzeSuccess = true;
-      
+
     } catch (e) {
       console.error('AI 推荐关键词失败:', e);
       showToast('AI推荐领域失败，请稍后重试', 'error');
     } finally {
-      setIsUpgrading(false);
-      
+      setUpgradingItems(prev => {
+        const next = new Set(prev);
+        next.delete(selectedItem.id);
+        return next;
+      });
+
       // 重新拉取以获取正确的 isNew 状态
       try {
         const concepts = await graphApi.getItemKeywords(selectedItem.id);
@@ -246,9 +250,9 @@ export function Inbox() {
     // 第二步：如果推荐成功，再尝试保存到后端
     if (analyzeSuccess && newSelected.length > 0) {
       try {
-        await graphApi.updateItemKeywords(selectedItem.id, newSelected.map(label => ({ 
-          label, 
-          isNew: newKeywords.find(s => s.label === label)?.isNew || false 
+        await graphApi.updateItemKeywords(selectedItem.id, newSelected.map(label => ({
+          label,
+          isNew: newKeywords.find(s => s.label === label)?.isNew || false
         })));
 
         // 保存成功后，重新拉取以获取正确的 isNew 状态
@@ -268,8 +272,6 @@ export function Inbox() {
         // 保存失败但不清空 UI 上已展示的推荐标签，让用户仍然能看到并手动操作
       }
     }
-
-    setIsUpgrading(false);
   };
 
   const handleTogglePremium = (id) => {
@@ -463,7 +465,7 @@ export function Inbox() {
         onAddKeyword={handleAddKeyword}
         onDeleteKeyword={handleDeleteKeyword}
         onUpgrade={handleUpgrade}
-        isUpgrading={isUpgrading}
+        isUpgrading={upgradingItems.has(selectedItem?.id)}
         onTogglePremium={(id) => {
           handleTogglePremium(id);
           setSelectedItem(null);
