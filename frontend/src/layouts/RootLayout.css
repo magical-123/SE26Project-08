@@ -1,0 +1,394 @@
+.root-layout {
+  display: flex;
+  height: 100vh;
+  padding: 40px;
+  gap: 40px;
+  overflow: hidden;
+  position: relative;
+}
+
+.decor-vertical-line {
+  position: absolute;
+  left: 360px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--text-main);
+  opacity: 0.1;
+  z-index: 0;
+}
+
+.bg-decor-text {
+  position: absolute;
+  bottom: 20px;
+  left: 40px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--text-main);
+  opacity: 0.8;
+  z-index: 0;
+}
+
+.cascade-nav-container {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  position: relative;
+}
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 60px;
+}
+
+.brand-avatar {
+  margin-left: auto;
+  margin-right: 12px;
+  width: 36px;
+  height: 36px;
+  background: var(--text-main);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: opacity 0.2s;
+}
+.brand-avatar:hover {
+  opacity: 0.7;
+}
+
+.mobile-menu-toggle,
+.mobile-nav-backdrop {
+  display: none;
+}
+
+.logo-box {
+  width: 48px;
+  height: 48px;
+  background: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-mark {
+  color: #fff;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -1px;
+}
+
+.brand-titles h1 {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+/* ====================
+   Plain Vertical Nav
+   ==================== */
+.nav-container-inner {
+  flex: 1;
+  display: flex;
+  align-items: flex-start; /* Move to top instead of center */
+  padding-top: 40px; /* Distance from the brand logo */
+}
+
+.plain-nav-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.nav-item {
+  position: relative;
+  width: 260px;
+  height: 64px;
+  
+  background: var(--bg-glass);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid var(--border-glass);
+  
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s, background 0.3s;
+  cursor: pointer;
+  
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+/* Base item structure to look like a folder tab */
+.nav-item::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  background: var(--text-main);
+  opacity: 0;
+  transition: opacity 0.3s;
+  border-radius: 2px;
+}
+
+/* Hovering on a specific folder (pulling it out like a drawer to the right) */
+.plain-nav-stack .nav-item:hover {
+  background: rgba(255, 255, 255, 0.9);
+  /* Translate it purely rightwards */
+  transform: translateX(20px);
+  box-shadow: 10px 10px 20px rgba(0,0,0,0.08);
+}
+
+/* Active State - visually highlighted */
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.nav-item.active::before {
+  opacity: 1; /* Show the black tab indicator */
+}
+
+.nav-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-icon {
+  color: var(--text-main);
+  opacity: 0.8;
+}
+
+.nav-label {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-main);
+}
+
+/* 导航红点指示器 */
+.nav-red-dot {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  background: #EF4444;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.9); }
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.main-glass-board {
+  flex: 1;
+  min-width: 0;
+  /* Extreme transparent glass to show the hexagon background */
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.0) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  
+  /* Crisp glassy edges */
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 
+    0 20px 40px rgba(0,0,0,0.02),
+    inset 1px 1px 0px rgba(255,255,255,0.6),
+    inset -1px -1px 0px rgba(255,255,255,0.1);
+    
+  border-radius: 8px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 10;
+  padding: 8px;
+}
+
+/* Responsive shell: phones and small tablets use a compact top bar and
+   reveal the navigation as an off-canvas drawer on demand. */
+@media (max-width: 1024px) {
+  .root-layout {
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .cascade-nav-container {
+    width: 220px;
+  }
+
+  .nav-item {
+    width: 200px;
+  }
+
+  .decor-vertical-line {
+    left: 260px;
+  }
+}
+
+/*
+ * Use the compact shell up to 1024px. Some mobile browsers expose a
+ * fallback layout viewport close to 980px for cached documents or embedded
+ * webviews; the wider breakpoint keeps the desktop rail from rendering
+ * vertically on phones.
+ */
+@media (max-width: 1024px) {
+  .root-layout {
+    height: 100dvh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 12px;
+    overflow: hidden;
+  }
+
+  .decor-vertical-line,
+  .bg-decor-text {
+    display: none;
+  }
+
+  .cascade-nav-container {
+    width: 100%;
+    flex: 0 0 auto;
+    z-index: 140;
+  }
+
+  .brand-header {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .logo-box {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+  }
+
+  .logo-mark { font-size: 17px; }
+  .brand-titles h1 { font-size: 20px; }
+  .subtitle { font-size: 7px; letter-spacing: .6px; }
+  .brand-avatar { width: 32px; height: 32px; margin-right: 0; }
+
+  .mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-left: 4px;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    flex: 0 0 40px;
+    z-index: 140;
+  }
+
+  .mobile-menu-toggle:focus-visible {
+    outline: 2px solid var(--text-main);
+    outline-offset: 2px;
+  }
+
+  .nav-container-inner {
+    display: none;
+    position: fixed;
+    z-index: 130;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(84vw, 320px);
+    padding: 88px 16px 20px;
+    background: rgba(250, 248, 242, 0.96);
+    border-right: 1px solid var(--border-glass);
+    box-shadow: 20px 0 45px rgba(0, 0, 0, 0.14);
+    overflow-y: auto;
+    transform: translateX(-105%);
+    transition: transform 0.24s ease;
+  }
+
+  .cascade-nav-container.mobile-nav-open .nav-container-inner {
+    display: flex;
+    transform: translateX(0);
+  }
+
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    z-index: 110;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    background: rgba(17, 17, 17, 0.28);
+    cursor: pointer;
+  }
+
+  .plain-nav-stack {
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .plain-nav-stack .nav-item {
+    width: 100%;
+    min-width: 0;
+    height: 52px;
+    padding: 0 16px;
+    justify-content: flex-start;
+    transform: none;
+  }
+
+  .plain-nav-stack .nav-item:hover { transform: none; }
+  .nav-content { gap: 12px; }
+  .nav-icon { width: 19px; height: 19px; }
+  .nav-label { font-size: 12px; letter-spacing: .5px; }
+  .nav-red-dot { top: 6px; right: 6px; width: 6px; height: 6px; }
+
+  .main-glass-board {
+    min-height: 0;
+    width: 100%;
+    padding: 4px;
+    border-radius: 12px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 420px) {
+  .root-layout { padding: 8px; gap: 8px; }
+  .brand-titles h1 { font-size: 18px; }
+  .subtitle { display: none; }
+  .plain-nav-stack .nav-item { min-width: 62px; padding: 0 8px; }
+  .nav-label { font-size: 9px; }
+}

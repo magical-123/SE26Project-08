@@ -1,0 +1,237 @@
+.dashboard {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dashboard-header h1 {
+  font-size: 28px;
+  letter-spacing: -0.5px;
+  font-weight: 800;
+}
+
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: #FFF3CD;
+  border: 1px solid #FFEAA7;
+  color: #856404;
+  font-size: 14px;
+  font-weight: 600;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, minmax(200px, auto));
+  gap: 24px;
+}
+
+.bento-nutrition {
+  grid-column: span 2;
+  grid-row: span 2;
+  perspective: 1000px;
+}
+
+.bento-trend {
+  grid-column: span 2;
+  grid-row: span 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.bento-trend h3 {
+  font-size: 14px;
+  margin-bottom: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.chart-container {
+  flex: 1;
+  min-height: 180px;
+}
+
+.bento-quote {
+  grid-column: span 1;
+  grid-row: span 1;
+  height: 100%;
+}
+
+.quote-card {
+  height: 100%;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(14,165,233,0.05) 0%, transparent 100%);
+  border: 1px solid var(--border-glass);
+}
+
+.quote-card h3 {
+  font-size: 12px;
+  color: var(--primary);
+  margin-bottom: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.quote-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.bento-review {
+  grid-column: span 1;
+  grid-row: span 1;
+  height: 100%;
+}
+
+.review-card {
+  height: 100%;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.rc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.rc-header h3 {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.rc-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.05);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.review-card h4 {
+  font-size: 15px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.review-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  flex: 1;
+}
+
+.rc-footer {
+  margin-top: 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.regenerate-btn-review {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.regenerate-btn-review:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-main);
+}
+
+.regenerate-btn-review:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.regenerate-btn-review .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 金句摘录区域 */
+.quotes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quotes-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+.quotes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard { padding: 24px; }
+  .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bento-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; }
+  .bento-nutrition, .bento-trend, .topics-card { grid-column: span 2; }
+  .bento-quote, .bento-review { grid-column: span 1; }
+}
+
+@media (max-width: 640px) {
+  .dashboard { padding: 16px 12px; gap: 16px; }
+  .dashboard-header h1 { font-size: 23px; }
+  .stats-row, .bento-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .bento-nutrition, .bento-trend, .bento-quote, .bento-review, .topics-card {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .bento-trend { padding: 16px; }
+}

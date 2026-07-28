@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Build output
+dist/
+frontend/dist/
+build/
+target/
+
+# IDE/Editor
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Java/Maven
+backend/target/
+backend/jdk17.zip
+backend/jdk17/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+
+# Maven wrapper (keep the jar but ignore the wrapper dist)
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local-only docs (not for remote)
+会话上下文文档.md
