@@ -282,14 +282,12 @@ export function Report() {
         const timestamp = Date.now().toString();
         sessionStorage.setItem('dashboard:wordcloudUpdated', timestamp);
         console.log('[Report] 词云生成完成，已设置通知标记:', timestamp);
-        toast.success('词云生成成功！');
       } else {
-        // 显示后端返回的详细错误信息
-        toast.error('生成失败: ' + (data.message || '未知错误'));
+        // 静默处理错误
+        console.error('生成失败:', data.message || '未知错误');
       }
     } catch (error) {
       console.error('重新生成词云失败:', error);
-      toast.error('生成失败: 网络错误或服务器异常，请稍后重试');
     } finally {
       setIsRegeneratingWordCloud(false);
     }
@@ -309,15 +307,12 @@ export function Report() {
 
       if (data.success && data.data) {
         setTopicClusters(data.data);
-        // 显示成功提示
-        toast.success('话题聚类生成成功！');
       } else {
-        // 显示后端返回的详细错误信息
-        toast.error('生成失败: ' + (data.message || '未知错误'));
+        // 静默处理错误
+        console.error('生成失败:', data.message || '未知错误');
       }
     } catch (error) {
       console.error('重新生成话题聚类失败:', error);
-      toast.error('生成失败: 网络错误或服务器异常，请稍后重试');
     } finally {
       setIsRegeneratingTopics(false);
     }
