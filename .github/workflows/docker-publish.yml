@@ -57,6 +57,7 @@ jobs:
         with:
           context: ./backend
           push: true
+          provenance: false
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-backend:latest
 
       - name: Build and push Frontend image
@@ -64,6 +65,7 @@ jobs:
         with:
           context: ./frontend
           push: true
+          provenance: false
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-frontend:latest
 
       - name: Build and push Crawler image
@@ -71,4 +73,5 @@ jobs:
         with:
           context: ./crawler
           push: true
+          provenance: false
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-crawler:latest
