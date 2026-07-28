@@ -304,6 +304,9 @@ export function Inbox() {
           }
         }
       }
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (err) {
       showToast('启动爬虫失败：' + err.message, 'error');
     }
