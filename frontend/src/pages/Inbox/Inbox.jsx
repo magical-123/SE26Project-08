@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { InfoSourceCard } from '../../components/InfoSourceCard/InfoSourceCard';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
-import { graphApi, crawlApi } from '../../utils/api';
+import { graphApi, crawlApi, settingsApi } from '../../utils/api';
 import './Inbox.css';
 
 const containerVariants = {
@@ -43,11 +43,39 @@ export function Inbox() {
   const [batchTotal, setBatchTotal] = useState(0);
 
   const [toast, setToast] = useState(null);
+  const reauthNotifiedRef = useRef(false);
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkBilibiliAuthorization = async () => {
+      try {
+        const status = await settingsApi.getPlatforms();
+        if (cancelled) return;
+        const bilibili = status.platforms?.find(item => item.key === 'bilibili');
+        if (bilibili?.needsReauth && !reauthNotifiedRef.current) {
+          reauthNotifiedRef.current = true;
+          showToast('B站授权已过期，请前往设置页重新扫码登录', 'error');
+        } else if (!bilibili?.needsReauth) {
+          reauthNotifiedRef.current = false;
+        }
+      } catch {
+        // 状态查询失败不影响 Inbox 主列表。
+      }
+    };
+
+    checkBilibiliAuthorization();
+    const intervalId = window.setInterval(checkBilibiliAuthorization, 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     if (unprocessedCount > batchTotal) {
@@ -259,8 +287,23 @@ export function Inbox() {
 
   const handleManualUpdate = async () => {
     try {
-      await crawlApi.trigger('all');
+      const platform = ['Bilibili', 'GitHub'].includes(filter)
+        ? filter.toLowerCase()
+        : 'all';
+      await crawlApi.trigger(platform);
       showToast('爬虫已启动，新数据将在几分钟内同步到 Inbox', 'info');
+
+      if (platform === 'bilibili') {
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const status = await settingsApi.getPlatforms();
+          const bilibili = status.platforms?.find(item => item.key === 'bilibili');
+          if (bilibili?.needsReauth) {
+            showToast('B站授权已过期，请前往设置页重新扫码登录', 'error');
+            break;
+          }
+        }
+      }
     } catch (err) {
       showToast('启动爬虫失败：' + err.message, 'error');
     }
