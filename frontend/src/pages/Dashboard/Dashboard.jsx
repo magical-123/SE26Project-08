@@ -6,6 +6,7 @@ import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { NutritionLabel } from '../../components/NutritionLabel/NutritionLabel';
 import { StatBadge } from '../../components/StatBadge/StatBadge';
 import { AIQuoteCard } from '../../components/AIQuoteCard/AIQuoteCard';
+import { QuoteCard } from '../../components/QuoteCard/QuoteCard';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { BookOpen, Zap, Clock, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,6 +30,7 @@ export function Dashboard() {
   const [nutritionData, setNutritionData] = useState([]);
   const [wordCloudData, setWordCloudData] = useState([]);
   const [aiQuotes, setAiQuotes] = useState([]);
+  const [quoteExtracts, setQuoteExtracts] = useState([]);
   const [reviewCards, setReviewCards] = useState([]);
   const [summary, setSummary] = useState({ todayViews: 0, premiumCount: 0, immersionHours: 0 });
   const [realWordCloudData, setRealWordCloudData] = useState(null);
@@ -170,12 +172,13 @@ export function Dashboard() {
     const fetchData = async () => {
       try {
         const headers = getAuthHeaders();
-        const [nutritionRes, wordcloudRes, insightsRes, reviewsRes, summaryRes] = await Promise.all([
+        const [nutritionRes, wordcloudRes, insightsRes, reviewsRes, summaryRes, quotesRes] = await Promise.all([
           fetch(`${API_BASE}/api/dashboard/nutrition`, { headers }),
           fetch(`${API_BASE}/api/dashboard/wordcloud`, { headers }),
           fetch(`${API_BASE}/api/dashboard/insights`, { headers }),
           fetch(`${API_BASE}/api/dashboard/reviews/today`, { headers }),
           fetch(`${API_BASE}/api/dashboard/summary`, { headers }),
+          fetch(`${API_BASE}/api/quotes?limit=10`, { headers }),
         ]);
 
         if (!nutritionRes.ok || !wordcloudRes.ok || !insightsRes.ok || !reviewsRes.ok || !summaryRes.ok) {
@@ -187,6 +190,7 @@ export function Dashboard() {
         const insights = await insightsRes.json();
         const reviews = await reviewsRes.json();
         const summaryData = await summaryRes.json();
+        const quotes = quotesRes.ok ? await quotesRes.json() : [];
 
         setNutritionData(nutrition.data || nutrition);
 
@@ -201,6 +205,7 @@ export function Dashboard() {
         setWordCloudData(formattedWordCloud);
 
         setAiQuotes(insights);
+        setQuoteExtracts(quotes);
         setReviewCards(reviews);
         setSummary(summaryData);
       } catch (error) {
@@ -413,6 +418,17 @@ export function Dashboard() {
           </GlassCard>
         </motion.div>
       </div>
+
+      {quoteExtracts.length > 0 && (
+        <div className="quotes-section">
+          <h2 className="quotes-section-title">📝 内容金句摘录</h2>
+          <div className="quotes-grid">
+            {quoteExtracts.map((q) => (
+              <QuoteCard key={q.id} quote={q} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <AnimatePresence>
         {isReviewOpen && (
