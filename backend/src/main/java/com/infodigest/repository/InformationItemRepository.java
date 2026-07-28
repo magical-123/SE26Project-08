@@ -39,6 +39,7 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
             Long userId, LocalDateTime startTime, LocalDateTime endTime);
 
     long countByUserIdAndPlatform(Long userId, String platform);
+    long countByIsPremiumTrue();
     List<InformationItem> findByAiSummaryIsNull(Pageable pageable);
     List<InformationItem> findByProcessStatusAndAiSummaryIsNullAndUserIdIn(
             String processStatus, java.util.Collection<Long> userIds, Pageable pageable);
@@ -60,6 +61,10 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
             @Param("statuses") java.util.Collection<String> statuses,
             @Param("userIds") java.util.Collection<Long> userIds,
             Pageable pageable);
+
+    // 查找超过指定天数且非优质信息源的条目（用于清理）
+    @Query("SELECT i.id FROM InformationItem i WHERE i.crawledAt < :cutoff AND (i.isPremium IS NULL OR i.isPremium = false)")
+    List<Long> findExpiredNonPremiumItemIds(@Param("cutoff") LocalDateTime cutoff);
 
     // 按标题+平台+用户查找最新的一条（用于去重）
     Optional<InformationItem> findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(Long userId, String title, String platform);

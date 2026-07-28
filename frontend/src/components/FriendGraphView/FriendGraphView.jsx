@@ -32,15 +32,24 @@ function FriendGraphInner({ friendId, friendName, onClose }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [rfNodes, setRfNodes] = useState([]);
   const [rfEdges, setRfEdges] = useState([]);
+  const [error, setError] = useState(null);
 
   // 获取数据（仅一次，静态快照）
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(null);
     fetch(`${API_BASE}/api/graph/data/user/${friendId}`, { headers: getAuthHeaders() })
-      .then(res => res.ok ? res.json() : null)
+      .then(async res => {
+        if (!res.ok) {
+          let errMsg = '无法加载知识图谱';
+          try { const body = await res.json(); errMsg = body.error || errMsg; } catch {}
+          throw new Error(errMsg);
+        }
+        return res.json();
+      })
       .then(data => {
-        if (cancelled || !data) return;
+        if (cancelled) return;
         const nodes = (data.concepts || []).map(c => ({ ...c, id: `concept-${c.id}` }));
         setConceptNodes(nodes);
 
@@ -69,7 +78,7 @@ function FriendGraphInner({ friendId, friendName, onClose }) {
         setPremiumItems(items);
         setLoading(false);
       })
-      .catch(() => { if (!cancelled) setLoading(false); });
+      .catch(err => { if (!cancelled) { setError(err.message); setLoading(false); } });
     return () => { cancelled = true; };
   }, [friendId]);
 
@@ -199,10 +208,13 @@ function FriendGraphInner({ friendId, friendName, onClose }) {
           {loading && (
             <div className="fgv-loading">加载中...</div>
           )}
-          {!loading && enhancedNodes.length === 0 && (
+          {!loading && error && (
+            <div className="fgv-empty">{error}</div>
+          )}
+          {!loading && !error && enhancedNodes.length === 0 && (
             <div className="fgv-empty">该好友暂无知识图谱数据</div>
           )}
-          {!loading && enhancedNodes.length > 0 && (
+          {!loading && !error && enhancedNodes.length > 0 && (
             <ReactFlow
               nodes={rfNodes}
               edges={rfEdges}
@@ -234,9 +246,16 @@ function FriendGraphInner({ friendId, friendName, onClose }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  FriendGraphView — 导出组件，提供 ReactFlowProvider                */
+/*  FriendGraphView — 导出组件，提供 ReactFlowProvider 并锁定背景滚动 */
 /* ------------------------------------------------------------------ */
 export function FriendGraphView({ friendId, friendName, onClose }) {
+  useEffect(() => {
+    const el = document.querySelector('.main-glass-board');
+    const prevOverflow = el ? el.style.overflow : '';
+    if (el) el.style.overflow = 'hidden';
+    return () => { if (el) el.style.overflow = prevOverflow; };
+  }, []);
+
   return (
     <ReactFlowProvider>
       <FriendGraphInner friendId={friendId} friendName={friendName} onClose={onClose} />
