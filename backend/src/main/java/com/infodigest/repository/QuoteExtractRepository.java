@@ -13,4 +13,6 @@ public interface QuoteExtractRepository extends JpaRepository<QuoteExtract, Long
     List<QuoteExtract> findByItemId(Long itemId);
 
     void deleteByUserId(Long userId);
+
+    void deleteByItemIdIn(java.util.Collection<Long> itemIds);
 }

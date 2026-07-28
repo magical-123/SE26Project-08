@@ -7,6 +7,7 @@ import com.infodigest.entity.InformationItem;
 import com.infodigest.entity.ItemConcept;
 import com.infodigest.entity.NodePosition;
 import com.infodigest.entity.User;
+import com.infodigest.entity.Visibility;
 import com.infodigest.repository.ConceptRepository;
 import com.infodigest.repository.FriendshipRepository;
 import com.infodigest.repository.InformationItemRepository;
@@ -191,6 +192,15 @@ public class GraphController {
                 (f.getRequesterId().equals(userId) || f.getReceiverId().equals(userId)));
         if (!isFriend) {
             return ResponseEntity.status(403).body(Map.of("error", "只能查看好友的知识图谱"));
+        }
+
+        // 检查目标用户是否公开了图谱
+        User targetUser = userRepository.findById(userId).orElse(null);
+        if (targetUser == null) {
+            return ResponseEntity.status(404).body(Map.of("error", "用户不存在"));
+        }
+        if (targetUser.getDefaultVisibility() == Visibility.PRIVATE) {
+            return ResponseEntity.status(403).body(Map.of("error", "对方已关闭数据公开分享"));
         }
 
         // 获取目标用户的概念和优质信息源
