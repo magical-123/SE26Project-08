@@ -39,7 +39,7 @@ jobs:
       - name: Build Frontend with Node
         working-directory: ./frontend
         run: |
-          npm install
+          npm install --legacy-peer-deps
           npm run build
 
       - name: Log in to GHCR
