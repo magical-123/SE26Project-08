@@ -53,25 +53,16 @@ jobs:
         run: echo "IMAGE_NAME_LOWER=${IMAGE_NAME,,}" >> $GITHUB_ENV
 
       - name: Build and push Backend image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./backend
-          push: true
-          provenance: false
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-backend:latest
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-backend:latest ./backend
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-backend:latest
 
       - name: Build and push Frontend image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./frontend
-          push: true
-          provenance: false
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-frontend:latest
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-frontend:latest ./frontend
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-frontend:latest
 
       - name: Build and push Crawler image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./crawler
-          push: true
-          provenance: false
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-crawler:latest
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-crawler:latest ./crawler
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-crawler:latest
