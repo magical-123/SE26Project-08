@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * 自动生成数字饮食日报和周报。
  *
- * 日报在每天 23:50 汇总当天数据；周报在周日 23:55 汇总本周数据。
+ * 日报在每天 23:50 汇总当天数据；周报在每天 23:55 汇总近七日数据。
  * 单个用户失败不会中断其他用户的报告生成。
  */
 @Component
@@ -33,7 +33,7 @@ public class ReportGenerationScheduler {
         generateReports(ReportType.DAILY, LocalDate.now());
     }
 
-    @Scheduled(cron = "0 55 23 ? * SUN", zone = "Asia/Shanghai")
+    @Scheduled(cron = "0 55 23 * * ?", zone = "Asia/Shanghai")
     public void generateWeeklyReports() {
         generateReports(ReportType.WEEKLY, LocalDate.now());
     }
