@@ -76,7 +76,8 @@ public class DashboardController {
 
         if (analyzedItems.isEmpty()) {
             Map<String, Object> response = new LinkedHashMap<>();
-            response.put("data", buildWeeklyPieData());
+            response.put("hasData", false);
+            response.put("data", List.of());
             response.put("totalHours", 0.0);
             return ResponseEntity.ok(response);
         }
@@ -132,6 +133,7 @@ public class DashboardController {
         nutritionData.add(buildPieItem(fiberPercent, "纤维（哲思冥想）", "#8B5CF6", Math.round((fiberSeconds / 3600.0) * 10.0) / 10.0));
 
         Map<String, Object> response = new LinkedHashMap<>();
+        response.put("hasData", true);
         response.put("data", nutritionData);
         response.put("totalHours", totalHours);
 
