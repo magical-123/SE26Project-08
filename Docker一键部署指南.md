@@ -31,7 +31,7 @@ sudo docker login ghcr.io -u magical-123
 cp .env.example .env
 ```
 使用文本编辑器（如 `vim .env`）打开你刚复制的 `.env`。
-找到 `DB_URL` 和 `REDIS_HOST`，将里面的 IP 地址修改为**你老系统的真实内网 IP 地址（例如 10.119.3.25）**。千万不要填 `localhost`。
+找到 `DB_URL` 和 `REDIS_HOST`。如果你的 MySQL 和 Redis 运行在同一台宿主机上，请直接保留 `host.docker.internal`（系统已自动配置该映射）。如果在其他机器，请修改为对应的内网 IP。
 
 ### 3. 一键起飞 (召唤看门狗)
 在项目目录下，只需执行人生中的最后一次启动命令：
