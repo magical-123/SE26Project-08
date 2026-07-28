@@ -7,10 +7,11 @@ import { NutritionLabel } from '../../components/NutritionLabel/NutritionLabel';
 import { StatBadge } from '../../components/StatBadge/StatBadge';
 import { RotatingQuoteCard } from '../../components/RotatingQuoteCard/RotatingQuoteCard';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
-import { BookOpen, Zap, Clock, RefreshCw, WifiOff } from 'lucide-react';
+import { BookOpen, Zap, Clock, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { nutritionData, wordCloudData, aiQuotes, reviewCards } from '../../mock/dashboardData';
 import { cacheData, getCachedData } from '../../utils/cache';
+import { fetchData as timedFetch } from '../../utils/api';
 import './Dashboard.css';
 
 const API_BASE = '';
@@ -36,8 +37,6 @@ export function Dashboard() {
   const [realWordCloudData, setRealWordCloudData] = useState(null);
   const [loadingWordCloud, setLoadingWordCloud] = useState(true);
   const [isRegeneratingReview, setIsRegeneratingReview] = useState(false);
-  const [offline, setOffline] = useState(false);
-
   // 获取今日词云数据
   useEffect(() => {
     const fetchWordCloud = async () => {
@@ -45,7 +44,7 @@ export function Dashboard() {
         const token = sessionStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch('/api/dashboard/wordcloud/history', {
+        const response = await timedFetch('/api/dashboard/wordcloud/history', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -86,9 +85,17 @@ export function Dashboard() {
           }
         } else {
           console.error('[Dashboard 初始加载] API请求失败:', response.status);
+          const cached = getCachedData('dashboard');
+          if (cached && cached.wordCloud) {
+            setRealWordCloudData(cached.wordCloud);
+          }
         }
       } catch (error) {
         console.error('[词云] 获取失败:', error);
+        const cached = getCachedData('dashboard');
+        if (cached && cached.wordCloud) {
+          setRealWordCloudData(cached.wordCloud);
+        }
       } finally {
         setLoadingWordCloud(false);
       }
@@ -105,7 +112,7 @@ export function Dashboard() {
         if (!token) return;
 
         console.log('[Dashboard] 开始获取最新词云数据...');
-        const response = await fetch('/api/dashboard/wordcloud/history', {
+        const response = await timedFetch('/api/dashboard/wordcloud/history', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -145,9 +152,17 @@ export function Dashboard() {
           }
         } else {
           console.error('[Dashboard] 词云API响应失败:', response.status);
+          const cached = getCachedData('dashboard');
+          if (cached && cached.wordCloud) {
+            setRealWordCloudData(cached.wordCloud);
+          }
         }
       } catch (error) {
         console.error('[词云] 刷新失败:', error);
+        const cached = getCachedData('dashboard');
+        if (cached && cached.wordCloud) {
+          setRealWordCloudData(cached.wordCloud);
+        }
       }
     };
 
@@ -171,15 +186,28 @@ export function Dashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
+      // 1. 立即展示缓存（不显示加载中）
+      const cached = getCachedData('dashboard');
+      if (cached) {
+        setNutritionData(cached.nutrition);
+        setWordCloudData(cached.wordCloud);
+        setAiQuotes(cached.insights);
+        setQuoteExtracts(cached.quotes);
+        setReviewCards(cached.reviews);
+        setSummary(cached.summary);
+        setLoading(false);
+      }
+
+      // 2. 后台静默请求最新数据
       try {
         const headers = getAuthHeaders();
         const [nutritionRes, wordcloudRes, insightsRes, reviewsRes, summaryRes, quotesRes] = await Promise.all([
-          fetch(`${API_BASE}/api/dashboard/nutrition`, { headers }),
-          fetch(`${API_BASE}/api/dashboard/wordcloud`, { headers }),
-          fetch(`${API_BASE}/api/dashboard/insights`, { headers }),
-          fetch(`${API_BASE}/api/dashboard/reviews/today`, { headers }),
-          fetch(`${API_BASE}/api/dashboard/summary`, { headers }),
-          fetch(`${API_BASE}/api/quotes?limit=10`, { headers }),
+          timedFetch(`${API_BASE}/api/dashboard/nutrition`, { headers }),
+          timedFetch(`${API_BASE}/api/dashboard/wordcloud`, { headers }),
+          timedFetch(`${API_BASE}/api/dashboard/insights`, { headers }),
+          timedFetch(`${API_BASE}/api/dashboard/reviews/today`, { headers }),
+          timedFetch(`${API_BASE}/api/dashboard/summary`, { headers }),
+          timedFetch(`${API_BASE}/api/quotes?limit=10`, { headers }),
         ]);
 
         if (!nutritionRes.ok || !wordcloudRes.ok || !insightsRes.ok || !reviewsRes.ok || !summaryRes.ok) {
@@ -209,7 +237,6 @@ export function Dashboard() {
         setQuoteExtracts(quotes);
         setReviewCards(reviews);
         setSummary(summaryData);
-        setOffline(false);
 
         // 缓存成功获取的数据
         cacheData('dashboard', {
@@ -222,17 +249,6 @@ export function Dashboard() {
         });
       } catch (error) {
         console.error('Dashboard data fetch error:', error);
-        // 从缓存读取降级数据
-        const cached = getCachedData('dashboard');
-        if (cached) {
-          setNutritionData(cached.nutrition);
-          setWordCloudData(cached.wordCloud);
-          setAiQuotes(cached.insights);
-          setQuoteExtracts(cached.quotes);
-          setReviewCards(cached.reviews);
-          setSummary(cached.summary);
-          setOffline(true);
-        }
       } finally {
         setLoading(false);
       }
@@ -245,7 +261,7 @@ export function Dashboard() {
   const refreshInsights = async () => {
     try {
       const headers = getAuthHeaders();
-      const response = await fetch(`${API_BASE}/api/dashboard/insights`, { headers });
+      const response = await timedFetch(`${API_BASE}/api/dashboard/insights`, { headers });
       if (response.ok) {
         const insights = await response.json();
         setAiQuotes(insights);
@@ -259,7 +275,7 @@ export function Dashboard() {
   const refreshReviewCards = async () => {
     try {
       const headers = getAuthHeaders();
-      const response = await fetch(`${API_BASE}/api/dashboard/reviews/today`, { headers });
+      const response = await timedFetch(`${API_BASE}/api/dashboard/reviews/today`, { headers });
       if (response.ok) {
         const reviews = await response.json();
         setReviewCards(reviews);
@@ -380,13 +396,6 @@ export function Dashboard() {
       <header className="dashboard-header">
         <h1>仪表盘 (Dashboard)</h1>
       </header>
-
-      {offline && (
-        <div className="offline-banner">
-          <WifiOff size={16} />
-          <span>当前离线/服务超时，已切换为缓存模式</span>
-        </div>
-      )}
 
       <div className="stats-row">
         <StatBadge icon={<BookOpen />} label="浏览总量" value={summary.todayViews} onClick={() => navigate('/inbox')} />
