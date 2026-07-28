@@ -32,15 +32,34 @@ class InsightServiceTest {
 
     @Test
     void readsHistoryAndNormalizesWeeklyDate() {
-        InsightService service = new InsightService(); UserReportRepository reports = mock(UserReportRepository.class);
+        InsightService service = new InsightService(); UserReportRepository reports = mock(UserReportRepository.class); InformationItemRepository items = mock(InformationItemRepository.class);
         ReflectionTestUtils.setField(service, "reportRepository", reports);
+        ReflectionTestUtils.setField(service, "itemRepository", items);
         LocalDate date = LocalDate.of(2026, 7, 22); UserReport report = new UserReport();
+        when(items.findByUserIdAndProcessStatusAndCrawledAtBetween(eq(3L), eq("PROCESSED"), any(), any()))
+                .thenReturn(List.of(new InformationItem()));
         when(reports.findFirstByUserIdAndTypeAndReportDateOrderByVersionDesc(3L, ReportType.WEEKLY, LocalDate.of(2026, 7, 20))).thenReturn(Optional.of(report));
         assertTrue(service.getLatestInsight(3L, ReportType.WEEKLY, date).isPresent());
         service.getLatestInsight(3L, ReportType.DAILY, date); service.getHistoryInsights(3L, ReportType.DAILY, date); service.getAllHistoryReports(3L, ReportType.DAILY);
         verify(reports).findFirstByUserIdAndTypeAndReportDateOrderByVersionDesc(3L, ReportType.DAILY, date);
         verify(reports).findByUserIdAndTypeAndReportDateOrderByVersionDesc(3L, ReportType.DAILY, date);
         verify(reports).findLatestReportsByUserIdAndType(3L, ReportType.DAILY);
+    }
+
+    @Test
+    void hidesSavedDailyInsightWhenSourceItemsNoLongerExist() {
+        InsightService service = new InsightService();
+        UserReportRepository reports = mock(UserReportRepository.class);
+        InformationItemRepository items = mock(InformationItemRepository.class);
+        ReflectionTestUtils.setField(service, "reportRepository", reports);
+        ReflectionTestUtils.setField(service, "itemRepository", items);
+        LocalDate date = LocalDate.of(2026, 7, 22);
+        when(items.findByUserIdAndProcessStatusAndCrawledAtBetween(
+                eq(3L), eq("PROCESSED"), any(), any())).thenReturn(List.of());
+
+        assertTrue(service.getLatestInsight(3L, ReportType.DAILY, date).isEmpty());
+        verify(reports, never()).findFirstByUserIdAndTypeAndReportDateOrderByVersionDesc(
+                3L, ReportType.DAILY, date);
     }
 
     @Test
