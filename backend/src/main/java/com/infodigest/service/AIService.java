@@ -3,7 +3,10 @@ package com.infodigest.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infodigest.dto.AnalysisResultDTO;
+import com.infodigest.dto.AnalysisResultDTO.QuoteItem;
 import com.infodigest.entity.AIConfig;
+import java.util.ArrayList;
+import java.util.List;
 import com.infodigest.repository.AIConfigRepository;
 import com.infodigest.security.CredentialCryptoService;
 import lombok.extern.slf4j.Slf4j;
@@ -481,7 +484,23 @@ public class AIService {
         String reasoning = resultJson.has("reasoning") ? resultJson.get("reasoning").asText() : null;
         String summary = resultJson.has("summary") ? resultJson.get("summary").asText() : null;
 
-        return new AnalysisResultDTO(protein, carbs, vitamins, fats, fiber, reasoning, summary);
+        // 解析可选的金句列表
+        List<QuoteItem> quotes = null;
+        if (resultJson.has("quotes") && resultJson.get("quotes").isArray()) {
+            quotes = new ArrayList<>();
+            for (JsonNode q : resultJson.get("quotes")) {
+                String text = q.has("text") ? q.get("text").asText() : null;
+                String reason = q.has("reason") ? q.get("reason").asText() : null;
+                if (text != null && !text.isBlank()) {
+                    quotes.add(new QuoteItem(text.trim(), reason));
+                }
+            }
+            if (quotes.isEmpty()) {
+                quotes = null;
+            }
+        }
+
+        return new AnalysisResultDTO(protein, carbs, vitamins, fats, fiber, reasoning, summary, quotes);
     }
 
     private String getOpenAIModelName(String modelType) {

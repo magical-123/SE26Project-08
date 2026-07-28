@@ -1,10 +1,13 @@
 package com.infodigest.service;
 
 import com.infodigest.dto.AnalysisResultDTO;
+import com.infodigest.dto.AnalysisResultDTO.QuoteItem;
 import com.infodigest.entity.AIConfig;
 import com.infodigest.entity.InformationItem;
+import com.infodigest.entity.QuoteExtract;
 import com.infodigest.repository.AIConfigRepository;
 import com.infodigest.repository.InformationItemRepository;
+import com.infodigest.repository.QuoteExtractRepository;
 import com.infodigest.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -32,6 +37,9 @@ public class ContentAnalysisService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private QuoteExtractRepository quoteExtractRepository;
 
     private static final int MAX_CONTENT_LENGTH = 100000;  // 提升到100k，支持完整字幕分析
 
@@ -78,6 +86,9 @@ public class ContentAnalysisService {
         内容：
         {content}
 
+        JSON 中的"quotes"字段为可选，请判断内容中是否存在值得记录的金句（如精辟的观点、令人警醒的洞察、优美的表达等）。
+        如果没有值得摘录的内容，quotes 字段可为空数组。建议每条内容最多提取 3 条金句。
+
         请返回 JSON 格式（注意：百分比用整数表示，不要带%符号）：
         {
           "protein": 50,
@@ -86,8 +97,14 @@ public class ContentAnalysisService {
           "fats": 5,
           "fiber": 10,
           "reasoning": "该视频以深度技术讲解为主（蛋白质50%），同时包含大量实用代码示例（碳水30%），有一定思维启发（纤维10%），设计审美和娱乐成分较少（各5%）",
-          "summary": "本视频系统讲解微服务架构设计..."
+          "summary": "本视频系统讲解微服务架构设计...",
+          "quotes": [
+            {"text": "架构设计本质上是关于如何管理复杂性", "reason": "对架构本质的精辟定义"},
+            {"text": "好的系统不是设计出来的，而是演进出来的", "reason": "引发对系统设计方法论的反思"}
+          ]
         }
+
+        如果没有金句，"quotes" 返回空数组即可。
 
         请确保 protein + carbs + vitamins + fats + fiber = 100
         """;
@@ -153,6 +170,9 @@ public class ContentAnalysisService {
                 log.info("Nutrition analysis completed for item {}: protein={}, carbs={}, vitamins={}, fats={}, fiber={}",
                         itemId, result.getProtein(), result.getCarbs(), result.getVitamins(),
                         result.getFats(), result.getFiber());
+
+                // 3. 保存 AI 提取的金句（如果有）
+                saveQuotesFromAnalysis(result, item);
 
             } catch (Exception e) {
                 String msg = e.getMessage() != null ? e.getMessage() : "";
@@ -251,5 +271,59 @@ public class ContentAnalysisService {
                 : "";
 
         return head + "\n\n[... 内容省略 ...]\n\n" + tail;
+    }
+
+    /**
+     * 保存 AI 分析结果中提取的金句到 quote_extracts 表
+     * <p>
+     * 会对每句金句做原文匹配校验：如果 AI 返回的句子在视频字幕原文中不存在，则丢弃（防幻觉）。
+     */
+    private void saveQuotesFromAnalysis(AnalysisResultDTO result, InformationItem item) {
+        List<QuoteItem> quotes = result.getQuotes();
+        if (quotes == null || quotes.isEmpty()) {
+            log.debug("No quotes extracted for item {}", item.getId());
+            return;
+        }
+
+        String originalContent = item.getContentRaw(); // 此时 contentRaw 还是完整的字幕文本
+
+        // 先删除该条目之前可能存在的金句（防止重复分析导致重复存储）
+        List<QuoteExtract> existing = quoteExtractRepository.findByItemId(item.getId());
+        if (!existing.isEmpty()) {
+            quoteExtractRepository.deleteAll(existing);
+        }
+
+        List<QuoteExtract> toSave = quotes.stream()
+                .filter(q -> q.getText() != null && !q.getText().isBlank())
+                .filter(q -> {
+                    // 原文匹配校验：金句必须出现在字幕原文中
+                    if (originalContent == null || originalContent.isBlank()) {
+                        log.warn("No original content available to validate quote for item {}, skipping all quotes", item.getId());
+                        return false;
+                    }
+                    boolean matches = originalContent.contains(q.getText().trim());
+                    if (!matches) {
+                        log.warn("⚠️ Quote mismatch detected for item {}: \"{}\" not found in original content, discarding",
+                                item.getId(), q.getText().trim());
+                    }
+                    return matches;
+                })
+                .map(q -> {
+                    QuoteExtract qe = new QuoteExtract();
+                    qe.setUserId(item.getUserId());
+                    qe.setItemId(item.getId());
+                    qe.setContent(q.getText().trim());
+                    qe.setReason(q.getReason());
+                    qe.setSourceTitle(item.getTitle());
+                    qe.setSourceUrl(item.getUrl());
+                    qe.setSourcePlatform(item.getPlatform());
+                    return qe;
+                })
+                .collect(Collectors.toList());
+
+        if (!toSave.isEmpty()) {
+            quoteExtractRepository.saveAll(toSave);
+            log.info("✅ Saved {} quotes for item {} (title: {})", toSave.size(), item.getId(), item.getTitle());
+        }
     }
 }
