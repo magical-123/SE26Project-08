@@ -24,6 +24,7 @@
 sudo docker login ghcr.io -u magical-123
 # 提示输入 Password 时，将刚刚复制的 ghp_ 开头的 Token 粘贴进去即可。看到 Login Succeeded 代表大功告成！
 ```
+> ⚠️ **这一步至关重要**：不仅首次拉取镜像需要它，后续 Watchtower 看门狗的自动热更新也依赖这份认证文件（`/root/.docker/config.json`）。如果跳过这一步，自动更新将会静默失败。
 
 **配置连接老数据库：**
 在项目根目录拉取代码，并复制一份环境变量模板：

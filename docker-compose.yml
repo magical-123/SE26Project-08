@@ -49,4 +49,5 @@ services:
       - DOCKER_API_VERSION=1.44
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config.json
     command: --interval 300 infodigest-backend infodigest-frontend infodigest-crawler --cleanup
