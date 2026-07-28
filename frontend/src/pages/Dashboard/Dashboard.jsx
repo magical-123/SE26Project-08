@@ -36,66 +36,9 @@ export function Dashboard() {
   const [loadingWordCloud, setLoadingWordCloud] = useState(true);
   const [isRegeneratingReview, setIsRegeneratingReview] = useState(false);
 
-  // 获取今日词云数据
-  useEffect(() => {
-    const fetchWordCloud = async () => {
-      try {
-        const token = sessionStorage.getItem('token');
-        if (!token) return;
+  // 删除重复的词云获取逻辑 - 统一使用下面的轮询机制
 
-        const response = await fetch('/api/dashboard/wordcloud/history', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          const historyData = await response.json();
-          console.log('[Dashboard 初始加载] API返回历史词云数据:', historyData);
-          
-          // 聚合近7天的数据
-          const aggregatedWords = {};
-          if (Array.isArray(historyData)) {
-            historyData.forEach(day => {
-              if (day.keywords && Array.isArray(day.keywords)) {
-                day.keywords.forEach(kw => {
-                  const word = kw.word || kw.name;
-                  if (aggregatedWords[word]) {
-                    aggregatedWords[word] += kw.value;
-                  } else {
-                    aggregatedWords[word] = kw.value;
-                  }
-                });
-              }
-            });
-          }
-          
-          const wordCloudData = Object.keys(aggregatedWords).map(key => ({
-            name: key,
-            value: aggregatedWords[key]
-          }));
-
-          if (wordCloudData && wordCloudData.length > 0) {
-            setRealWordCloudData(wordCloudData);
-            console.log('[Dashboard 初始加载] 成功聚合近7天词云数据:', wordCloudData.length, '个词');
-          } else {
-            console.log('[Dashboard 初始加载] 词云数据为空，realWordCloudData保持为null');
-          }
-        } else {
-          console.error('[Dashboard 初始加载] API请求失败:', response.status);
-        }
-      } catch (error) {
-        console.error('[词云] 获取失败:', error);
-      } finally {
-        setLoadingWordCloud(false);
-      }
-    };
-
-    fetchWordCloud();
-  }, []);
-
-  // 监听Report页面的词云更新通知 + 页面进入时立即检查
+  // 监听Report页面的词云更新通知 + 页面进入时立即加载
   useEffect(() => {
     const fetchWordCloud = async () => {
       try {
@@ -113,7 +56,7 @@ export function Dashboard() {
         if (response.ok) {
           const historyData = await response.json();
           console.log('[Dashboard] 收到历史词云数据:', historyData);
-          
+
           const aggregatedWords = {};
           if (Array.isArray(historyData)) {
             historyData.forEach(day => {
@@ -129,7 +72,7 @@ export function Dashboard() {
               }
             });
           }
-          
+
           const wordCloudData = Object.keys(aggregatedWords).map(key => ({
             name: key,
             value: aggregatedWords[key]
@@ -137,7 +80,7 @@ export function Dashboard() {
 
           if (wordCloudData && wordCloudData.length > 0) {
             setRealWordCloudData(wordCloudData);
-            console.log('[Dashboard] 词云数据已更新，聚合了近7天数据，触发重新渲染');
+            console.log('[Dashboard] 词云数据已更新，聚合了近7天数据');
           } else {
             console.log('[Dashboard] 词云数据为空');
           }
@@ -146,6 +89,8 @@ export function Dashboard() {
         }
       } catch (error) {
         console.error('[词云] 刷新失败:', error);
+      } finally {
+        setLoadingWordCloud(false);
       }
     };
 
@@ -159,11 +104,14 @@ export function Dashboard() {
       }
     };
 
-    // 页面加载时立即检查一次是否有待处理的更新通知
+    // 页面加载时立即获取一次词云数据
+    fetchWordCloud();
+
+    // 页面加载后也检查一次是否有待处理的更新通知
     checkWordCloudUpdate();
 
-    // 每2秒检查一次是否有更新通知
-    const interval = setInterval(checkWordCloudUpdate, 2000);
+    // 每5秒检查一次是否有更新通知（降低轮询频率）
+    const interval = setInterval(checkWordCloudUpdate, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -171,38 +119,26 @@ export function Dashboard() {
     const fetchData = async () => {
       try {
         const headers = getAuthHeaders();
-        const [nutritionRes, wordcloudRes, insightsRes, reviewsRes, summaryRes, quotesRes] = await Promise.all([
+        // 移除词云API调用，统一由上面的useEffect处理
+        const [nutritionRes, insightsRes, reviewsRes, summaryRes, quotesRes] = await Promise.all([
           fetch(`${API_BASE}/api/dashboard/nutrition`, { headers }),
-          fetch(`${API_BASE}/api/dashboard/wordcloud`, { headers }),
           fetch(`${API_BASE}/api/dashboard/insights`, { headers }),
           fetch(`${API_BASE}/api/dashboard/reviews/today`, { headers }),
           fetch(`${API_BASE}/api/dashboard/summary`, { headers }),
           fetch(`${API_BASE}/api/quotes?limit=10`, { headers }),
         ]);
 
-        if (!nutritionRes.ok || !wordcloudRes.ok || !insightsRes.ok || !reviewsRes.ok || !summaryRes.ok) {
+        if (!nutritionRes.ok || !insightsRes.ok || !reviewsRes.ok || !summaryRes.ok) {
           throw new Error('Failed to fetch dashboard data');
         }
 
         const nutrition = await nutritionRes.json();
-        const wordcloud = await wordcloudRes.json();
         const insights = await insightsRes.json();
         const reviews = await reviewsRes.json();
         const summaryData = await summaryRes.json();
         const quotes = quotesRes.ok ? await quotesRes.json() : [];
 
         setNutritionData(nutrition.data || nutrition);
-
-        // 转换词云数据格式: {word, value} -> {name, value}
-        const formattedWordCloud = Array.isArray(wordcloud)
-          ? wordcloud.map(item => ({
-              name: item.word || item.name,
-              value: item.value
-            }))
-          : [];
-        console.log('[Dashboard] 词云数据:', formattedWordCloud);
-        setWordCloudData(formattedWordCloud);
-
         setAiQuotes(insights);
         setQuoteExtracts(quotes);
         setReviewCards(reviews);
