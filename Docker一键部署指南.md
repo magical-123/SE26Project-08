@@ -1,61 +1,71 @@
-# InfoDigest - 混合容器化部署指南
+# InfoDigest - 现代化全自动部署指南 (CI/CD)
 
-为了实现极简的自动化部署体验，同时为了**100% 安全保留你原有的业务数据**，本项目采用**“前后端容器化 + 独立数据库”**的混合部署架构。
+为了实现极简的自动化部署体验，同时为了**100% 安全保留你原有的业务数据**，本项目采用了**“GitHub 顶配自动化流水线 + 独立数据库 + Watchtower 内网热更新”**的现代化混合架构。
 
-在部署时，Docker 引擎会为你打包最新的后端（Spring Boot）与前端（React/Vite），并直接连接到你们原本已存在的 MySQL 与 Redis 数据库上。
+这意味着：你只需要在本地敲打 `git push`，剩下的脏活累活全部由微软的超级计算机代劳，你的交大内网服务器只需要坐等签收包裹即可！
 
 ---
 
 ## 🚀 部署实操步骤
 
-### 1. 前置环境安装 (仅全新机器需要)
-如果你的服务器上还没有安装 Docker，请先通过以下命令安装（以 Ubuntu 为例，无需额外安装 Java 或 Node.js）：
+### 1. 配置 GitHub 通行证 (仅第一次需要)
+我们的流水线是由 GitHub Container Registry (GHCR) 提供免费的高速海外货仓。首先，你需要让你的服务器拿到开启这个货仓的钥匙。
+
+1. 去你的 Github 网页，点击右上角的头像 -> `Settings` -> 最下方的 `Developer settings` -> `Personal access tokens` -> `Tokens (classic)`。
+2. 点击 **Generate new token (classic)**，名字随便起，过期时间选 `No expiration`。
+3. **关键步骤**：权限栏中打勾选中 **`write:packages`** (系统会自动勾上 `read:packages`) 和 **`repo`**。
+4. 生成后，**务必立刻复制那串 `ghp_` 开头的 Token**（一旦刷新网页就看不到了）。
+
+### 2. 服务器环境配置
+登录到你用来运行系统的服务器（例如交大内网的 10.119.3.25）。
+
+**获取并登录 GitHub 仓库：**
 ```bash
-sudo apt-get update
-sudo apt-get install -y docker.io docker-compose
+sudo docker login ghcr.io -u magical-123
+# 提示输入 Password 时，将刚刚复制的 ghp_ 开头的 Token 粘贴进去即可。看到 Login Succeeded 代表大功告成！
 ```
 
-### 2. 拉取代码与环境配置
-将我们的代码仓库 clone 到你的服务器中：
-```bash
-git clone https://github.com/magical-123/SE26Project-08.git /opt/infodigest
-cd /opt/infodigest/repo
-```
-
-代码拉取后，根目录下会有一个环境模板 `.env.example`。复制一份作为你的本地环境变量，并确保其中的密钥和密码妥善保管：
+**配置连接老数据库：**
+在项目根目录拉取代码，并复制一份环境变量模板：
 ```bash
 cp .env.example .env
 ```
+使用文本编辑器（如 `vim .env`）打开你刚复制的 `.env`。
+找到 `DB_URL` 和 `REDIS_HOST`，将里面的 IP 地址修改为**你老系统的真实内网 IP 地址（例如 10.119.3.25）**。千万不要填 `localhost`。
 
-**⚠️ 关键配置（连接旧库）**
-使用文本编辑器（如 `vim .env`）打开你刚复制的 `.env`，找到 `DB_URL` 和 `REDIS_HOST`：
-将里面的 IP 地址修改为**你老服务器的真实内网/公网 IP 地址**。如果你就是在老服务器本机上运行这套系统，也请填写这台机器的真实局域网 IP，**不要填写 localhost 或 127.0.0.1**，否则 Docker 内部会把它当成自己虚构的网络环境而导致连不上外部库。
-
-### 3. 一键起飞 (Build & Up)
-只需在项目根目录运行下面一行命令：
+### 3. 一键起飞 (召唤看门狗)
+在项目目录下，只需执行人生中的最后一次启动命令：
 
 ```bash
-docker-compose up -d --build
+docker-compose up -d
 ```
-执行后，Docker 会在后台自动完成长达几分钟的 Maven 后端编译与 NPM 前端编译。
+Docker 会迅速拉取我们早就打包好的最新成品，并顺带召唤出了一只名叫 **Watchtower (看门狗)** 的容器进程。
 
-### 4. 验证服务状态
-当命令执行完毕并回到终端输入光标后，说明容器已创建成功，你可以通过以下命令持续查看后端启动的实时日志：
+### 4. 彻底躺平 (全自动热更新)
+从今往后，你可以**永远离开这台服务器**了。
+
+每当你想要更新应用，只需在本地电脑上开发完毕后，按平时习惯执行：
+```bash
+git add .
+git commit -m "你的更新信息"
+git push
+```
+
+**背后发生的魔法：**
+1. GitHub Actions 瞬间拦截你的 Push，启动免费的海外虚拟机，自动编译 Maven 和 Vite，打成 Docker 镜像存进 `ghcr.io`。
+2. 服务器里的 Watchtower 看门狗每隔 5 分钟会出去巡逻一圈，一旦发现 GitHub 货仓里有新包裹，它会自动将其取回交大内网，优雅地干掉旧容器，替换新容器，全程无需任何人工干预！🎉
+
+---
+
+## 🛑 常用故障排查
+
+**如何查看后端报错日志？**
 ```bash
 docker-compose logs -f backend
 ```
 
-当日志输出 `Started InfoDigestApplication` 的字样时，说明部署全部成功！由于数据库连的是你的老系统库，你之前注册的所有用户、爬取的全部笔记，都会丝滑且原封不动地展现在你的新页面中。
-
-## 🛑 常用维护命令
-
-**更新最新代码重启：**
-```bash
-git pull
-docker-compose up -d --build
-```
-
-**停止并销毁前后端服务：**
+**如果不想要自动更新了，或者要销毁系统怎么做？**
 ```bash
 docker-compose down
 ```
+这只会销毁用来运行前后端的代码壳子，你的数据库和 Redis 的数据都在宿主机上安然无恙，请放心食用。
