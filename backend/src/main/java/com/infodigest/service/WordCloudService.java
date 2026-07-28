@@ -203,6 +203,21 @@ public class WordCloudService {
             weightedKeyword.put("word", keyword);
             weightedKeyword.put("value", Math.round(finalWeight * 10)); // 放大10倍便于展示
             weightedKeyword.put("relatedVideos", relatedVideoIds);
+            List<Map<String, Object>> relatedSources = relatedVideoIds.stream()
+                    .map(itemMap::get)
+                    .filter(Objects::nonNull)
+                    .map(item -> {
+                        Map<String, Object> source = new LinkedHashMap<>();
+                        source.put("itemId", item.getId());
+                        source.put("title", item.getTitle());
+                        source.put("platform", item.getPlatform());
+                        source.put("url", item.getUrl());
+                        source.put("author", item.getAuthor());
+                        source.put("summary", item.getAiSummary());
+                        return source;
+                    })
+                    .collect(Collectors.toList());
+            weightedKeyword.put("relatedSources", relatedSources);
 
             result.add(weightedKeyword);
         }

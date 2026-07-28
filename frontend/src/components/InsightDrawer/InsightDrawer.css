@@ -151,3 +151,11 @@
 .insight-drawer .insight-full-text p:last-child {
   margin-bottom: 0;
 }
+
+@media (max-width: 640px) {
+  .insight-drawer { width: 100vw; max-width: 100vw; }
+  .insight-drawer .drawer-header { padding: 18px 18px; }
+  .insight-drawer h2 { font-size: 19px; }
+  .insight-drawer .drawer-content { padding: 16px 18px 24px; }
+  .insight-drawer .ai-summary-card { padding: 16px; }
+}

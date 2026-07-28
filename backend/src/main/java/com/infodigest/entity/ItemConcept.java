@@ -23,4 +23,9 @@ public class ItemConcept {
     /** 前端是否高亮显示，默认 true */
     @Column(nullable = false)
     private Boolean highlighted = true;
+
+    private Double confidence;
+
+    @Column(length = 500)
+    private String reason;
 }

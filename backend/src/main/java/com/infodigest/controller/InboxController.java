@@ -4,6 +4,7 @@ import com.infodigest.entity.InformationItem;
 import com.infodigest.entity.User;
 import com.infodigest.repository.InformationItemRepository;
 import com.infodigest.repository.UserRepository;
+import com.infodigest.repository.ItemConceptRepository;
 import com.infodigest.service.AiSummaryService;
 import com.infodigest.service.KeywordService;
 import com.infodigest.service.InformationItemPolicy;
@@ -38,6 +39,9 @@ public class InboxController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ItemConceptRepository itemConceptRepository;
 
     @Autowired
     private AiSummaryService aiSummaryService;
@@ -266,6 +270,8 @@ public class InboxController {
                 .findTopByUserIdAndUrlAndPlatformOrderByCrawledAtDesc(userId, url, platform);
         InformationItem item;
         boolean created = existing.isEmpty();
+        boolean contentImproved = false;
+        String incomingContent = truncate(stringValue(payload.get("contentRaw")), 4000);
         if (created) {
             item = new InformationItem();
             item.setUserId(userId);
@@ -274,7 +280,7 @@ public class InboxController {
             item.setTitle(title.substring(0, Math.min(title.length(), 500)));
             item.setAuthor(stringValue(payload.get("author")));
             item.setCategory("深度知识");
-            item.setContentRaw(truncate(stringValue(payload.get("contentRaw")), 4000));
+            item.setContentRaw(incomingContent);
             item.setProcessStatus("UNPROCESSED");
         } else {
             item = existing.get();
@@ -283,6 +289,11 @@ public class InboxController {
             }
             if ((item.getAuthor() == null || item.getAuthor().isBlank()) && stringValue(payload.get("author")) != null) {
                 item.setAuthor(stringValue(payload.get("author")));
+            }
+            if (isRicherContent(item.getContentRaw(), incomingContent, title)) {
+                item.setContentRaw(incomingContent);
+                item.setProcessStatus("UNPROCESSED");
+                contentImproved = true;
             }
         }
 
@@ -293,11 +304,12 @@ public class InboxController {
             item.setCompletionRate(Math.min(1.0, item.getWatchDurationSeconds() / (double) contentDurationSeconds));
         }
         InformationItem saved = informationItemRepository.save(item);
-        if (created) analysisQueue.offerAsync(saved.getId());
+        if (created || contentImproved) analysisQueue.offerAsync(saved.getId());
 
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "created", created,
+                "contentUpdated", contentImproved,
                 "itemId", saved.getId(),
                 "watchDurationSeconds", saved.getWatchDurationSeconds(),
                 "completionRate", saved.getCompletionRate() == null ? 0.0 : saved.getCompletionRate()
@@ -312,6 +324,7 @@ public class InboxController {
         List<InformationItem> invalidItems = informationItemRepository.findByUserId(userId).stream()
                 .filter(item -> isMetadataTitle(item.getTitle()))
                 .toList();
+        invalidItems.forEach(item -> itemConceptRepository.deleteByItemId(item.getId()));
         informationItemRepository.deleteAll(invalidItems);
         return ResponseEntity.ok(Map.of("success", true, "deleted", invalidItems.size()));
     }
@@ -326,6 +339,19 @@ public class InboxController {
 
     private static String truncate(String value, int maxLength) {
         return value == null ? "" : value.substring(0, Math.min(value.length(), maxLength));
+    }
+
+    /** Only replace stored text when the detail page provides materially richer content. */
+    private static boolean isRicherContent(String current, String incoming, String title) {
+        if (incoming == null || incoming.isBlank()) return false;
+        String oldText = current == null ? "" : current.trim();
+        String newText = incoming.trim();
+        if (newText.equals(oldText)) return false;
+        boolean oldIsTitleOnly = oldText.isBlank()
+                || (title != null && oldText.equals(title.trim()))
+                || oldText.length() < 80;
+        return oldIsTitleOnly ? newText.length() >= oldText.length() + 20
+                : newText.length() >= oldText.length() + 100;
     }
 
     private static boolean isMetadataTitle(String title) {
@@ -384,6 +410,7 @@ public class InboxController {
         Optional<InformationItem> item = informationItemRepository.findByIdAndUserId(id, userId);
 
         if (item.isPresent()) {
+            itemConceptRepository.deleteByItemId(id);
             informationItemRepository.deleteById(id);
             return ResponseEntity.noContent().build();
         } else {

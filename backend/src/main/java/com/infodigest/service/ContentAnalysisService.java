@@ -209,10 +209,9 @@ public class ContentAnalysisService {
                                   item2.getAiSummary() != null &&
                                   !item2.getAiSummary().isEmpty();
                 if (allDone && item2.getContentRaw() != null && !item2.getContentRaw().isEmpty()) {
-                    // 只清空字幕内容，保留标题作为 contentRaw（避免完全为空）
-                    String title = item2.getTitle() != null ? item2.getTitle() : "";
-                    itemRepository.updateContentRaw(itemId, title);
-                    log.info("✅ Cleared subtitle content for item {} after AI processing", itemId);
+                    // Preserve captured source text for provenance, re-analysis and classification.
+                    log.debug("Preserved source content for item {} after AI processing ({} chars)",
+                            itemId, item2.getContentRaw().length());
                 }
             }
         }

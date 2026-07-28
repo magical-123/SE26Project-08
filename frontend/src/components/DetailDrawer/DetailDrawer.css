@@ -645,3 +645,22 @@
   color: var(--text-main);
   font-size: 14px;
 }
+.source-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 4px;
+  color: #0ea5e9;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.source-link-btn:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .detail-drawer { top: 0; right: 0; bottom: 0; width: 100vw; max-width: 100vw; border-radius: 16px 0 0 16px; }
+  .drawer-header { padding: 18px 18px 14px; gap: 10px; }
+  .drawer-header h2 { font-size: 18px; }
+  .drawer-content { padding: 16px 18px; gap: 14px; }
+}
