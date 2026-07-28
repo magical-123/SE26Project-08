@@ -428,15 +428,21 @@ export function Report() {
       <header className="report-header">
         <h1>数字饮食报告</h1>
         <div className="report-tabs">
-          <button 
+          <button
             className={activeTab === 'weekly' ? 'active' : ''}
-            onClick={() => setActiveTab('weekly')}
+            onClick={() => {
+              setActiveTab('weekly');
+              setSelectedWord(null); // 切换标签页时清空溯源界面
+            }}
           >
             周报
           </button>
-          <button 
+          <button
             className={activeTab === 'daily' ? 'active' : ''}
-            onClick={() => setActiveTab('daily')}
+            onClick={() => {
+              setActiveTab('daily');
+              setSelectedWord(null); // 切换标签页时清空溯源界面
+            }}
           >
             日报
           </button>
