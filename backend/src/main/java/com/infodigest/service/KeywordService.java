@@ -137,8 +137,20 @@ public class KeywordService {
 
     private String buildKeywordPrompt(InformationItem item, String note, String existingKeywords) {
         String title = item.getTitle() != null ? item.getTitle() : "无标题";
-        String content = item.getContentRaw() != null ? item.getContentRaw() : "";
-        if (content.length() > 2000) content = content.substring(0, 2000) + "...";
+
+        // 优先使用 AI 摘要（已经基于完整字幕内容生成），其次才使用原始内容
+        String content = "";
+        if (item.getAiSummary() != null && !item.getAiSummary().isEmpty()) {
+            content = item.getAiSummary();
+            log.debug("[KeywordService] 使用 AI 摘要提取关键词 (长度: {})", content.length());
+        } else if (item.getContentRaw() != null && !item.getContentRaw().isEmpty()) {
+            content = item.getContentRaw();
+            if (content.length() > 2000) content = content.substring(0, 2000) + "...";
+            log.debug("[KeywordService] 使用原始内容提取关键词 (长度: {})", content.length());
+        } else {
+            log.warn("[KeywordService] 既无 AI 摘要也无原始内容，将仅基于标题提取关键词: {}", title);
+        }
+
         String userNote = note != null ? note : "";
 
         // 当内容为空时，提示 AI 基于标题推断
