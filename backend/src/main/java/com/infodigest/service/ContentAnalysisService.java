@@ -120,6 +120,13 @@ public class ContentAnalysisService {
         InformationItem item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
 
+        // 为文本平台计算阅读时长（如果还没有）
+        if (ReadingDurationCalculator.ensureDurationMinutes(item)) {
+            log.info("Calculated reading duration for item {}: {} minutes",
+                    itemId, item.getDurationMinutes());
+            itemRepository.save(item);
+        }
+
         boolean hasFullData = item.getAiSummary() != null && !item.getAiSummary().isEmpty();
         // 检查营养评分字段是否存在，而不是只看status
         boolean hasNutrition = item.getNutritionProtein() != null &&

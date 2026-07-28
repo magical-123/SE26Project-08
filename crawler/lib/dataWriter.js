@@ -87,6 +87,32 @@ async function getCredential(platform, envKey) {
 }
 
 /**
+ * 将源平台明确返回的凭证失效状态回报给后端。
+ * 后端只标记授权过期，不删除用户已经捕获的 Inbox 数据。
+ */
+async function markCredentialInvalid(platform, reason = '') {
+  try {
+    const token = await getAuthToken();
+    const res = await axios.post(
+      `${config.BACKEND_URL}/api/settings/platforms/${platform}/credential-invalid`,
+      { reason },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    cachedCredentials = null;
+    console.error(`  ❗ ${res.data?.message || `${platform} 授权已标记为失效`}`);
+    return true;
+  } catch (error) {
+    console.error(`  ⚠ 回报 ${platform} 授权失效状态失败: ${error.message}`);
+    return false;
+  }
+}
+
+/**
  * 写入单条数据到后端
  */
 async function writeSingleItem(token, item, index, total) {
@@ -172,5 +198,6 @@ module.exports = {
   getAuthToken,
   getPlatformCredentials,
   getCredential,
+  markCredentialInvalid,
   batchWriteItems,
 };

@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/settings")
 public class SettingsController {
 
+    private static final String EXPIRED_CREDENTIAL_MARKER = "__INFODIGEST_CREDENTIAL_EXPIRED__";
+
     @Autowired
     private InformationItemRepository informationItemRepository;
 
@@ -98,10 +100,15 @@ public class SettingsController {
         }
 
         // B 站
-        boolean biliConnected = platformMap.containsKey("BILIBILI");
+        boolean biliConnected = isCredentialUsable(platformMap.get("BILIBILI"), "BILIBILI");
         long biliCount = informationItemRepository.countByUserIdAndPlatform(userId, "BILIBILI");
-        String biliDesc = biliConnected ? "已通过 Cookie 授权" + (biliCount > 0 ? "（" + biliCount + "条数据）" : "") : "未授权";
-        platforms.add(buildPlatform("bilibili", "Bilibili", biliConnected, biliDesc));
+        boolean biliNeedsReauth = platformMap.containsKey("BILIBILI") && !biliConnected;
+        String biliDesc = biliConnected
+                ? "已通过 Cookie 授权" + (biliCount > 0 ? "（" + biliCount + "条数据）" : "")
+                : biliNeedsReauth ? "授权凭证不可用，请重新扫码" : "未授权";
+        Map<String, Object> bilibiliPlatform = buildPlatform("bilibili", "Bilibili", biliConnected, biliDesc);
+        bilibiliPlatform.put("needsReauth", biliNeedsReauth);
+        platforms.add(bilibiliPlatform);
 
         // 知乎
         boolean zhihuConnected = platformMap.containsKey("ZHIHU");
@@ -116,10 +123,15 @@ public class SettingsController {
         platforms.add(buildPlatform("xiaohongshu", "小红书", xhsConnected, xhsDesc));
 
         // GitHub
-        boolean githubConnected = platformMap.containsKey("GITHUB");
+        boolean githubConnected = isCredentialUsable(platformMap.get("GITHUB"), "GITHUB");
         long githubCount = informationItemRepository.countByUserIdAndPlatform(userId, "GITHUB");
-        String githubDesc = githubConnected ? "已通过 Token 授权" + (githubCount > 0 ? "（" + githubCount + "条数据）" : "") : "未授权";
-        platforms.add(buildPlatform("github", "GitHub", githubConnected, githubDesc));
+        boolean githubNeedsReauth = platformMap.containsKey("GITHUB") && !githubConnected;
+        String githubDesc = githubConnected
+                ? "已通过 Token 授权" + (githubCount > 0 ? "（" + githubCount + "条数据）" : "")
+                : githubNeedsReauth ? "Token 已失效，请重新更新 Token" : "未授权";
+        Map<String, Object> githubPlatform = buildPlatform("github", "GitHub", githubConnected, githubDesc);
+        githubPlatform.put("needsReauth", githubNeedsReauth);
+        platforms.add(githubPlatform);
 
         result.put("platforms", platforms);
 
@@ -148,7 +160,11 @@ public class SettingsController {
         for (UserPlatform up : userPlatforms) {
             Map<String, Object> platform = new LinkedHashMap<>();
             platform.put("platform", up.getPlatform().toLowerCase());
-            platform.put("connected", true);
+            boolean connected = ("BILIBILI".equalsIgnoreCase(up.getPlatform())
+                    || "GITHUB".equalsIgnoreCase(up.getPlatform()))
+                    ? isCredentialUsable(up, up.getPlatform()) : true;
+            platform.put("connected", connected);
+            platform.put("needsReauth", !connected);
             platform.put("updatedAt", up.getUpdatedAt().toString());
             result.put(up.getPlatform().toLowerCase(), platform);
         }
@@ -188,6 +204,53 @@ public class SettingsController {
         response.put("success", true);
         response.put("message", "凭证保存成功");
         response.put("platform", platform);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 爬虫在源平台明确判定凭证失效后调用。
+     * 保留平台记录和已捕获数据，仅将凭证替换为不可用于抓取的过期标记，
+     * 以便前端能够区分“从未连接”和“授权已过期”。
+     */
+    @PostMapping("/platforms/{platform}/credential-invalid")
+    public ResponseEntity<Map<String, Object>> markPlatformCredentialInvalid(
+            @PathVariable String platform,
+            @RequestBody(required = false) Map<String, String> request) {
+        Long userId = getCurrentUserId();
+        String normalizedPlatform = platform.toUpperCase(Locale.ROOT);
+
+        if (!"BILIBILI".equals(normalizedPlatform) && !"GITHUB".equals(normalizedPlatform)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "目前仅支持标记 Bilibili 或 GitHub 授权失效"
+            ));
+        }
+
+        Optional<UserPlatform> existing = userPlatformRepository
+                .findByUserIdAndPlatform(userId, normalizedPlatform);
+        if (existing.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "status", "disconnected",
+                    "message", "B站授权记录已不存在"
+            ));
+        }
+
+        UserPlatform userPlatform = existing.get();
+        userPlatform.setCredential(credentialCryptoService.encrypt(EXPIRED_CREDENTIAL_MARKER));
+        userPlatformRepository.save(userPlatform);
+
+        String reason = request == null ? null : request.get("reason");
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("status", "credential_expired");
+        response.put("platform", normalizedPlatform.toLowerCase(Locale.ROOT));
+        response.put("message", "GITHUB".equals(normalizedPlatform)
+                ? "GitHub Token 已过期，请重新更新 Token"
+                : "B站授权已过期，请重新扫码登录");
+        if (reason != null && !reason.isBlank()) {
+            response.put("reason", reason);
+        }
         return ResponseEntity.ok(response);
     }
 
@@ -238,10 +301,19 @@ public class SettingsController {
 
         Map<String, Object> result = new LinkedHashMap<>();
         for (UserPlatform up : userPlatforms) {
-            Map<String, Object> cred = new LinkedHashMap<>();
-            cred.put("credential", credentialCryptoService.decrypt(up.getCredential()));
-            cred.put("updatedAt", up.getUpdatedAt().toString());
-            result.put(up.getPlatform().toLowerCase(), cred);
+            try {
+                String credential = credentialCryptoService.decrypt(up.getCredential());
+                if ("BILIBILI".equalsIgnoreCase(up.getPlatform())
+                        && !isUsableBilibiliCredential(credential)) {
+                    continue;
+                }
+                Map<String, Object> cred = new LinkedHashMap<>();
+                cred.put("credential", credential);
+                cred.put("updatedAt", up.getUpdatedAt().toString());
+                result.put(up.getPlatform().toLowerCase(), cred);
+            } catch (RuntimeException ignored) {
+                // 密钥发生变化时，旧凭证无法恢复。忽略该平台，避免整个凭证接口返回 500。
+            }
         }
         return ResponseEntity.ok(result);
     }
@@ -333,11 +405,18 @@ public class SettingsController {
 
             switch (code != null ? code : -1) {
                 case 0:
+                    String loginUrl = data != null ? (String) data.get("url") : null;
+                    String cookieStr = extractBilibiliCookies(session.cookieManager, loginUrl);
+                    if (!isUsableBilibiliCredential(cookieStr)) {
+                        status = 2;
+                        message = "登录返回的凭证不完整，请重新扫码";
+                        BILI_QR_SESSIONS.remove(qrcodeKey);
+                        break;
+                    }
+                    saveBilibiliCredential(cookieStr);
                     status = 1;
                     message = "登录成功";
                     success = true;
-                    String cookieStr = extractCookies(session.cookieManager);
-                    saveBilibiliCredential(cookieStr);
                     BILI_QR_SESSIONS.remove(qrcodeKey);
                     break;
                 case 86090:
@@ -369,10 +448,45 @@ public class SettingsController {
 
     // ===== B 站扫码登录辅助方法 =====
 
+    private String extractBilibiliCookies(CookieManager cookieManager, String loginUrl) {
+        Map<String, String> cookies = new LinkedHashMap<>();
+        for (HttpCookie cookie : cookieManager.getCookieStore().getCookies()) {
+            cookies.put(cookie.getName(), cookie.getValue());
+        }
+
+        // 新版扫码接口会把关键登录字段放在成功回调 URL 中，而不一定全部写入
+        // HttpClient 的 CookieStore；合并两处数据才能得到可用于历史记录 API 的 Cookie。
+        if (loginUrl != null && !loginUrl.isBlank()) {
+            try {
+                String rawQuery = URI.create(loginUrl).getRawQuery();
+                if (rawQuery != null) {
+                    Set<String> allowed = Set.of(
+                            "DedeUserID", "DedeUserID__ckMd5", "Expires",
+                            "SESSDATA", "bili_jct"
+                    );
+                    for (String pair : rawQuery.split("&")) {
+                        int separator = pair.indexOf('=');
+                        if (separator <= 0) continue;
+                        String name = pair.substring(0, separator);
+                        String value = pair.substring(separator + 1);
+                        if (allowed.contains(name) && !value.isBlank()) {
+                            cookies.putIfAbsent(name, value);
+                        }
+                    }
+                }
+            } catch (IllegalArgumentException ignored) {
+                // URL 异常时继续使用 CookieStore，后续完整性校验会给出明确提示。
+            }
+        }
+
+        return cookies.entrySet().stream()
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining("; "));
+    }
+
     private String extractCookies(CookieManager cookieManager) {
-        List<HttpCookie> cookies = cookieManager.getCookieStore().getCookies();
-        return cookies.stream()
-                .map(c -> c.getName() + "=" + c.getValue())
+        return cookieManager.getCookieStore().getCookies().stream()
+                .map(cookie -> cookie.getName() + "=" + cookie.getValue())
                 .collect(Collectors.joining("; "));
     }
 
@@ -384,8 +498,33 @@ public class SettingsController {
         UserPlatform userPlatform = new UserPlatform();
         userPlatform.setUserId(userId);
         userPlatform.setPlatform("BILIBILI");
-        userPlatform.setCredential(credentialCryptoService.encrypt(cookieStr));
+        String encrypted = credentialCryptoService.encrypt(cookieStr);
+        if (!cookieStr.equals(credentialCryptoService.decrypt(encrypted))) {
+            throw new IllegalStateException("B站凭证加密校验失败");
+        }
+        userPlatform.setCredential(encrypted);
         userPlatformRepository.save(userPlatform);
+    }
+
+    private boolean isCredentialUsable(UserPlatform userPlatform, String platform) {
+        if (userPlatform == null) return false;
+        try {
+            String credential = credentialCryptoService.decrypt(userPlatform.getCredential());
+            if (credential == null || credential.isBlank()
+                    || credential.startsWith(EXPIRED_CREDENTIAL_MARKER)) return false;
+            if ("GITHUB".equalsIgnoreCase(platform)) return true;
+            return isUsableBilibiliCredential(credential);
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private boolean isUsableBilibiliCredential(String credential) {
+        if (credential == null || credential.isBlank()) return false;
+        String normalized = credential.toLowerCase(Locale.ROOT);
+        return normalized.contains("sessdata=")
+                && normalized.contains("bili_jct=")
+                && normalized.contains("dedeuserid=");
     }
 
     private void cleanExpiredBilibiliSessions() {

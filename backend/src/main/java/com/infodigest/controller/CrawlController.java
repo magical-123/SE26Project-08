@@ -1,7 +1,10 @@
 package com.infodigest.controller;
 
 import com.infodigest.entity.User;
+import com.infodigest.entity.UserPlatform;
+import com.infodigest.repository.UserPlatformRepository;
 import com.infodigest.repository.UserRepository;
+import com.infodigest.security.CredentialCryptoService;
 import com.infodigest.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +24,12 @@ public class CrawlController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserPlatformRepository userPlatformRepository;
+
+    @Autowired
+    private CredentialCryptoService credentialCryptoService;
 
     // 爬虫脚本路径，相对于后端项目根目录
     @Value("${crawler.script.path:../crawler/index.js}")
@@ -50,6 +59,17 @@ public class CrawlController {
             String username = authentication.getName();
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new RuntimeException("User not found"));
+
+            if ("bilibili".equalsIgnoreCase(platform)) {
+                Optional<UserPlatform> credential = userPlatformRepository
+                        .findByUserIdAndPlatform(user.getId(), "BILIBILI");
+                if (credential.isEmpty() || !isUsableBilibiliCredential(credential.get())) {
+                    result.put("status", "reauth_required");
+                    result.put("platform", "bilibili");
+                    result.put("message", "B站授权凭证不可用，请前往设置页重新扫码登录");
+                    return ResponseEntity.badRequest().body(result);
+                }
+            }
             
             // 生成该用户的 JWT Token（有效期 1 小时，足够爬虫使用）
             String crawlerToken = jwtUtil.generateToken(username, user.getId());
@@ -98,6 +118,19 @@ public class CrawlController {
             result.put("message", "启动爬虫失败: " + e.getMessage());
             result.put("platform", platform);
             return ResponseEntity.internalServerError().body(result);
+        }
+    }
+
+    private boolean isUsableBilibiliCredential(UserPlatform userPlatform) {
+        try {
+            String credential = credentialCryptoService.decrypt(userPlatform.getCredential());
+            if (credential == null || credential.isBlank()) return false;
+            String normalized = credential.toLowerCase(Locale.ROOT);
+            return normalized.contains("sessdata=")
+                    && normalized.contains("bili_jct=")
+                    && normalized.contains("dedeuserid=");
+        } catch (RuntimeException ignored) {
+            return false;
         }
     }
 }
