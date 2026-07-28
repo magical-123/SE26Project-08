@@ -296,7 +296,19 @@ public class InsightService {
                     userId, type, weekStart);
         }
 
-        // 对于日报，直接使用传入的日期
+        // 日报必须仍有当天的已分析内容。报告与原始内容分别持久化，
+        // 内容被清理后不能继续把旧报告展示成当天的有效洞察。
+        List<InformationItem> dailyItems = itemRepository
+                .findByUserIdAndProcessStatusAndCrawledAtBetween(
+                        userId,
+                        "PROCESSED",
+                        reportDate.atStartOfDay(),
+                        reportDate.atTime(23, 59, 59)
+                );
+        if (dailyItems.isEmpty()) {
+            return Optional.empty();
+        }
+
         return reportRepository.findFirstByUserIdAndTypeAndReportDateOrderByVersionDesc(
                 userId, type, reportDate);
     }

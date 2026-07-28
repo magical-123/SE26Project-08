@@ -28,9 +28,10 @@ function createGitHubClient(token) {
 async function validateToken(client) {
   try {
     const res = await client.get('/user');
-    return res.status === 200 && res.data?.login;
-  } catch {
-    return false;
+    return { valid: res.status === 200 && Boolean(res.data?.login), credentialInvalid: res.status === 401, reason: `GitHub API 返回 HTTP ${res.status}` };
+  } catch (err) {
+    const status = err.response?.status;
+    return { valid: false, credentialInvalid: status === 401, reason: status ? `GitHub API 返回 HTTP ${status}` : `GitHub Token 校验失败: ${err.message}` };
   }
 }
 

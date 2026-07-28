@@ -19,7 +19,12 @@
 
 const config = require('./config');
 const { withRetry } = require('./lib/antiCrawl');
-const { getAuthToken, getCredential, batchWriteItems } = require('./lib/dataWriter');
+const {
+  getAuthToken,
+  getCredential,
+  markCredentialInvalid,
+  batchWriteItems,
+} = require('./lib/dataWriter');
 
 // 按需加载平台模块
 let bilibili, zhihu, github, xiaohongshu;
@@ -330,7 +335,12 @@ async function crawlBilibili(getToken) {
   try {
     const result = await withRetry(() => bl.validateCookie(client), 'B站-Cookie验证');
     if (!result.valid) {
-      console.error('  ❌ Cookie 无效，跳过\n');
+      if (result.credentialInvalid) {
+        await markCredentialInvalid('bilibili', result.reason || 'B站返回未登录状态');
+        console.error('  ❌ Cookie 已失效，跳过\n');
+      } else {
+        console.error(`  ⚠ Cookie 验证暂时失败，授权状态保持不变: ${result.reason || '未知错误'}\n`);
+      }
       return;
     }
     userMid = result.mid;
@@ -645,6 +655,18 @@ async function crawlGitHub(getToken) {
   }
 
   const client = gh.createGitHubClient(token);
+
+  // 先校验 Token，避免失效 Token 继续执行抓取并在设置页显示为已连接。
+  const validation = await gh.validateToken(client);
+  if (!validation.valid) {
+    if (validation.credentialInvalid) {
+      await markCredentialInvalid('github', validation.reason || 'GitHub Token 已失效');
+      console.error(`  ❌ GitHub Token 已失效，跳过抓取\n`);
+    } else {
+      console.error(`  ⚠ GitHub Token 暂时无法验证，授权状态保持不变: ${validation.reason || '未知错误'}\n`);
+    }
+    return;
+  }
 
   // 抓取 Star 仓库
   console.log('  📥 拉取 Star 仓库...');
