@@ -10,6 +10,7 @@ import com.infodigest.repository.UserReportRepository;
 import com.infodigest.repository.UserRepository;
 import com.infodigest.service.DashboardInsightService;
 import com.infodigest.service.ReviewCardGenerationService;
+import com.infodigest.service.UserDailyStatsService;
 import com.infodigest.service.WordCloudService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +53,9 @@ public class DashboardController {
     @Autowired
     private WordCloudService wordCloudService;
 
+    @Autowired
+    private UserDailyStatsService dailyStatsService;
+
     // ==================== 营养饼图 ====================
 
     /**
@@ -59,16 +63,49 @@ public class DashboardController {
      * 从已分析的视频中统计真实营养成分数据
      *
      * 仪表盘展示：所有已分析内容的累计营养分布
+     *
+     * 优化：使用每日统计表增量计算，避免每次查询全部历史数据
      */
     @GetMapping("/nutrition")
     public ResponseEntity<Map<String, Object>> getNutrition(@RequestParam(required = false, defaultValue = "all") String type) {
         Long userId = getCurrentUserId();
+        LocalDate today = LocalDate.now();
 
-        List<InformationItem> analyzedItems;
+        double totalSeconds = 0;
+        double proteinSeconds = 0;
+        double carbsSeconds = 0;
+        double vitaminsSeconds = 0;
+        double fatsSeconds = 0;
+        double fiberSeconds = 0;
 
         if ("all".equalsIgnoreCase(type)) {
-            // 仪表盘：查询所有已分析的内容
-            analyzedItems = informationItemRepository.findByUserIdAndProcessStatus(userId, "PROCESSED");
+            // 仪表盘：查询历史累计 + 今日实时数据
+
+            // 1. 获取历史累计（昨日及之前）
+            UserDailyStatsService.HistoricalStats historical = dailyStatsService.getHistoricalStats(userId, today);
+            totalSeconds += historical.totalSeconds;
+            proteinSeconds += historical.proteinSeconds;
+            carbsSeconds += historical.carbsSeconds;
+            vitaminsSeconds += historical.vitaminsSeconds;
+            fatsSeconds += historical.fatsSeconds;
+            fiberSeconds += historical.fiberSeconds;
+
+            // 2. 获取今日实时数据（未写入统计表的）
+            LocalDateTime todayStart = today.atStartOfDay();
+            List<InformationItem> todayItems = informationItemRepository.findByUserIdAndProcessStatusAndCrawledAtBetween(
+                    userId, "PROCESSED", todayStart, LocalDateTime.now());
+
+            for (InformationItem item : todayItems) {
+                double itemSeconds = DurationMetrics.effectiveSeconds(item);
+                totalSeconds += itemSeconds;
+
+                if (item.getNutritionProtein() != null) proteinSeconds += itemSeconds * (item.getNutritionProtein() / 100.0);
+                if (item.getNutritionCarbs() != null) carbsSeconds += itemSeconds * (item.getNutritionCarbs() / 100.0);
+                if (item.getNutritionVitamins() != null) vitaminsSeconds += itemSeconds * (item.getNutritionVitamins() / 100.0);
+                if (item.getNutritionFats() != null) fatsSeconds += itemSeconds * (item.getNutritionFats() / 100.0);
+                if (item.getNutritionFiber() != null) fiberSeconds += itemSeconds * (item.getNutritionFiber() / 100.0);
+            }
+
         } else {
             // 兼容旧的时间范围查询（如有其他页面需要）
             LocalDateTime now = LocalDateTime.now();
@@ -79,39 +116,20 @@ public class DashboardController {
                 // weekly
                 startTime = now.minusDays(7).toLocalDate().atStartOfDay();
             }
-            analyzedItems = informationItemRepository.findByUserIdAndProcessStatusAndCrawledAtBetween(userId, "PROCESSED", startTime, now);
+            List<InformationItem> analyzedItems = informationItemRepository.findByUserIdAndProcessStatusAndCrawledAtBetween(userId, "PROCESSED", startTime, now);
+
+            for (InformationItem item : analyzedItems) {
+                double itemSeconds = DurationMetrics.effectiveSeconds(item);
+                totalSeconds += itemSeconds;
+
+                if (item.getNutritionProtein() != null) proteinSeconds += itemSeconds * (item.getNutritionProtein() / 100.0);
+                if (item.getNutritionCarbs() != null) carbsSeconds += itemSeconds * (item.getNutritionCarbs() / 100.0);
+                if (item.getNutritionVitamins() != null) vitaminsSeconds += itemSeconds * (item.getNutritionVitamins() / 100.0);
+                if (item.getNutritionFats() != null) fatsSeconds += itemSeconds * (item.getNutritionFats() / 100.0);
+                if (item.getNutritionFiber() != null) fiberSeconds += itemSeconds * (item.getNutritionFiber() / 100.0);
+            }
         }
 
-        if (analyzedItems.isEmpty()) {
-            Map<String, Object> response = new LinkedHashMap<>();
-            response.put("hasData", false);
-            response.put("data", List.of());
-            response.put("totalHours", 0.0);
-            return ResponseEntity.ok(response);
-        }
-
-        double totalSeconds = 0;
-        double proteinSeconds = 0;
-        double carbsSeconds = 0;
-        double vitaminsSeconds = 0;
-        double fatsSeconds = 0;
-        double fiberSeconds = 0;
-
-        for (InformationItem item : analyzedItems) {
-            // 获取单条内容的有效时长（秒）
-            double itemSeconds = DurationMetrics.effectiveSeconds(item);
-
-            totalSeconds += itemSeconds;
-
-            if (item.getNutritionProtein() != null) proteinSeconds += itemSeconds * (item.getNutritionProtein() / 100.0);
-            if (item.getNutritionCarbs() != null) carbsSeconds += itemSeconds * (item.getNutritionCarbs() / 100.0);
-            if (item.getNutritionVitamins() != null) vitaminsSeconds += itemSeconds * (item.getNutritionVitamins() / 100.0);
-            if (item.getNutritionFats() != null) fatsSeconds += itemSeconds * (item.getNutritionFats() / 100.0);
-            if (item.getNutritionFiber() != null) fiberSeconds += itemSeconds * (item.getNutritionFiber() / 100.0);
-        }
-
-        // 只有 AI 评分但没有真实观看时长时，不能把评分平均值伪装成
-        // 今日的数字饮食占比；日报/周报应明确显示无有效时长数据。
         if (totalSeconds <= 0) {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("hasData", false);
@@ -770,6 +788,28 @@ public class DashboardController {
         stats.put("aiConfig", aiConfigInfo);
 
         return stats;
+    }
+
+    /**
+     * 重建用户历史统计数据（用于迁移或修复）
+     */
+    @PostMapping("/rebuild-stats")
+    public ResponseEntity<Map<String, Object>> rebuildStats() {
+        Long userId = getCurrentUserId();
+
+        try {
+            dailyStatsService.rebuildAllStats(userId);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("message", "历史统计数据重建成功");
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("重建统计数据失败: {}", e.getMessage(), e);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "重建失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
+        }
     }
 
     // ==================== 鉴权辅助 ====================
