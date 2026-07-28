@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
-import { Download, ArrowRight, Sparkles, Info, RefreshCw, Eye, WifiOff } from 'lucide-react';
+import { Download, ArrowRight, Sparkles, Info, RefreshCw, Eye } from 'lucide-react';
 import { cacheData, getCachedData } from '../../utils/cache';
+import { fetchData as timedFetch } from '../../utils/api';
 import { PosterModal } from '../../components/PosterModal/PosterModal';
 import { InsightDrawer } from '../../components/InsightDrawer/InsightDrawer';
 import { useToast } from '../../components/Toast/Toast';
@@ -46,7 +47,6 @@ export function Report() {
   // 重新生成状态
   const [isRegeneratingWordCloud, setIsRegeneratingWordCloud] = useState(false);
   const [isRegeneratingTopics, setIsRegeneratingTopics] = useState(false);
-  const [offline, setOffline] = useState(false);
 
   // 辅助函数：合并缓存
   const updateReportCache = (partial) => {
@@ -57,18 +57,26 @@ export function Report() {
   // 获取营养数据
   useEffect(() => {
     const fetchNutritionData = async () => {
+      // 1. 立即展示缓存
+      const cached = getCachedData('report');
+      if (cached && cached.nutritionData) {
+        setNutritionData(cached.nutritionData);
+        setTotalHours(cached.totalHours || 0);
+        setHasNutritionData(true);
+      }
+
+      // 2. 后台请求最新数据
       try {
-        const response = await fetch(`${API_BASE}/api/dashboard/nutrition?type=${activeTab}`, {
+        const response = await timedFetch(`${API_BASE}/api/dashboard/nutrition?type=${activeTab}`, {
           headers: getAuthHeaders()
         });
         if (response.ok) {
           const result = await response.json();
-          console.log('Nutrition API response:', result);
           setNutritionData(result.data || []);
           setTotalHours(result.totalHours || 0);
-          updateReportCache({ nutritionData: result.data || [], totalHours: result.totalHours || 0 });
           setHasNutritionData(result.hasData === true);
-        } else {
+          updateReportCache({ nutritionData: result.data || [], totalHours: result.totalHours || 0 });
+        } else if (!cached || !cached.nutritionData) {
           console.error('Nutrition API error:', response.status);
           setNutritionData([]);
           setTotalHours(0);
@@ -76,12 +84,7 @@ export function Report() {
         }
       } catch (error) {
         console.error('获取营养数据失败:', error);
-        const cached = getCachedData('report');
-        if (cached && cached.nutritionData) {
-          setNutritionData(cached.nutritionData);
-          setTotalHours(cached.totalHours || 0);
-          setOffline(true);
-        } else {
+        if (!cached || !cached.nutritionData) {
           setNutritionData([]);
           setTotalHours(0);
           setHasNutritionData(false);
@@ -94,48 +97,47 @@ export function Report() {
   // 获取词云数据
   useEffect(() => {
     const fetchWordCloudData = async () => {
+      // 1. 立即展示缓存
+      const cached = getCachedData('report');
+
+      if (activeTab === 'daily') {
+        if (cached && cached.dailyWordCloud) {
+          setDailyWordCloud(cached.dailyWordCloud);
+        }
+      } else {
+        if (cached && cached.weeklyWordCloudHistory) {
+          setWeeklyWordCloudHistory(cached.weeklyWordCloudHistory);
+        }
+      }
+
+      // 2. 后台请求最新数据
       try {
         if (activeTab === 'daily') {
-          // 获取今日词云
-          const response = await fetch(`${API_BASE}/api/dashboard/wordcloud`, {
+          const response = await timedFetch(`${API_BASE}/api/dashboard/wordcloud`, {
             headers: getAuthHeaders()
           });
           if (response.ok) {
             const data = await response.json();
-            console.log('[词云数据] 今日词云原始数据:', data);
             setDailyWordCloud(data || []);
             updateReportCache({ dailyWordCloud: data || [] });
+          } else if (!cached || !cached.dailyWordCloud) {
+            console.error('[词云] 今日词云API失败:', response.status);
           }
         } else {
-          // 获取近7天词云历史
-          const response = await fetch(`${API_BASE}/api/dashboard/wordcloud/history`, {
+          const response = await timedFetch(`${API_BASE}/api/dashboard/wordcloud/history`, {
             headers: getAuthHeaders()
           });
           if (response.ok) {
             const data = await response.json();
-            console.log('[词云数据] 7天历史数据:', data);
-            console.log('[词云数据] 今天的日期:', new Date().toISOString().split('T')[0]);
-            console.log('[词云数据] 第一条的reportDate:', data.length > 0 ? data[0].reportDate : 'N/A');
             setWeeklyWordCloudHistory(data || []);
             updateReportCache({ weeklyWordCloudHistory: data || [] });
-            // 默认显示第一天（最新日期，因为数据是降序排列的）
-            if (data.length > 0) {
-              setTimeIndex(0);
-            }
+            if (data.length > 0) setTimeIndex(0);
+          } else if (!cached || !cached.weeklyWordCloudHistory) {
+            console.error('[词云] 历史词云API失败:', response.status);
           }
         }
       } catch (error) {
         console.error('获取词云数据失败:', error);
-        const cached = getCachedData('report');
-        if (cached) {
-          if (cached.dailyWordCloud && activeTab === 'daily') {
-            setDailyWordCloud(cached.dailyWordCloud);
-          }
-          if (cached.weeklyWordCloudHistory && activeTab === 'weekly') {
-            setWeeklyWordCloudHistory(cached.weeklyWordCloudHistory);
-          }
-          setOffline(true);
-        }
       }
     };
     fetchWordCloudData();
@@ -144,24 +146,27 @@ export function Report() {
   // 获取话题聚类数据
   useEffect(() => {
     const fetchTopicClusters = async () => {
+      // 1. 立即展示缓存
+      const cached = getCachedData('report');
+      if (cached && cached.topicClusters) {
+        setTopicClusters(cached.topicClusters);
+      }
+
+      // 2. 后台请求最新数据
       try {
         const type = activeTab === 'daily' ? 'daily' : 'weekly';
-        const response = await fetch(`${API_BASE}/api/report/topics?type=${type}`, {
+        const response = await timedFetch(`${API_BASE}/api/report/topics?type=${type}`, {
           headers: getAuthHeaders()
         });
         if (response.ok) {
           const data = await response.json();
-          console.log('[话题聚类] 数据:', data);
           setTopicClusters(data || []);
           updateReportCache({ topicClusters: data || [] });
+        } else if (!cached || !cached.topicClusters) {
+          console.error('[话题聚类] API失败:', response.status);
         }
       } catch (error) {
         console.error('获取话题聚类失败:', error);
-        const cached = getCachedData('report');
-        if (cached && cached.topicClusters) {
-          setTopicClusters(cached.topicClusters);
-          setOffline(true);
-        }
       }
     };
     fetchTopicClusters();
@@ -170,9 +175,17 @@ export function Report() {
   // 获取洞察数据
   useEffect(() => {
     const fetchInsight = async () => {
+      // 1. 立即展示缓存
+      const cached = getCachedData('report');
+      if (cached && cached.insight) {
+        setInsight(cached.insight);
+        setHasInsight(cached.hasInsight);
+      }
+
+      // 2. 后台请求最新数据
       try {
         const type = activeTab.toUpperCase();
-        const response = await fetch(`${API_BASE}/api/insights/latest?type=${type}`, {
+        const response = await timedFetch(`${API_BASE}/api/insights/latest?type=${type}`, {
           headers: getAuthHeaders()
         });
         if (response.ok) {
@@ -186,15 +199,11 @@ export function Report() {
             setHasInsight(false);
             updateReportCache({ insight: null, hasInsight: false });
           }
+        } else if (!cached || !cached.insight) {
+          console.error('[洞察] API失败:', response.status);
         }
       } catch (error) {
         console.error('获取洞察失败:', error);
-        const cached = getCachedData('report');
-        if (cached && cached.insight) {
-          setInsight(cached.insight);
-          setHasInsight(cached.hasInsight);
-          setOffline(true);
-        }
       }
     };
     fetchInsight();
@@ -484,13 +493,6 @@ export function Report() {
           </button>
         </div>
       </header>
-
-      {offline && (
-        <div className="report-offline-banner">
-          <WifiOff size={16} />
-          <span>当前离线/服务超时，已切换为缓存模式</span>
-        </div>
-      )}
 
       <div className="report-grid">
         <GlassCard className="report-card pie-card" style={{ padding: '24px 32px' }}>

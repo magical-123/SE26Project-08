@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { Compass, BookOpen, Search, PieChart, User, Settings, UserCircle, Menu, X } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Compass, BookOpen, Search, PieChart, User, Settings, UserCircle, Menu, X, WifiOff } from 'lucide-react';
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { useInboxItems } from '../hooks/useInboxItems';
+import { onGlobalOfflineChange, checkConnection } from '../utils/offlineStore';
 import './RootLayout.css';
 
 export function RootLayout({ children }) {
@@ -20,6 +21,21 @@ export function RootLayout({ children }) {
   const [avatar, setAvatar] = useState(() => sessionStorage.getItem('avatarUrl'));
   const [username, setUsername] = useState(() => sessionStorage.getItem('username') || 'User');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [globalOffline, setGlobalOffline] = useState(false);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    const unsub = onGlobalOfflineChange((offline) => setGlobalOffline(offline));
+    // 刷新或页面切换时检测连接状态
+    checkConnection();
+    const handleOffline = () => setGlobalOffline(true);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      unsub();
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleAvatarChange = () => {
@@ -72,6 +88,13 @@ export function RootLayout({ children }) {
             {mobileNavOpen ? <X size={24} strokeWidth={1.8} /> : <Menu size={24} strokeWidth={1.8} />}
           </button>
         </div>
+
+        {globalOffline && (
+          <div className="sidebar-offline-banner">
+            <WifiOff size={14} />
+            <span>当前离线/服务超时，已切换为缓存模式</span>
+          </div>
+        )}
 
         <div className="nav-container-inner">
           <nav className="plain-nav-stack">

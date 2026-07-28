@@ -139,13 +139,20 @@
   box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2);
 }
 
+/* ===== 滚动内容区域 ===== */
+.inbox-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  min-height: 0;
+}
+
 .inbox-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 24px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 8px;
+  overflow: visible;
 }
 
 /* 防止水平滚动 */
@@ -225,41 +232,61 @@ html, body, #root {
   animation: spin 0.8s linear infinite;
 }
 
-/* ===== 加载更多 ===== */
-.inbox-load-more {
+/* ===== 分页导航 ===== */
+.inbox-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0 8px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-glass);
+  margin-top: 8px;
+}
+
+.inbox-pagination-info {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.inbox-pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 32px 0 8px;
 }
 
-.load-more-btn {
-  padding: 10px 32px;
-  border: 1px solid var(--border-glass);
-  border-radius: 8px;
-  background: var(--bg-surface);
-  color: var(--text-main);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.load-more-btn:hover:not(:disabled) {
+.page-btn:hover:not(:disabled) {
   background: rgba(59, 130, 246, 0.08);
-  border-color: #3B82F6;
+  border-color: rgba(59, 130, 246, 0.2);
   color: #3B82F6;
 }
 
-.load-more-btn:disabled {
-  opacity: 0.5;
+.page-btn:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
-.load-more-count {
-  font-size: 13px;
-  color: var(--text-muted);
+.page-btn-active {
+  background: #3B82F6 !important;
+  border-color: #3B82F6 !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
 }
 
 .sidebar-content {
@@ -335,6 +362,7 @@ html, body, #root {
 @media (max-width: 1024px) {
   .inbox { padding: 24px; }
   .inbox-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .inbox-pagination { flex-direction: column; gap: 12px; }
 }
 
 @media (max-width: 640px) {
@@ -350,4 +378,7 @@ html, body, #root {
   .inbox-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; padding-right: 0; overflow: visible; }
   .inbox-banner { padding: 12px 14px; font-size: 13px; }
   .sidebar-content { width: min(260px, 86vw); right: 0; }
+  .inbox-pagination { flex-direction: column; gap: 10px; }
+  .inbox-pagination-info { font-size: 12px; }
+  .page-btn { min-width: 28px; height: 28px; font-size: 12px; padding: 0 6px; }
 }

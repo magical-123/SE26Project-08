@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { User, Mail, LogOut, Loader2, CheckCircle, AlertCircle, Camera, UserCircle } from 'lucide-react';
 import { useToast } from '../../components/Toast/Toast';
+import { cacheData, getCachedData } from '../../utils/cache';
 import './ProfilePage.css';
 
 const API_BASE = '';
@@ -31,6 +32,17 @@ export function ProfilePage() {
   });
 
   const fetchProfile = async () => {
+    // 1. 立即展示缓存
+    const cached = getCachedData('profile');
+    if (cached) {
+      setUsername(cached.username || '');
+      setEmail(cached.email || '');
+      setSelfPortrait(cached.selfPortrait || '');
+      setUser(cached);
+      setLoading(false);
+    }
+
+    // 2. 后台请求最新数据
     try {
       const res = await fetch(`${API_BASE}/api/user/profile`, {
         headers: getAuthHeaders()
@@ -47,8 +59,11 @@ export function ProfilePage() {
         sessionStorage.removeItem('avatarUrl');
       }
       window.dispatchEvent(new Event('avatarChanged'));
+      cacheData('profile', { username: data.username, email: data.email, selfPortrait: data.selfPortrait, avatarUrl: data.avatarUrl });
     } catch (err) {
-      setMessage({ type: 'error', text: err.message });
+      if (!cached) {
+        setMessage({ type: 'error', text: err.message });
+      }
     } finally {
       setLoading(false);
     }

@@ -53,12 +53,14 @@ public class InboxController {
     @Qualifier("analysisQueue")
     private RBlockingDeque<Long> analysisQueue;
 
-    // 获取当前登录用户的信息项（支持分页 + 小红书限流，总上限 1000 条）
+    // 获取当前登录用户的信息项（支持分页 + 平台/优质筛选，总上限 1000 条）
     @GetMapping("/items")
     public ResponseEntity<Map<String, Object>> getInboxItems(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "1000") int size,
-            @RequestParam(defaultValue = "1000") int maxTotal) {
+            @RequestParam(defaultValue = "100") int size,
+            @RequestParam(defaultValue = "1000") int maxTotal,
+            @RequestParam(required = false) String platform,
+            @RequestParam(required = false) Boolean premium) {
         // 获取当前用户
         Long userId = getCurrentUserId();
         User user = userRepository.findById(userId)
@@ -69,6 +71,17 @@ public class InboxController {
         List<InformationItem> recentItems = informationItemRepository.findByUserId(userId, recentRequest).getContent();
 
         List<InformationItem> filteredItems = new ArrayList<>(recentItems);
+
+        // 可选：按平台筛选
+        if (platform != null && !platform.isBlank()) {
+            String targetPlatform = platform.toUpperCase();
+            filteredItems.removeIf(item -> !targetPlatform.equals(item.getPlatform()));
+        }
+
+        // 可选：按优质信息源筛选
+        if (Boolean.TRUE.equals(premium)) {
+            filteredItems.removeIf(item -> !Boolean.TRUE.equals(item.getIsPremium()));
+        }
 
         // 对合并后的结果再次按 crawledAt 降序排列
         filteredItems.sort((a, b) -> b.getCrawledAt().compareTo(a.getCrawledAt()));

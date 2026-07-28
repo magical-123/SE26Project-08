@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { inboxApi } from '../utils/api';
+import { getCachedData } from '../utils/cache';
 
 const STORAGE_KEY = 'infodigest_inbox_cache_v2';
 
@@ -73,15 +74,35 @@ function formatTimeAgo(dateStr) {
   return date.toLocaleDateString('zh-CN');
 }
 
+/** 将前端 filter 值映射为后端 API 参数 */
+function filterToApiParams(filter) {
+  if (filter === 'All') return {};
+  if (filter === 'Premium') return { premium: true };
+  // 平台名 → 后端大写枚举
+  const platformMap = {
+    'Bilibili': 'BILIBILI',
+    'Zhihu': 'ZHIHU',
+    'Xiaohongshu': 'XIAOHONGSHU',
+    'GitHub': 'GITHUB',
+  };
+  const mapped = platformMap[filter];
+  if (mapped) return { platform: mapped };
+  return {};
+}
+
 export function useInboxItems() {
   const [items, setItems] = useState([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
   const [refetching, setRefetching] = useState(false);
-  const pageSize = 1000;
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const pageSize = 100;
+
+  // 当前 filter（由 Inbox.jsx 传入，避免闭包陈旧）
+  const currentFilterRef = useRef('All');
 
   // 检测是否需要自动刷新（从 Settings 页面跳转过来）
   useEffect(() => {
@@ -90,16 +111,12 @@ export function useInboxItems() {
     
     if (shouldRefetch && timestamp) {
       const timeDiff = Date.now() - parseInt(timestamp, 10);
-      // 30 秒内的标记才触发自动刷新
       if (timeDiff < 30000) {
-        // 清除标记
         sessionStorage.removeItem('inbox:shouldRefetch');
         sessionStorage.removeItem('inbox:refetchTimestamp');
         
-        // 显示「正在抓取」提示
         setRefetching(true);
         setInitialized(false);
-        setPage(0);
         setItems([]);
         
         // 轮询抓取结果：每 5 秒查一次，最多 12 次（60 秒）
@@ -108,21 +125,18 @@ export function useInboxItems() {
         const pollTimer = setInterval(async () => {
           pollCount++;
           try {
-            const data = await inboxApi.getItems(0, pageSize);
+            const params = filterToApiParams(currentFilterRef.current);
+            const data = await inboxApi.getItems(0, pageSize, params);
             if (data.items && data.items.length > 0) {
-              // 有新数据 → 停止轮询
               clearInterval(pollTimer);
               setRefetching(false);
               const formatted = (data.items || []).map(formatItem);
               setItems(formatted);
-              setHasMore(data.hasMore ?? false);
+              setTotalItems(data.totalItems ?? 0);
+              setTotalPages(data.totalPages ?? 0);
+              setCurrentPage(data.currentPage ?? 0);
               setInitialized(true);
-              // 缓存到 localStorage
-              try {
-                window.localStorage.setItem(STORAGE_KEY, JSON.stringify(formatted));
-              } catch {}
             } else if (pollCount >= maxPolls) {
-              // 超时 → 停止轮询
               clearInterval(pollTimer);
               setRefetching(false);
               setInitialized(true);
@@ -136,131 +150,88 @@ export function useInboxItems() {
           }
         }, 5000);
         
-        // 清理函数
         return () => clearInterval(pollTimer);
       }
     }
   }, []);
 
-  // 合并 API 数据与本地缓存：API 数据为权威来源，缓存仅补充 API 不返回的字段（note/tags）
-  const mergeWithCache = useCallback((apiItems) => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return apiItems;
-      const cached = JSON.parse(raw);
-      if (!Array.isArray(cached) || cached.length === 0) return apiItems;
-
-      const cacheMap = new Map();
-      cached.forEach(c => cacheMap.set(c.id, c));
-
-      return apiItems.map(apiItem => {
-        const cachedItem = cacheMap.get(apiItem.id);
-        if (!cachedItem) return apiItem;
-        // 只从缓存补充 note/tags，hasNote 以 API 返回为准
-        const result = { ...apiItem };
-        if (cachedItem.note !== undefined) {
-          result.note = cachedItem.note;
-        }
-        if (cachedItem.keywords !== undefined) {
-          result.keywords = cachedItem.keywords;
-        }
-        return result;
-      });
-    } catch {
-      return apiItems;
-    }
-  }, []);
-
-  // 首次加载 / 自动刷新：先读缓存，再请求 API
-  const loadInitial = useCallback(async () => {
-    if (initialized && !refetching) return;
+  // 加载指定页
+  const fetchPage = useCallback(async (pageNum, filter) => {
     setLoading(true);
     setError(null);
+    currentFilterRef.current = filter || 'All';
 
-    // 1. 先从 localStorage 缓存读取（秒现）
+    // 先从缓存读取（离线兜底）
+    let cacheData = null;
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const cached = JSON.parse(raw);
-        if (Array.isArray(cached) && cached.length > 0) {
-          setItems(cached);
-        }
-      }
+      cacheData = getCachedData('inbox');
     } catch { /* ignore */ }
 
-    // 2. 请求后端 API，并与缓存合并（保留用户修改的 hasNote/note/tags）
     try {
-      const data = await inboxApi.getItems(0, pageSize);
+      const params = filterToApiParams(currentFilterRef.current);
+      const data = await inboxApi.getItems(pageNum, pageSize, params);
       const formatted = (data.items || []).map(formatItem);
-      const merged = mergeWithCache(formatted);
+
+      // 与缓存合并 note/keywords
+      let merged = formatted;
+      if (cacheData && Array.isArray(cacheData)) {
+        const cacheMap = new Map(cacheData.map(c => [c.id, c]));
+        merged = formatted.map(item => {
+          const cached = cacheMap.get(item.id);
+          if (!cached) return item;
+          return {
+            ...item,
+            note: cached.note !== undefined ? cached.note : item.note,
+            keywords: cached.keywords !== undefined ? cached.keywords : item.keywords,
+          };
+        });
+      }
+
       setItems(merged);
-      setHasMore(data.hasMore ?? false);
-      setPage(0);
-      // 缓存到 localStorage（使用合并后的数据）
+      setTotalItems(data.totalItems ?? 0);
+      setTotalPages(data.totalPages ?? 0);
+      setCurrentPage(data.currentPage ?? pageNum);
+
+      // 缓存当前页（仅缓存 note/keywords 字段供后续合并）
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
       } catch { /* ignore */ }
     } catch (err) {
-      console.warn('API 请求失败，使用缓存/Mock 数据:', err.message);
-      // API 失败 → 如果缓存也没数据，用 Mock 兜底
-      setItems((prev) => prev);
+      console.warn('API 请求失败:', err.message);
+      if (cacheData && Array.isArray(cacheData)) {
+        setItems(cacheData);
+      }
       setError('API 连接失败，使用本地数据');
     } finally {
       setLoading(false);
       setInitialized(true);
       setRefetching(false);
     }
-  }, [initialized, refetching, mergeWithCache]);
+  }, []);
 
-  // 自动加载
+  // 首次加载
   useEffect(() => {
-    if (refetching || !initialized) {
-      loadInitial();
+    if (!initialized || refetching) {
+      fetchPage(0, 'All');
     }
-  }, [loadInitial, refetching, initialized]);
+  }, [fetchPage, initialized, refetching]);
 
-  // 实时更新：每 30 秒静默拉取最新数据，替换当前列表
+  // 每 30 秒静默拉取第 0 页（仅当当前在第 0 页且 filter 为 All）
   useEffect(() => {
     if (!initialized) return;
     const timer = setInterval(async () => {
       try {
-        const data = await inboxApi.getItems(0, pageSize, true); // silent=true 不触发 auth:expired
-        if (data.items && data.items.length > 0) {
+        const data = await inboxApi.getItems(0, pageSize, { silent: true });
+        if (data.items && data.items.length > 0 && currentPage === 0) {
           const formatted = (data.items || []).map(formatItem);
-          const merged = mergeWithCache(formatted);
-          setItems(merged);
-          setHasMore(data.hasMore ?? false);
-          try {
-            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-          } catch {}
+          setItems(formatted);
+          setTotalItems(data.totalItems ?? 0);
+          setTotalPages(data.totalPages ?? 0);
         }
       } catch { /* silent */ }
     }, 30000);
     return () => clearInterval(timer);
-  }, [initialized, pageSize, mergeWithCache]);
-
-  // 加载更多（无限滚动）
-  const loadMore = useCallback(async () => {
-    if (loading || !hasMore) return;
-    setLoading(true);
-    const nextPage = page + 1;
-    try {
-      const data = await inboxApi.getItems(nextPage, pageSize);
-      const formatted = (data.items || []).map(formatItem);
-      setItems((prev) => [...prev, ...formatted]);
-      setHasMore(data.hasMore ?? false);
-      setPage(nextPage);
-      // 更新缓存
-      try {
-        const existing = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '[]');
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing, ...formatted]));
-      } catch { /* ignore */ }
-    } catch (err) {
-      console.warn('加载更多失败:', err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [loading, hasMore, page]);
+  }, [initialized, pageSize, currentPage]);
 
   // 创建信息项（调 real API）
   const createItem = useCallback(async (item) => {
@@ -288,22 +259,18 @@ export function useInboxItems() {
       const current = prev.find(i => i.id === id);
       const newIsPremium = current && current.hasNote ? false : true;
 
-      // 乐观更新本地
       const updated = prev.map((item) =>
         item.id === id
           ? { ...item, hasNote: newIsPremium, isPremium: newIsPremium }
           : item
       );
 
-      // 同步更新 localStorage 缓存，防止离开页面再回来时丢失状态
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch {}
 
-      // 同步到后端
       inboxApi.updateItem(id, { isPremium: newIsPremium }).catch((err) => {
         console.error('更新优质信息源状态失败:', err);
-        // 失败则回滚本地状态和缓存
         const rolledBack = updated.map((item) =>
           item.id === id
             ? { ...item, hasNote: !newIsPremium, isPremium: !newIsPremium }
@@ -320,7 +287,6 @@ export function useInboxItems() {
   }, []);
 
   const saveNote = useCallback(async (id, note, keywords) => {
-    // 本地先更新
     setItems((prev) => {
       const updated = prev.map((item) =>
         item.id === id
@@ -332,7 +298,6 @@ export function useInboxItems() {
       } catch {}
       return updated;
     });
-    // 尝试更新后端：笔记存到 userNote 字段，不要覆盖 contentRaw（原始文章内容）
     try {
       await inboxApi.updateItem(id, {
         userNote: note,
@@ -345,25 +310,20 @@ export function useInboxItems() {
 
   // 更新信息项（调 real API）
   const updateItem = useCallback(async (id, patch) => {
-    // 本地先更新
     setItems((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, ...patch } : item
       )
     );
-    // 尝试更新后端
     try {
       const backendPatch = {};
-      // 映射前端的 note 到后端的 userNote
       if (patch.note !== undefined) backendPatch.userNote = patch.note;
       if (patch.opened !== undefined) backendPatch.processStatus = 'PROCESSED';
-      // 直接映射与后端字段名一致的字段
       if (patch.isPremium !== undefined) backendPatch.isPremium = patch.isPremium;
       if (patch.userNote !== undefined) backendPatch.userNote = patch.userNote;
       if (patch.processStatus !== undefined) backendPatch.processStatus = patch.processStatus;
       if (patch.contentRaw !== undefined) backendPatch.contentRaw = patch.contentRaw;
       
-      // 只有确实有需要发到后端的字段时才调 API
       if (Object.keys(backendPatch).length > 0) {
         await inboxApi.updateItem(id, backendPatch);
       }
@@ -376,7 +336,6 @@ export function useInboxItems() {
   const regenerateSummary = useCallback(async (id) => {
     try {
       await inboxApi.regenerateSummary(id);
-      // 本地先标记为分析中（去掉旧的空摘要/失败状态提示）
       setItems((prev) => {
         const updated = prev.map((item) =>
           item.id === id ? { ...item, aiSummary: null, processStatus: 'UNPROCESSED' } : item
@@ -397,8 +356,10 @@ export function useInboxItems() {
     setItems,
     loading,
     error,
-    hasMore,
-    loadMore,
+    totalItems,
+    totalPages,
+    currentPage,
+    fetchPage,
     createItem,
     togglePremium,
     regenerateSummary,
