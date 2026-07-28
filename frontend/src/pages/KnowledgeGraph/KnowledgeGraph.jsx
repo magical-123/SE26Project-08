@@ -10,9 +10,10 @@ import {
 import '@xyflow/react/dist/style.css';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
-import { ZoomIn, ZoomOut, Eye, EyeOff, Camera, Sparkles } from 'lucide-react';
+import { ZoomIn, ZoomOut, Eye, EyeOff, Camera, Sparkles, WifiOff } from 'lucide-react';
 import { buildGraphData, ConceptNode, SourceNode, MAX_LABEL_LENGTH } from './graphShared';
 import { graphApi } from '../../utils/api';
+import { cacheData, getCachedData } from '../../utils/cache';
 import './KnowledgeGraph.css';
 
 const toKeywordSuggestions = (concepts = []) => concepts.map(c => ({
@@ -39,6 +40,7 @@ function KnowledgeGraphInner() {
   const { items } = useInboxItems();
   const [selectedKeywords, setSelectedKeywords] = useState([]);
   const [suggestedKeywords, setSuggestedKeywords] = useState([]);
+  const [kgOffline, setKgOffline] = useState(false);
   const reactFlowInstance = useReactFlow();
   const isDraggingRef = useRef(false);
   const initialPositionsSavedRef = useRef(false);
@@ -55,6 +57,7 @@ function KnowledgeGraphInner() {
   });
 
   const [visibleConcepts, setVisibleConcepts] = useState(new Set());
+  const [legendCollapsed, setLegendCollapsed] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const API_BASE = '';
@@ -66,6 +69,7 @@ function KnowledgeGraphInner() {
   // Fetch graph data and positions from API
   const fetchGraphData = useCallback(() => {
     setDataLoading(true);
+    setKgOffline(false);
     const headers = getAuthHeaders();
     Promise.all([
       fetch(`${API_BASE}/api/graph/data`, { headers }).then(res => res.ok ? res.json() : null),
@@ -114,10 +118,32 @@ function KnowledgeGraphInner() {
           setPremiumItems(apiPremiumItems);
 
           setVisibleConcepts(new Set(nodes.map(n => n.id)));
+
+          // 缓存成功获取的图谱数据
+          cacheData('knowledgeGraph', { graphData, positionsData });
         }
         setDataLoading(false);
       })
       .catch(() => {
+        // 从缓存读取降级数据
+        const cached = getCachedData('knowledgeGraph');
+        if (cached) {
+          const { graphData: cachedGraph, positionsData: cachedPos } = cached;
+          if (cachedPos) setSavedPositions(cachedPos);
+          if (cachedGraph) {
+            const nodes = (cachedGraph.concepts || []).map(c => ({ ...c, id: `concept-${c.id}` }));
+            setConceptNodes(nodes);
+            const mapping = {};
+            Object.entries(cachedGraph.itemToConcepts || {}).forEach(([itemId, conceptIds]) => {
+              mapping[Number(itemId)] = conceptIds.map(cid => `concept-${cid}`);
+            });
+            setSourceConceptMap(mapping);
+            const cachedItems = (cachedGraph.items || []).map(item => ({ ...item, hasNote: true }));
+            setPremiumItems(cachedItems);
+            setVisibleConcepts(new Set(nodes.map(n => n.id)));
+          }
+          setKgOffline(true);
+        }
         setDataLoading(false);
       });
   }, []);
@@ -199,9 +225,75 @@ function KnowledgeGraphInner() {
     }).catch(e => console.error('切换高亮失败:', e));
   };
 
+  const [collapsedConcepts, setCollapsedConcepts] = useState(new Set());
+
+  const toggleCollapseConcept = useCallback((conceptId) => {
+    setCollapsedConcepts(prev => {
+      const next = new Set(prev);
+      if (next.has(conceptId)) {
+        next.delete(conceptId);
+      } else {
+        next.add(conceptId);
+      }
+      return next;
+    });
+  }, []);
+
   const graphData = useMemo(() => {
-    return buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap);
-  }, [premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap]);
+    const data = buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap);
+
+    if (collapsedConcepts.size === 0) {
+      // 没有收起的概念，直接返回，但给概念节点加上 onToggleCollapse
+      return {
+        nodes: data.nodes.map(n => {
+          if (n.type === 'concept') {
+            return { ...n, data: { ...n.data, isCollapsed: false, onToggleCollapse: toggleCollapseConcept } };
+          }
+          return n;
+        }),
+        edges: data.edges,
+      };
+    }
+
+    // 统计每个概念关联的 source 节点数
+    const conceptSourceCounts = {};
+    const hiddenSourceIds = new Set();
+
+    data.nodes.forEach(n => {
+      if (n.type !== 'source') return;
+      const conceptIds = n.data?.conceptIds || [];
+      // 如果一个 source 节点的所有关联概念都被收起，则隐藏它
+      if (conceptIds.length > 0 && conceptIds.every(cid => collapsedConcepts.has(cid))) {
+        hiddenSourceIds.add(n.id);
+      }
+      // 统计每个概念的 source 节点数（即使不隐藏也算总数）
+      conceptIds.forEach(cid => {
+        conceptSourceCounts[cid] = (conceptSourceCounts[cid] || 0) + 1;
+      });
+    });
+
+    return {
+      nodes: data.nodes
+        .filter(n => !hiddenSourceIds.has(n.id))
+        .map(n => {
+          if (n.type === 'concept') {
+            const totalCount = conceptSourceCounts[n.id] || 0;
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                isCollapsed: collapsedConcepts.has(n.id),
+                hiddenSourceCount: collapsedConcepts.has(n.id) ? totalCount : 0,
+                sourceCount: totalCount,
+                onToggleCollapse: toggleCollapseConcept,
+              }
+            };
+          }
+          return n;
+        }),
+      edges: data.edges.filter(e => !hiddenSourceIds.has(e.source) && !hiddenSourceIds.has(e.target)),
+    };
+  }, [premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap, collapsedConcepts, toggleCollapseConcept]);
 
   // Compute highlight / dim state
   const { enhancedNodes, enhancedEdges } = useMemo(() => {
@@ -475,31 +567,61 @@ function KnowledgeGraphInner() {
   return (
     <div className="knowledge-graph-page">
       {/* Top legend bar */}
+      {kgOffline && (
+        <div className="kg-offline-banner">
+          <WifiOff size={14} />
+          <span>当前离线/服务超时，已切换为缓存模式</span>
+        </div>
+      )}
       <div className="kg-legend-bar">
-        <div className="kg-legend-bar-inner">
-          <div className="kg-legend-items">
-            {validConcepts.map(concept => (
-              <button
-                key={concept.id}
-                className={`kg-legend-item ${visibleConcepts.has(concept.id) ? 'active' : 'hidden'}`}
-                onClick={() => toggleConcept(concept.id)}
-                title={visibleConcepts.has(concept.id) ? '点击隐藏' : '点击显示'}
-              >
-                <span className="kg-legend-dot" style={{ background: concept.color }} />
-                <span className="kg-legend-label">{concept.label}</span>
-                {visibleConcepts.has(concept.id) ? <Eye size={12} /> : <EyeOff size={12} />}
-              </button>
-            ))}
-          </div>
-          <button 
-            className={`kg-legend-toggle-all ${allVisible ? 'disabled' : ''}`}
-            onClick={toggleAll}
-            disabled={allVisible}
-            style={{ opacity: allVisible ? 0.5 : 1, cursor: allVisible ? 'default' : 'pointer' }}
-          >
-            <Eye size={12} />
-            <span>全显示</span>
-          </button>
+        <div className={`kg-legend-bar-inner ${legendCollapsed ? 'collapsed' : ''}`}>
+          {legendCollapsed ? (
+            <button
+              className="kg-legend-collapse-btn"
+              onClick={() => setLegendCollapsed(false)}
+              title="展开标签栏"
+            >
+              <span className="kg-legend-collapse-icon">▶</span>
+              <span>{validConcepts.length} 个标签</span>
+            </button>
+          ) : (
+            <div className="kg-legend-expanded">
+              <div className="kg-legend-items-scroll">
+                <div className="kg-legend-items">
+                  {validConcepts.map(concept => (
+                    <button
+                      key={concept.id}
+                      className={`kg-legend-item ${visibleConcepts.has(concept.id) ? 'active' : 'hidden'}`}
+                      onClick={() => toggleConcept(concept.id)}
+                      title={visibleConcepts.has(concept.id) ? '点击隐藏' : '点击显示'}
+                    >
+                      <span className="kg-legend-dot" style={{ background: concept.color }} />
+                      <span className="kg-legend-label">{concept.label}</span>
+                      {visibleConcepts.has(concept.id) ? <Eye size={12} /> : <EyeOff size={12} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="kg-legend-actions">
+                <button 
+                  className={`kg-legend-toggle-all ${allVisible ? 'disabled' : ''}`}
+                  onClick={toggleAll}
+                  disabled={allVisible}
+                  style={{ opacity: allVisible ? 0.5 : 1, cursor: allVisible ? 'default' : 'pointer' }}
+                >
+                  <Eye size={12} />
+                  <span>全显示</span>
+                </button>
+                <button
+                  className="kg-legend-collapse-btn"
+                  onClick={() => setLegendCollapsed(true)}
+                  title="收起标签栏"
+                >
+                  <span className="kg-legend-collapse-icon">▼</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
