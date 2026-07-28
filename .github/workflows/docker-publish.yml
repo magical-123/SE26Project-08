@@ -65,3 +65,10 @@ jobs:
           context: ./frontend
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-frontend:latest
+
+      - name: Build and push Crawler image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./crawler
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}-crawler:latest
