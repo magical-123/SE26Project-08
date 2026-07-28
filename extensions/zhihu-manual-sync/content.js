@@ -1,3 +1,6 @@
+if (!globalThis.__infoDigestZhihuTrackerInstalled) {
+globalThis.__infoDigestZhihuTrackerInstalled = true;
+
 const cleanText = (value, maxLength = 4000) =>
   (value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 
@@ -43,7 +46,9 @@ function currentContent() {
         (element.getAttribute('name') || '').includes(answerMatch[1])
         || (element.getAttribute('data-zop') || '').includes(answerMatch[1]))
     : null;
-  const contentContainer = answerContainer || document.querySelector('main') || document.body;
+  const contentContainer = answerContainer
+    || document.querySelector('.RichContent-inner, .Post-RichTextContainer, article, main')
+    || document.body;
   const author = cleanText(document.querySelector('meta[name="author"]')?.content, 100)
     || getAuthor(contentContainer);
   const contentRaw = cleanText(contentContainer.innerText, 4000);
@@ -73,9 +78,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 let lastTick = Date.now();
 let lastVideoTime = null;
+let lastTrackedUrl = location.href;
 setInterval(async () => {
   const { autoTracking } = await chrome.storage.local.get({ autoTracking: true });
   const now = Date.now();
+  if (location.href !== lastTrackedUrl) {
+    lastTrackedUrl = location.href;
+    lastTick = now;
+    lastVideoTime = null;
+    return;
+  }
   const elapsed = Math.min(5, Math.max(0, Math.floor((now - lastTick) / 1000)));
   lastTick = now;
   if (!autoTracking || document.visibilityState !== 'visible') {
@@ -95,3 +107,4 @@ setInterval(async () => {
     await report(elapsed);
   }
 }, 5000);
+}

@@ -87,3 +87,9 @@
 .fgv-body .react-flow__background {
   opacity: 0.5;
 }
+
+@media (max-width: 640px) {
+  .fgv-modal { width: calc(100vw - 16px); height: calc(100dvh - 32px); border-radius: 12px; }
+  .fgv-header { padding: 10px 12px; }
+  .fgv-title { font-size: 13px; }
+}

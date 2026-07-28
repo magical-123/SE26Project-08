@@ -331,3 +331,23 @@ html, body, #root {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
 }
+
+@media (max-width: 1024px) {
+  .inbox { padding: 24px; }
+  .inbox-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+}
+
+@media (max-width: 640px) {
+  .inbox { padding: 16px 12px; min-height: auto; }
+  .inbox-header-top { align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .inbox-header-wrapper h1 { font-size: 23px; }
+  .inbox-subtitle { font-size: 12px; }
+  .inbox-filters { width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .inbox-filters::-webkit-scrollbar { display: none; }
+  .filter-btn { white-space: nowrap; padding: 6px 12px; }
+  .manual-update-btn { margin-left: 0; }
+  .inbox-progress-container { padding: 12px; margin-bottom: 16px; }
+  .inbox-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; padding-right: 0; overflow: visible; }
+  .inbox-banner { padding: 12px 14px; font-size: 13px; }
+  .sidebar-content { width: min(260px, 86vw); right: 0; }
+}

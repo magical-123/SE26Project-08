@@ -766,6 +766,47 @@
   border-radius: 6px;
 }
 
+@media (max-width: 1024px) {
+  .report-page { padding: 24px; }
+  .report-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .report-trend-container, .topics-card { grid-column: auto; }
+  .nutrition-label-container { padding-right: 140px; }
+  .nl-full-width, .nl-rows, .nl-footer-note { margin-right: -140px; }
+}
+
+@media (max-width: 640px) {
+  .report-page { padding: 16px 12px; }
+  .report-header { align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .report-header h1 { font-size: 23px; }
+  .report-tabs { margin-left: auto; }
+  .report-tabs button { padding: 6px 12px; }
+  .report-card { padding: 16px; }
+  .pie-card { min-height: 0; }
+  .insight-actions { flex-direction: column; }
+  .sl-item { align-items: flex-start; gap: 10px; }
+  .sl-item-meta { flex-shrink: 0; }
+  .topic-item { align-items: flex-start; gap: 10px; flex-direction: column; }
+  .topic-tags { flex-wrap: wrap; }
+  .nutrition-label-container {
+    padding: 12px;
+    overflow: hidden;
+  }
+  .nl-full-width, .nl-rows, .nl-footer-note {
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .nl-percent-header { margin-right: 0; padding: 4px 0; text-align: right; }
+  .nl-row { padding: 8px 0; gap: 8px; }
+  .nl-row-name { font-size: 12px; }
+  .nl-row-hours, .nl-row-sub { font-size: 11px; }
+  .nl-donut-wrapper { position: relative; right: auto; top: auto; display: flex; justify-content: center; margin: 4px 0 8px; }
+  .nl-amount-row { min-height: 0; }
+  .nl-amount-right { font-size: 24px; }
+  .info-modal-container { width: calc(100% - 24px); max-height: 88vh; padding: 20px 16px; }
+  .info-modal-header h2 { font-size: 20px; }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

@@ -19,6 +19,13 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
 };
 
+const toKeywordSuggestions = (concepts = []) => concepts.map(c => ({
+  label: c.label,
+  isNew: false,
+  confidence: c.confidence,
+  reason: c.reason,
+}));
+
 export function Inbox() {
   const [filter, setFilter] = useState('All');
   const { items, togglePremium, regenerateSummary, saveNote, updateItem, loading, error, hasMore, loadMore, refetching } = useInboxItems();
@@ -92,7 +99,7 @@ export function Inbox() {
       // 根据后端 highlighted 字段决定初始高亮状态
       const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
       setSelectedKeywords(highlighted);
-      setSuggestedKeywords(kws.map(label => ({ label, isNew: false }))); 
+      setSuggestedKeywords(toKeywordSuggestions(concepts));
     } catch (e) {
       console.error('获取关键词失败:', e);
     }
@@ -109,7 +116,7 @@ export function Inbox() {
       const kws = concepts.map(c => c.label);
       const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
       setSelectedKeywords(highlighted);
-      setSuggestedKeywords(kws.map(label => ({ label, isNew: false })));
+      setSuggestedKeywords(toKeywordSuggestions(concepts));
     }).catch(e => console.error('切换高亮失败:', e));
   };
   
@@ -204,7 +211,7 @@ export function Inbox() {
         const kws = concepts.map(c => c.label);
         const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
         setSelectedKeywords(highlighted);
-        setSuggestedKeywords(kws.map(label => ({ label, isNew: false }))); 
+        setSuggestedKeywords(toKeywordSuggestions(concepts));
       } catch (err) {}
     }
 
@@ -223,7 +230,7 @@ export function Inbox() {
           const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
           if (kws.length > 0) {
             setSelectedKeywords(highlighted);
-            setSuggestedKeywords(kws.map(label => ({ label, isNew: false })));
+            setSuggestedKeywords(toKeywordSuggestions(concepts));
           }
         } catch (err) {
           // 拉取失败不影响，保持当前 UI 状态

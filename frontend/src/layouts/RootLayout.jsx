@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Compass, BookOpen, Search, PieChart, User, Settings, UserCircle } from 'lucide-react';
+import { Compass, BookOpen, Search, PieChart, User, Settings, UserCircle, Menu, X } from 'lucide-react';
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { useInboxItems } from '../hooks/useInboxItems';
 import './RootLayout.css';
@@ -19,6 +19,7 @@ export function RootLayout({ children }) {
 
   const [avatar, setAvatar] = useState(() => sessionStorage.getItem('avatarUrl'));
   const [username, setUsername] = useState(() => sessionStorage.getItem('username') || 'User');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     const handleAvatarChange = () => {
@@ -47,7 +48,7 @@ export function RootLayout({ children }) {
       <div className="decor-vertical-line"></div>
       
       {/* 3D Arc Cascading Navigation */}
-      <aside className="cascade-nav-container">
+      <aside className={`cascade-nav-container${mobileNavOpen ? ' mobile-nav-open' : ''}`}>
         
         {/* Branding */}
         <div className="brand-header">
@@ -61,6 +62,15 @@ export function RootLayout({ children }) {
           <div className="brand-avatar" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
             {avatar ? <img src={avatar} alt="" className="user-avatar-img" /> : username.charAt(0).toUpperCase()}
           </div>
+          <button
+            type="button"
+            className="mobile-menu-toggle"
+            aria-label={mobileNavOpen ? '关闭导航菜单' : '打开导航菜单'}
+            aria-expanded={mobileNavOpen}
+            onClick={() => setMobileNavOpen((open) => !open)}
+          >
+            {mobileNavOpen ? <X size={24} strokeWidth={1.8} /> : <Menu size={24} strokeWidth={1.8} />}
+          </button>
         </div>
 
         <div className="nav-container-inner">
@@ -70,6 +80,7 @@ export function RootLayout({ children }) {
                 key={item.path} 
                 to={item.path} 
                 className={({isActive}) => isActive ? "nav-item active" : "nav-item"}
+                onClick={() => setMobileNavOpen(false)}
               >
                 <div className="nav-content">
                   <item.icon size={20} strokeWidth={1.5} className="nav-icon" />
@@ -84,6 +95,15 @@ export function RootLayout({ children }) {
         </div>
 
       </aside>
+
+      {mobileNavOpen && (
+        <button
+          type="button"
+          className="mobile-nav-backdrop"
+          aria-label="关闭导航菜单"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
 
       {/* Main Content Glass Board */}
       <main className="main-glass-board">
