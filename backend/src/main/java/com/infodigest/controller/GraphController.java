@@ -81,18 +81,36 @@ public class GraphController {
 
     @DeleteMapping("/concepts/{id}")
     public ResponseEntity<Void> deleteConcept(@PathVariable Long id) {
+        Long userId = getCurrentUserId();
+        Optional<Concept> concept = conceptRepository.findById(id);
+        if (concept.isEmpty() || !concept.get().getUserId().equals(userId)) {
+            return ResponseEntity.notFound().build();
+        }
+        itemConceptRepository.deleteByConceptId(id);
         conceptRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/mappings")
     public ResponseEntity<ItemConcept> createMapping(@RequestBody ItemConcept mapping) {
+        Long userId = getCurrentUserId();
+        Optional<InformationItem> item = informationItemRepository.findByIdAndUserId(mapping.getItemId(), userId);
+        Optional<Concept> concept = conceptRepository.findById(mapping.getConceptId());
+        if (item.isEmpty() || concept.isEmpty() || !concept.get().getUserId().equals(userId)) {
+            return ResponseEntity.notFound().build();
+        }
         ItemConcept saved = itemConceptRepository.save(mapping);
         return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/mappings/{id}")
     public ResponseEntity<Void> deleteMapping(@PathVariable Long id) {
+        Long userId = getCurrentUserId();
+        Optional<ItemConcept> mapping = itemConceptRepository.findById(id);
+        if (mapping.isEmpty()
+                || informationItemRepository.findByIdAndUserId(mapping.get().getItemId(), userId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         itemConceptRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
@@ -249,6 +267,9 @@ public class GraphController {
     @GetMapping("/item-keywords/{itemId}")
     public ResponseEntity<List<KeywordSuggestion>> getItemKeywords(@PathVariable Long itemId) {
         Long userId = getCurrentUserId();
+        if (informationItemRepository.findByIdAndUserId(itemId, userId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         
         List<ItemConcept> mappings = itemConceptRepository.findByItemId(itemId);
         if (mappings.isEmpty()) {
@@ -267,6 +288,10 @@ public class GraphController {
                     ks.setLabel(c.getLabel());
                     ks.setNew(false);
                     ks.setHighlighted(highlightedMap.getOrDefault(c.getId(), true));
+                    mappings.stream().filter(m -> m.getConceptId().equals(c.getId())).findFirst().ifPresent(m -> {
+                        ks.setConfidence(m.getConfidence());
+                        ks.setReason(m.getReason());
+                    });
                     return ks;
                 })
                 .collect(Collectors.toList());
@@ -277,6 +302,9 @@ public class GraphController {
     @PutMapping("/item-keywords/{itemId}")
     public ResponseEntity<List<KeywordSuggestion>> updateItemKeywords(@PathVariable Long itemId, @RequestBody List<KeywordSuggestion> keywords) {
         Long userId = getCurrentUserId();
+        if (informationItemRepository.findByIdAndUserId(itemId, userId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         
         keywordService.applyKeywords(itemId, userId, keywords);
         
@@ -294,6 +322,9 @@ public class GraphController {
         String label = (String) body.get("label");
         if (label == null) {
             return ResponseEntity.badRequest().build();
+        }
+        if (informationItemRepository.findByIdAndUserId(itemId, userId).isEmpty()) {
+            return ResponseEntity.notFound().build();
         }
         
         conceptRepository.findByUserIdAndLabel(userId, label).ifPresent(concept -> {

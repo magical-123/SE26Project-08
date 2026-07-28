@@ -1,3 +1,6 @@
+if (!globalThis.__infoDigestXhsTrackerInstalled) {
+globalThis.__infoDigestXhsTrackerInstalled = true;
+
 const cleanText = (value, maxLength = 4000) =>
   (value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 
@@ -14,11 +17,22 @@ function currentContent() {
   const author = cleanText(document.querySelector(
     '.author-wrapper .name, .author .name, .user-name, [class*="author"] [class*="name"], [class*="Author"] [class*="Name"], [class*="user"] [class*="name"]'
   )?.textContent, 100);
-  const container = document.querySelector('main') || document.body;
+  const contentCandidates = [
+    document.querySelector('#detail-desc'),
+    document.querySelector('[class*="note-text"]'),
+    document.querySelector('[class*="desc"]'),
+    document.querySelector('meta[property="og:description"]')?.content,
+    document.querySelector('main'),
+  ];
+  const contentText = contentCandidates
+    .map((candidate) => typeof candidate === 'string' ? candidate : candidate?.innerText || candidate?.textContent)
+    .map((value) => cleanText(value, 4000))
+    .find((value) => value.length > title.length + 20)
+    || title;
   return {
     title,
     author,
-    contentRaw: cleanText(container.innerText, 4000),
+    contentRaw: contentText,
     url: `${location.origin}${path}`.replace(/\/$/, ''),
     platform: 'XIAOHONGSHU',
   };
@@ -41,9 +55,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 let lastTick = Date.now();
 let lastVideoTime = null;
+let lastTrackedUrl = location.href;
 setInterval(async () => {
   const { autoTracking } = await chrome.storage.local.get({ autoTracking: true });
   const now = Date.now();
+  if (location.href !== lastTrackedUrl) {
+    lastTrackedUrl = location.href;
+    lastTick = now;
+    lastVideoTime = null;
+    return;
+  }
   const elapsed = Math.min(5, Math.max(0, Math.floor((now - lastTick) / 1000)));
   lastTick = now;
   if (!autoTracking || document.visibilityState !== 'visible') {
@@ -63,3 +84,4 @@ setInterval(async () => {
     await report(elapsed);
   }
 }, 5000);
+}

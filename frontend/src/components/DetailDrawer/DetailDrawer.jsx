@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Edit3, PlayCircle, FileText, Mic, Clock, Calendar } from 'lucide-react';
+import { X, Sparkles, Edit3, PlayCircle, FileText, Mic, Clock, Calendar, ExternalLink } from 'lucide-react';
 import './DetailDrawer.css';
 import ReactECharts from 'echarts-for-react';
 
@@ -135,6 +135,13 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
                 </div>
               </div>
 
+              {d.url && (
+                <a className="source-link-btn" href={d.url} target="_blank" rel="noreferrer">
+                  <ExternalLink size={14} />
+                  <span>查看原文</span>
+                </a>
+              )}
+
               {/* AI Summary Card */}
               <div className="ai-summary-card">
                 <div className="ai-summary-glow" />
@@ -198,7 +205,9 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
                         className={`keyword-chip ${active ? 'active' : ''}`}
                         onClick={() => onToggleKeyword?.(kw.label)}
                       >
-                        {kw.label} {kw.isNew && <span className="new-badge">新</span>}
+                        <span title={kw.reason || (kw.confidence != null ? `置信度 ${Math.round(kw.confidence * 100)}%` : '')}>
+                          {kw.label}{kw.confidence != null ? ` ${Math.round(kw.confidence * 100)}%` : ''}
+                        </span> {kw.isNew && <span className="new-badge">新</span>}
                         <button 
                           className="keyword-chip-delete"
                           onClick={(e) => {
