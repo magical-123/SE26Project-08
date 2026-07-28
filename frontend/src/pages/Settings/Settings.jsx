@@ -79,9 +79,9 @@ export function Settings() {
     google: { label: 'Google', needsApiKey: true, endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', models: {
       'gemini-pro': { label: 'Gemini Pro', modelType: 'GEMINI_PRO' },
     }},
-    deepseek: { label: 'DeepSeek (深度求索)', needsApiKey: true, endpoint: 'https://api.deepseek.com/v1/chat/completions', models: {
-      'deepseek-v4-flash': { label: 'DeepSeek V4 Flash', modelType: 'DEEPSEEK' },
-      'deepseek-chat': { label: 'DeepSeek Chat', modelType: 'DEEPSEEK' },
+    deepseek: { label: 'DeepSeek (深度求索)', needsApiKey: true, endpoint: 'https://api.deepseek.com/chat/completions', models: {
+      'deepseek-chat': { label: 'DeepSeek V3 (Chat)', modelType: 'DEEPSEEK' },
+      'deepseek-reasoner': { label: 'DeepSeek R1 (Reasoner)', modelType: 'DEEPSEEK' },
     }},
     qwen: { label: '通义千问 (Alibaba)', needsApiKey: true, endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', models: {
       'qwen-plus': { label: 'Qwen Plus', modelType: 'QWEN' },
