@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    # 从 GitHub 的官方镜像仓库直接拉取
+    image: ghcr.io/magical-123/infodigest--backend:latest
+    container_name: infodigest-backend
+    restart: always
+    environment:
+      # 请在 .env 中填入宿主机的内网 IP 以连接原生数据库和缓存
+      - DB_URL=${DB_URL}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET:-defaultSecretKeyWithAtLeast32Chars1234567890}
+      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY:-MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=}
+      - CORS_ALLOWED_ORIGIN_PATTERNS=${CORS_ALLOWED_ORIGIN_PATTERNS:-*}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=6379
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    ports:
+      - "8080:8080"
+
+  frontend:
+    # 从 GitHub 的官方镜像仓库直接拉取
+    image: ghcr.io/magical-123/infodigest--frontend:latest
+    container_name: infodigest-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  # 看门狗：每隔 5 分钟自动检查是否有新镜像，自动拉取重启
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300 infodigest-backend infodigest-frontend --cleanup
