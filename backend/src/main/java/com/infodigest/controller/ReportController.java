@@ -147,7 +147,7 @@ public class ReportController {
         try {
             List<Map<String, Object>> clusters;
             if ("daily".equalsIgnoreCase(type)) {
-                clusters = topicClusterService.getTopicClusters(userId, today);
+                clusters = topicClusterService.getTopicClusters(userId, today, "daily");
             } else {
                 clusters = topicClusterService.generateWeeklyTopicClusters(userId, today);
             }
