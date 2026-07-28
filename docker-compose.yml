@@ -2,8 +2,8 @@ version: '3.8'
 
 services:
   backend:
-    # 从 GitHub 的官方镜像仓库直接拉取
-    image: ghcr.io/magical-123/infodigest--backend:latest
+    # 替换为从 GHCR 拉取
+    image: ghcr.io/magical-123/se26project-08-backend:latest
     container_name: infodigest-backend
     restart: always
     environment:
@@ -22,7 +22,7 @@ services:
 
   frontend:
     # 从 GitHub 的官方镜像仓库直接拉取
-    image: ghcr.io/magical-123/infodigest--frontend:latest
+    image: ghcr.io/magical-123/se26project-08-frontend:latest
     container_name: infodigest-frontend
     restart: always
     ports:
@@ -32,7 +32,7 @@ services:
 
   # 看门狗：每隔 5 分钟自动检查是否有新镜像，自动拉取重启
   watchtower:
-    image: containrrr/watchtower
+    image: ghcr.io/containrrr/watchtower:latest
     container_name: watchtower
     restart: always
     volumes:
