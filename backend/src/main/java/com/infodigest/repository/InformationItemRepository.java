@@ -39,6 +39,7 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
             Long userId, LocalDateTime startTime, LocalDateTime endTime);
 
     long countByUserIdAndPlatform(Long userId, String platform);
+    long countByUserIdAndProcessStatus(Long userId, String processStatus);
     long countByIsPremiumTrue();
     List<InformationItem> findByAiSummaryIsNull(Pageable pageable);
     List<InformationItem> findByProcessStatusAndAiSummaryIsNullAndUserIdIn(
