@@ -33,6 +33,7 @@ export function Report() {
   const [showInsightDrawer, setShowInsightDrawer] = useState(false);
   const [nutritionData, setNutritionData] = useState([]);
   const [totalHours, setTotalHours] = useState(0);
+  const [hasNutritionData, setHasNutritionData] = useState(false);
 
   // 词云相关状态
   const [dailyWordCloud, setDailyWordCloud] = useState([]);
@@ -66,8 +67,12 @@ export function Report() {
           setNutritionData(result.data || []);
           setTotalHours(result.totalHours || 0);
           updateReportCache({ nutritionData: result.data || [], totalHours: result.totalHours || 0 });
+          setHasNutritionData(result.hasData === true);
         } else {
           console.error('Nutrition API error:', response.status);
+          setNutritionData([]);
+          setTotalHours(0);
+          setHasNutritionData(false);
         }
       } catch (error) {
         console.error('获取营养数据失败:', error);
@@ -76,6 +81,10 @@ export function Report() {
           setNutritionData(cached.nutritionData);
           setTotalHours(cached.totalHours || 0);
           setOffline(true);
+        } else {
+          setNutritionData([]);
+          setTotalHours(0);
+          setHasNutritionData(false);
         }
       }
     };
@@ -276,6 +285,7 @@ export function Report() {
           const nutritionResult = await nutritionResponse.json();
           setNutritionData(nutritionResult.data || []);
           setTotalHours(nutritionResult.totalHours || 0);
+          setHasNutritionData(nutritionResult.hasData === true);
         }
         toast.success('洞察生成成功！');
       } else {
@@ -486,7 +496,7 @@ export function Report() {
         <GlassCard className="report-card pie-card" style={{ padding: '24px 32px' }}>
           <h3 style={{ fontSize: '20px', marginBottom: '16px' }}>营养分类占比</h3>
           
-          <div className="nutrition-label-container">
+          {hasNutritionData ? <div className="nutrition-label-container">
             <div className="nl-donut-wrapper">
               <div className="nl-donut-bg"></div>
               <div className="nl-donut-chart-inner">
@@ -546,15 +556,24 @@ export function Report() {
             <div className="nl-footer-note">
               * 占比表示该营养成分在您当前的数字饮食摄入周期中所占的比重。保持高蛋白低脂肪有助于数字健康。
             </div>
-          </div>
+          </div> : (
+            <div className="report-data-empty">
+              <div className="report-data-empty-title">
+                {activeTab === 'daily' ? '今日暂无已分析内容' : '最近 7 天暂无已分析内容'}
+              </div>
+              <div className="report-data-empty-description">
+                浏览并完成内容分析后，系统将在这里生成营养分布与数字饮食报告。
+              </div>
+            </div>
+          )}
         </GlassCard>
 
         <GlassCard className="report-card insight-card">
           <div className="insight-header">
             <Sparkles className="insight-icon" size={18} />
-            <h3>{hasInsight ? insight.insightTitle : '数字饮食洞察'}</h3>
+            <h3>{hasInsight && hasNutritionData ? insight.insightTitle : '数字饮食洞察'}</h3>
           </div>
-          {hasInsight ? (
+          {hasInsight && hasNutritionData ? (
             <>
               <div className="insight-content">
                 {insight.insightSummary.split(/\*\*(.*?)\*\*/g).map((part, i) =>
@@ -579,9 +598,13 @@ export function Report() {
           ) : (
             <>
               <div className="insight-empty">
-                还未有洞察，快去生成吧
+                {hasNutritionData
+                  ? '还未有洞察，快去生成吧'
+                  : activeTab === 'daily'
+                    ? '今日暂无已分析内容，无法生成日报洞察'
+                    : '最近 7 天暂无已分析内容，无法生成周报洞察'}
               </div>
-              <div className="insight-actions">
+              {hasNutritionData && <div className="insight-actions">
                 <button
                   className="insight-generate-btn"
                   onClick={handleGenerateInsight}
@@ -590,7 +613,7 @@ export function Report() {
                   <Sparkles size={14} />
                   {isGenerating ? '生成中...' : '生成洞察'}
                 </button>
-              </div>
+              </div>}
             </>
           )}
         </GlassCard>

@@ -63,6 +63,31 @@
   flex-direction: column;
 }
 
+.report-data-empty {
+  min-height: 360px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.report-data-empty-title {
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.report-data-empty-description {
+  max-width: 360px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .trend-card {
   /* No specific grid column anymore as it's inside a container */
 }
