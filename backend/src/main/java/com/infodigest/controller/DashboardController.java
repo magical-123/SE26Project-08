@@ -102,26 +102,26 @@ public class DashboardController {
             if (item.getNutritionFiber() != null) fiberSeconds += itemSeconds * (item.getNutritionFiber() / 100.0);
         }
 
+        // 只有 AI 评分但没有真实观看时长时，不能把评分平均值伪装成
+        // 今日的数字饮食占比；日报/周报应明确显示无有效时长数据。
+        if (totalSeconds <= 0) {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("hasData", false);
+            response.put("data", List.of());
+            response.put("totalHours", 0.0);
+            return ResponseEntity.ok(response);
+        }
+
         int proteinPercent;
         int carbsPercent;
         int vitaminsPercent;
         int fatsPercent;
         int fiberPercent;
-        if (totalSeconds > 0) {
-            proteinPercent = (int) Math.round(proteinSeconds * 100.0 / totalSeconds);
-            carbsPercent = (int) Math.round(carbsSeconds * 100.0 / totalSeconds);
-            vitaminsPercent = (int) Math.round(vitaminsSeconds * 100.0 / totalSeconds);
-            fatsPercent = (int) Math.round(fatsSeconds * 100.0 / totalSeconds);
-            fiberPercent = Math.max(0, 100 - proteinPercent - carbsPercent - vitaminsPercent - fatsPercent);
-        } else {
-            // 没有可靠观看时长时仍展示 AI 营养评估，但不伪造摄入时长。
-            // 五维评分本身每条合计为 100，因此按条目求平均即可得到真实分布。
-            proteinPercent = averageNutrition(analyzedItems, InformationItem::getNutritionProtein);
-            carbsPercent = averageNutrition(analyzedItems, InformationItem::getNutritionCarbs);
-            vitaminsPercent = averageNutrition(analyzedItems, InformationItem::getNutritionVitamins);
-            fatsPercent = averageNutrition(analyzedItems, InformationItem::getNutritionFats);
-            fiberPercent = Math.max(0, 100 - proteinPercent - carbsPercent - vitaminsPercent - fatsPercent);
-        }
+        proteinPercent = (int) Math.round(proteinSeconds * 100.0 / totalSeconds);
+        carbsPercent = (int) Math.round(carbsSeconds * 100.0 / totalSeconds);
+        vitaminsPercent = (int) Math.round(vitaminsSeconds * 100.0 / totalSeconds);
+        fatsPercent = (int) Math.round(fatsSeconds * 100.0 / totalSeconds);
+        fiberPercent = Math.max(0, 100 - proteinPercent - carbsPercent - vitaminsPercent - fatsPercent);
 
         double totalHours = Math.round((totalSeconds / 3600.0) * 100.0) / 100.0;
 

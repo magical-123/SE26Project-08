@@ -29,12 +29,30 @@ async function validateCookie(client) {
   try {
     const res = await client.get('/x/web-interface/nav');
     const data = res.data;
+    const valid = data.code === 0 && data.data && data.data.isLogin;
+    const credentialInvalid = data?.code === -101
+      || (data?.code === 0 && data?.data?.isLogin === false);
     return {
-      valid: data.code === 0 && data.data && data.data.isLogin,
+      valid,
       mid: data?.data?.mid || null,
+      credentialInvalid,
+      reason: valid
+        ? null
+        : credentialInvalid
+          ? `B站返回未登录状态 (code=${data?.code ?? 'unknown'})`
+          : `B站 Cookie 验证响应异常 (code=${data?.code ?? 'unknown'})`,
     };
-  } catch {
-    return { valid: false, mid: null };
+  } catch (error) {
+    const status = error.response?.status;
+    const credentialInvalid = status === 401 || status === 403;
+    return {
+      valid: false,
+      mid: null,
+      credentialInvalid,
+      reason: credentialInvalid
+        ? `B站返回 HTTP ${status}`
+        : `Cookie 验证请求失败: ${error.message}`,
+    };
   }
 }
 
