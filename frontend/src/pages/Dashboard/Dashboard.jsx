@@ -5,8 +5,7 @@ import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { NutritionLabel } from '../../components/NutritionLabel/NutritionLabel';
 import { StatBadge } from '../../components/StatBadge/StatBadge';
-import { AIQuoteCard } from '../../components/AIQuoteCard/AIQuoteCard';
-import { QuoteCard } from '../../components/QuoteCard/QuoteCard';
+import { RotatingQuoteCard } from '../../components/RotatingQuoteCard/RotatingQuoteCard';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { BookOpen, Zap, Clock, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -390,7 +389,7 @@ export function Dashboard() {
         </GlassCard>
 
         <div className="bento-quote">
-          {aiQuotes.length > 0 && <AIQuoteCard quote={aiQuotes[0]} onRefresh={refreshInsights} />}
+          <RotatingQuoteCard quotes={quoteExtracts} />
         </div>
 
         <motion.div whileHover={{ y: -4 }} className="bento-review">
@@ -418,17 +417,6 @@ export function Dashboard() {
           </GlassCard>
         </motion.div>
       </div>
-
-      {quoteExtracts.length > 0 && (
-        <div className="quotes-section">
-          <h2 className="quotes-section-title">📝 内容金句摘录</h2>
-          <div className="quotes-grid">
-            {quoteExtracts.map((q) => (
-              <QuoteCard key={q.id} quote={q} />
-            ))}
-          </div>
-        </div>
-      )}
 
       <AnimatePresence>
         {isReviewOpen && (
