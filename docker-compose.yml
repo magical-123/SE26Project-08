@@ -36,6 +36,8 @@ services:
     image: ghcr.io/magical-123/se26project-08-crawler:latest
     container_name: infodigest-crawler
     restart: always
+    environment:
+      - BACKEND_URL=http://backend:8080
 
   # 看门狗：每隔 5 分钟自动检查是否有新镜像，自动拉取重启
   watchtower:
