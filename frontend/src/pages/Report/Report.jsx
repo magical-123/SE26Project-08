@@ -378,6 +378,12 @@ export function Report() {
     }
   };
 
+  const personaText = React.useMemo(() => {
+    if (!insight?.insightFullText) return null;
+    const match = insight.insightFullText.match(/【用户画像】\s*([\s\S]*?)(?=【|$)/);
+    return match ? match[1].trim() : null;
+  }, [insight]);
+
   const pieOption = React.useMemo(() => ({
     backgroundColor: 'transparent',
     tooltip: { trigger: 'item' },
@@ -588,6 +594,16 @@ export function Report() {
                   i % 2 === 1 ? <strong key={i}>{part}</strong> : part
                 )}
               </div>
+              {personaText && (
+                <div className="insight-persona" style={{ marginTop: '16px', padding: '16px', background: 'rgba(255, 255, 255, 0.4)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.5)' }}>
+                  <h4 style={{ fontSize: '14px', marginBottom: '8px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                    <span style={{ fontSize: '16px' }}>👤</span> 用户画像
+                  </h4>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                    {personaText}
+                  </div>
+                </div>
+              )}
               <div className="insight-actions">
                 <button className="insight-detail-btn" onClick={() => setShowInsightDrawer(true)}>
                   <Eye size={14} />
