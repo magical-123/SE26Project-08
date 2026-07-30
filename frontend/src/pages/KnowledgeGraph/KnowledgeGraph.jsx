@@ -10,7 +10,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
-import { ZoomIn, ZoomOut, Eye, EyeOff, Camera, Sparkles, WifiOff } from 'lucide-react';
+import { ZoomIn, ZoomOut, Eye, EyeOff, Camera, Sparkles, WifiOff, RotateCcw } from 'lucide-react';
 import { buildGraphData, ConceptNode, SourceNode, MAX_LABEL_LENGTH } from './graphShared';
 import { graphApi } from '../../utils/api';
 import { cacheData, getCachedData } from '../../utils/cache';
@@ -166,6 +166,22 @@ function KnowledgeGraphInner() {
   useEffect(() => {
     focusedNodeIdRef.current = focusedNodeId;
   }, [focusedNodeId]);
+
+  const resetLayout = async () => {
+    if (!window.confirm("确定要重置所有节点的位置并恢复默认布局吗？")) return;
+    try {
+      await fetch(`${API_BASE}/api/graph/positions`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      localStorage.removeItem('kg_viewport');
+      setSavedViewport(null);
+      setSavedPositions({});
+      setRefreshKey(k => k + 1);
+    } catch (e) {
+      console.error('重置布局失败:', e);
+    }
+  };
 
   const toggleConcept = (conceptId) => {
     setVisibleConcepts(prev => {
@@ -404,7 +420,7 @@ function KnowledgeGraphInner() {
 
     // No saved viewport → fitView once
     requestAnimationFrame(() => {
-      reactFlowInstance.fitView({ padding: 0.2, duration: 0 });
+      reactFlowInstance.fitView({ padding: 0.08, duration: 0 });
     });
   }, [enhancedNodes, reactFlowInstance, savedViewport]);
 
@@ -659,8 +675,8 @@ function KnowledgeGraphInner() {
         )}
       </div>
 
-      {/* Floating controls */}
       <div className="kg-controls">
+        <button onClick={resetLayout} title="重置布局"><RotateCcw size={16} /></button>
         <button onClick={() => reactFlowInstance?.zoomIn()} title="放大"><ZoomIn size={16} /></button>
         <button onClick={() => reactFlowInstance?.zoomOut()} title="缩小"><ZoomOut size={16} /></button>
         <button onClick={exportImage} title="导出图片"><Camera size={16} /></button>
