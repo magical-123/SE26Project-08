@@ -139,10 +139,25 @@ public class InboxController {
         if (item.getTitle() != null && item.getPlatform() != null) {
             Optional<InformationItem> existing = informationItemRepository
                     .findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(userId, item.getTitle(), item.getPlatform());
+            // 标题不匹配时，用 URL 作为二级匹配（收藏夹和历史记录的标题可能略有差异）
+            if (!existing.isPresent() && item.getUrl() != null && !item.getUrl().isBlank()) {
+                existing = informationItemRepository
+                        .findTopByUserIdAndUrlAndPlatformOrderByCrawledAtDesc(userId, item.getUrl(), item.getPlatform());
+            }
             if (existing.isPresent()) {
                 InformationItem existingItem = existing.get();
+                boolean changed = false;
                 if (shouldUpdateAuthor(existingItem.getAuthor(), item.getAuthor())) {
                     existingItem.setAuthor(item.getAuthor().trim());
+                    changed = true;
+                }
+                // 收藏夹写入时自动升格为优质信息源
+                if (Boolean.TRUE.equals(item.getIsPremium())
+                        && !Boolean.TRUE.equals(existingItem.getIsPremium())) {
+                    existingItem.setIsPremium(true);
+                    changed = true;
+                }
+                if (changed) {
                     informationItemRepository.save(existingItem);
                 }
                 System.out.println("[Inbox] 跳过重复数据: " + item.getTitle() + " (" + item.getPlatform() + ")");
@@ -187,11 +202,16 @@ public class InboxController {
                     continue;
                 }
 
-                // 去重检查
+                // 去重检查：标题+平台 或 URL+平台
                 if (item.getTitle() != null && item.getPlatform() != null) {
                     Optional<InformationItem> existing = informationItemRepository
                             .findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(
                                     userId, item.getTitle(), item.getPlatform());
+                    if (!existing.isPresent() && item.getUrl() != null && !item.getUrl().isBlank()) {
+                        existing = informationItemRepository
+                                .findTopByUserIdAndUrlAndPlatformOrderByCrawledAtDesc(
+                                        userId, item.getUrl(), item.getPlatform());
+                    }
                     if (existing.isPresent()) {
                         InformationItem existingItem = existing.get();
                         boolean changed = false;
@@ -222,6 +242,12 @@ public class InboxController {
                         if (item.getIsFavorite() != null
                                 && !item.getIsFavorite().equals(existingItem.getIsFavorite())) {
                             existingItem.setIsFavorite(item.getIsFavorite());
+                            changed = true;
+                        }
+                        // 收藏夹写入时自动升格为优质信息源
+                        if (Boolean.TRUE.equals(item.getIsPremium())
+                                && !Boolean.TRUE.equals(existingItem.getIsPremium())) {
+                            existingItem.setIsPremium(true);
                             changed = true;
                         }
                         if (changed) {
