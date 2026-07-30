@@ -5,7 +5,7 @@ def run_ssh_command(host, user, password, command):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(host, username=user, password=password, timeout=10)
+        client.connect(host, username=user, password=password, timeout=600)
         stdin, stdout, stderr = client.exec_command(command)
         
         out = stdout.read().decode('utf-8', errors='replace')
@@ -14,7 +14,8 @@ def run_ssh_command(host, user, password, command):
         
         return out, err, status
     except Exception as e:
-        return "", str(e), -1
+        import traceback
+        return "", traceback.format_exc(), -1
     finally:
         client.close()
 

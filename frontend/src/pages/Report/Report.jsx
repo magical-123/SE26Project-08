@@ -4,6 +4,8 @@ import ReactECharts from 'echarts-for-react';
 import 'echarts-wordcloud';
 import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { Download, ArrowRight, Sparkles, Info, RefreshCw, Eye } from 'lucide-react';
+import { cacheData, getCachedData } from '../../utils/cache';
+import { fetchData as timedFetch } from '../../utils/api';
 import { PosterModal } from '../../components/PosterModal/PosterModal';
 import { InsightDrawer } from '../../components/InsightDrawer/InsightDrawer';
 import { useToast } from '../../components/Toast/Toast';
@@ -46,20 +48,35 @@ export function Report() {
   const [isRegeneratingWordCloud, setIsRegeneratingWordCloud] = useState(false);
   const [isRegeneratingTopics, setIsRegeneratingTopics] = useState(false);
 
+  // 辅助函数：合并缓存
+  const updateReportCache = (partial) => {
+    const existing = getCachedData('report') || {};
+    cacheData('report', { ...existing, ...partial });
+  };
+
   // 获取营养数据
   useEffect(() => {
     const fetchNutritionData = async () => {
+      // 1. 立即展示缓存
+      const cached = getCachedData('report');
+      if (cached && cached.nutritionData) {
+        setNutritionData(cached.nutritionData);
+        setTotalHours(cached.totalHours || 0);
+        setHasNutritionData(true);
+      }
+
+      // 2. 后台请求最新数据
       try {
-        const response = await fetch(`${API_BASE}/api/dashboard/nutrition?type=${activeTab}`, {
+        const response = await timedFetch(`${API_BASE}/api/dashboard/nutrition?type=${activeTab}`, {
           headers: getAuthHeaders()
         });
         if (response.ok) {
           const result = await response.json();
-          console.log('Nutrition API response:', result);
           setNutritionData(result.data || []);
           setTotalHours(result.totalHours || 0);
           setHasNutritionData(result.hasData === true);
-        } else {
+          updateReportCache({ nutritionData: result.data || [], totalHours: result.totalHours || 0 });
+        } else if (!cached || !cached.nutritionData) {
           console.error('Nutrition API error:', response.status);
           setNutritionData([]);
           setTotalHours(0);
@@ -67,9 +84,11 @@ export function Report() {
         }
       } catch (error) {
         console.error('获取营养数据失败:', error);
-        setNutritionData([]);
-        setTotalHours(0);
-        setHasNutritionData(false);
+        if (!cached || !cached.nutritionData) {
+          setNutritionData([]);
+          setTotalHours(0);
+          setHasNutritionData(false);
+        }
       }
     };
     fetchNutritionData();
@@ -78,32 +97,43 @@ export function Report() {
   // 获取词云数据
   useEffect(() => {
     const fetchWordCloudData = async () => {
+      // 1. 立即展示缓存
+      const cached = getCachedData('report');
+
+      if (activeTab === 'daily') {
+        if (cached && cached.dailyWordCloud) {
+          setDailyWordCloud(cached.dailyWordCloud);
+        }
+      } else {
+        if (cached && cached.weeklyWordCloudHistory) {
+          setWeeklyWordCloudHistory(cached.weeklyWordCloudHistory);
+        }
+      }
+
+      // 2. 后台请求最新数据
       try {
         if (activeTab === 'daily') {
-          // 获取今日词云
-          const response = await fetch(`${API_BASE}/api/dashboard/wordcloud`, {
+          const response = await timedFetch(`${API_BASE}/api/dashboard/wordcloud`, {
             headers: getAuthHeaders()
           });
           if (response.ok) {
             const data = await response.json();
-            console.log('[词云数据] 今日词云原始数据:', data);
             setDailyWordCloud(data || []);
+            updateReportCache({ dailyWordCloud: data || [] });
+          } else if (!cached || !cached.dailyWordCloud) {
+            console.error('[词云] 今日词云API失败:', response.status);
           }
         } else {
-          // 获取近7天词云历史
-          const response = await fetch(`${API_BASE}/api/dashboard/wordcloud/history`, {
+          const response = await timedFetch(`${API_BASE}/api/dashboard/wordcloud/history`, {
             headers: getAuthHeaders()
           });
           if (response.ok) {
             const data = await response.json();
-            console.log('[词云数据] 7天历史数据:', data);
-            console.log('[词云数据] 今天的日期:', new Date().toISOString().split('T')[0]);
-            console.log('[词云数据] 第一条的reportDate:', data.length > 0 ? data[0].reportDate : 'N/A');
             setWeeklyWordCloudHistory(data || []);
-            // 默认显示第一天（最新日期，因为数据是降序排列的）
-            if (data.length > 0) {
-              setTimeIndex(0);
-            }
+            updateReportCache({ weeklyWordCloudHistory: data || [] });
+            if (data.length > 0) setTimeIndex(0);
+          } else if (!cached || !cached.weeklyWordCloudHistory) {
+            console.error('[词云] 历史词云API失败:', response.status);
           }
         }
       } catch (error) {
@@ -116,15 +146,24 @@ export function Report() {
   // 获取话题聚类数据
   useEffect(() => {
     const fetchTopicClusters = async () => {
+      // 1. 立即展示缓存
+      const cached = getCachedData('report');
+      if (cached && cached.topicClusters) {
+        setTopicClusters(cached.topicClusters);
+      }
+
+      // 2. 后台请求最新数据
       try {
         const type = activeTab === 'daily' ? 'daily' : 'weekly';
-        const response = await fetch(`${API_BASE}/api/report/topics?type=${type}`, {
+        const response = await timedFetch(`${API_BASE}/api/report/topics?type=${type}`, {
           headers: getAuthHeaders()
         });
         if (response.ok) {
           const data = await response.json();
-          console.log('[话题聚类] 数据:', data);
           setTopicClusters(data || []);
+          updateReportCache({ topicClusters: data || [] });
+        } else if (!cached || !cached.topicClusters) {
+          console.error('[话题聚类] API失败:', response.status);
         }
       } catch (error) {
         console.error('获取话题聚类失败:', error);
@@ -136,9 +175,17 @@ export function Report() {
   // 获取洞察数据
   useEffect(() => {
     const fetchInsight = async () => {
+      // 1. 立即展示缓存
+      const cached = getCachedData('report');
+      if (cached && cached.insight) {
+        setInsight(cached.insight);
+        setHasInsight(cached.hasInsight);
+      }
+
+      // 2. 后台请求最新数据
       try {
         const type = activeTab.toUpperCase();
-        const response = await fetch(`${API_BASE}/api/insights/latest?type=${type}`, {
+        const response = await timedFetch(`${API_BASE}/api/insights/latest?type=${type}`, {
           headers: getAuthHeaders()
         });
         if (response.ok) {
@@ -146,10 +193,14 @@ export function Report() {
           if (data.success && data.hasReport) {
             setInsight(data.report);
             setHasInsight(true);
+            updateReportCache({ insight: data.report, hasInsight: true });
           } else {
             setInsight(null);
             setHasInsight(false);
+            updateReportCache({ insight: null, hasInsight: false });
           }
+        } else if (!cached || !cached.insight) {
+          console.error('[洞察] API失败:', response.status);
         }
       } catch (error) {
         console.error('获取洞察失败:', error);
@@ -428,15 +479,21 @@ export function Report() {
       <header className="report-header">
         <h1>数字饮食报告</h1>
         <div className="report-tabs">
-          <button 
+          <button
             className={activeTab === 'weekly' ? 'active' : ''}
-            onClick={() => setActiveTab('weekly')}
+            onClick={() => {
+              setActiveTab('weekly');
+              setSelectedWord(null); // 切换标签页时清空溯源界面
+            }}
           >
             周报
           </button>
-          <button 
+          <button
             className={activeTab === 'daily' ? 'active' : ''}
-            onClick={() => setActiveTab('daily')}
+            onClick={() => {
+              setActiveTab('daily');
+              setSelectedWord(null); // 切换标签页时清空溯源界面
+            }}
           >
             日报
           </button>
