@@ -4,6 +4,7 @@ import { FriendGraphView } from '../../components/FriendGraphView/FriendGraphVie
 import { FriendTrendView } from '../../components/FriendTrendView/FriendTrendView';
 import { UserPlus, Search, X, Check, Loader2, Eye, ChevronDown, TrendingUp } from 'lucide-react';
 import { cacheData, getCachedData } from '../../utils/cache';
+import { setGlobalOffline } from '../../utils/offlineStore';
 import './Social.css';
 
 const API_BASE = '';
@@ -166,6 +167,7 @@ export function Social() {
         cacheData('social', { friends: friendsData, requests: requestsData });
       })
       .catch(() => {
+        setGlobalOffline(true);
       })
       .finally(() => setLoading(false));
   };

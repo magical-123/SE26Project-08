@@ -3,7 +3,7 @@
  */
 
 const OFFLINE_EVENT = 'app:offline';
-const PING_URL = '/api/ping';
+const PING_URL = '/api/health/db';
 
 let _offline = false;
 
@@ -34,12 +34,29 @@ export function onGlobalOfflineChange(handler) {
 }
 
 /**
- * 检测连接状态：ping /api/ping，根据结果设置离线状态
- * 在页面刷新或切换页面时调用
+ * 检测连接状态。
+ * @param {Object} [options]
+ * @param {boolean} [options.optimistic=true] - 是否先乐观标记离线（刷新用 true，页面切换用 false）
+ *
+ * - 刷新时乐观标记 → banner 秒出，ping 成功再清除
+ * - 页面切换时不乐观标记 → 不闪，ping 失败才显示
  */
-export function checkConnection() {
+export function checkConnection(options = {}) {
+  const { optimistic = true } = options;
+
+  // 浏览器明确离线 → 立即标记（无论是否 optimistic）
+  if (!navigator.onLine) {
+    setGlobalOffline(true);
+    return;
+  }
+
+  // 刷新场景：先乐观标记，等 ping 确认
+  if (optimistic) {
+    setGlobalOffline(true);
+  }
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 3000);
 
   fetch(PING_URL, { method: 'GET', signal: controller.signal })
     .then(res => {
@@ -48,6 +65,7 @@ export function checkConnection() {
     })
     .catch(() => {
       clearTimeout(timeout);
-      setGlobalOffline(true);
+      // optimistic 模式下已标记离线，非 optimistic 模式下在此标记
+      if (!optimistic) setGlobalOffline(true);
     });
 }

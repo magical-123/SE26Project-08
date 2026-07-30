@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Compass, BookOpen, Search, PieChart, User, Settings, UserCircle, Menu, X, WifiOff } from 'lucide-react';
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { useInboxItems } from '../hooks/useInboxItems';
@@ -21,21 +21,29 @@ export function RootLayout({ children }) {
   const [avatar, setAvatar] = useState(() => sessionStorage.getItem('avatarUrl'));
   const [username, setUsername] = useState(() => sessionStorage.getItem('username') || 'User');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [globalOffline, setGlobalOffline] = useState(false);
-
-  const location = useLocation();
+  const [globalOffline, setGlobalOffline] = useState(() => !navigator.onLine);
 
   useEffect(() => {
+    // 持久订阅 + 定时检测
     const unsub = onGlobalOfflineChange((offline) => setGlobalOffline(offline));
-    // 刷新或页面切换时检测连接状态
-    checkConnection();
     const handleOffline = () => setGlobalOffline(true);
+    const handleOnline = () => checkConnection({ optimistic: false });
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    // 初始检测（刷新时触发）
+    checkConnection();
+
+    // 每 5 秒定时检测
+    const interval = window.setInterval(() => checkConnection({ optimistic: false }), 5000);
+
     return () => {
       unsub();
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+      window.clearInterval(interval);
     };
-  }, [location.pathname]);
+  }, []);
 
   useEffect(() => {
     const handleAvatarChange = () => {
