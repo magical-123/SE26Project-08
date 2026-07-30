@@ -236,16 +236,6 @@ function KnowledgeGraphInner() {
     }, 300);
   }, [selectedNode, draftNote]);
 
-  const handleRegenerateSummary = async (id) => {
-    try {
-      await inboxApi.regenerateSummary(id);
-      alert('已重新触发该卡片的 AI 摘要生成，请稍后刷新图谱查看');
-    } catch (e) {
-      console.error('重新生成摘要失败:', e);
-      alert('重新生成摘要失败，请重试');
-    }
-  };
-
   const handleToggleKeyword = (kw) => {
     const itemId = selectedNode?.data?.id;
     if (!itemId) return;
@@ -719,7 +709,6 @@ function KnowledgeGraphInner() {
         onToggleKeyword={handleToggleKeyword}
         onDeleteKeyword={handleDeleteKeyword}
         onAddKeyword={handleAddKeyword}
-        onRegenerateSummary={handleRegenerateSummary}
       />
     </div>
   );
