@@ -392,4 +392,14 @@ export const authApi = {
   },
 };
 
+// ===== Persona API =====
+export const personaApi = {
+  /** 获取 AI 洞察画像 */
+  async getPersona(forceRefresh = false) {
+    const url = `/api/persona${forceRefresh ? '?forceRefresh=true' : ''}`;
+    const res = await apiFetch(url);
+    return await res.json();
+  }
+};
+
 export default apiFetch;
