@@ -7,10 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DurationMetricsTest {
     @Test
-    void usesOnlyRealWatchDuration() {
+    void prefersRealWatchDurationAndFallsBackToDurationMinutes() {
         InformationItem item = new InformationItem();
         item.setDurationMinutes(30);
-        assertEquals(0, DurationMetrics.effectiveSeconds(item));
+        assertEquals(1800, DurationMetrics.effectiveSeconds(item));
 
         item.setWatchDurationSeconds(125);
         assertEquals(125, DurationMetrics.effectiveSeconds(item));
