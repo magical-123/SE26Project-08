@@ -14,7 +14,7 @@ public interface UserTopicClusterRepository extends JpaRepository<UserTopicClust
     /**
      * 查询指定用户指定日期的话题聚类
      */
-    Optional<UserTopicCluster> findByUserIdAndReportDate(Long userId, LocalDate reportDate);
+    Optional<UserTopicCluster> findFirstByUserIdAndReportDateOrderByCreatedAtDesc(Long userId, LocalDate reportDate);
 
     /**
      * 获取用户所有聚类报告，按日期倒序

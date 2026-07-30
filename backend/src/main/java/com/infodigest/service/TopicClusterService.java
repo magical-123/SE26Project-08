@@ -69,7 +69,7 @@ public class TopicClusterService {
      */
     public List<Map<String, Object>> getTopicClusters(Long userId, LocalDate reportDate) throws Exception {
         Optional<UserTopicCluster> topicClusterOpt = topicClusterRepository
-                .findByUserIdAndReportDate(userId, reportDate);
+                .findFirstByUserIdAndReportDateOrderByCreatedAtDesc(userId, reportDate);
 
         if (topicClusterOpt.isPresent()) {
             UserTopicCluster topicCluster = topicClusterOpt.get();
@@ -106,7 +106,7 @@ public class TopicClusterService {
             // 如果本日没有已分析内容，删除已存在的日报话题聚类数据
             try {
                 Optional<UserTopicCluster> existingCluster = topicClusterRepository
-                        .findByUserIdAndReportDate(userId, reportDate);
+                        .findFirstByUserIdAndReportDateOrderByCreatedAtDesc(userId, reportDate);
                 if (existingCluster.isPresent()) {
                     topicClusterRepository.delete(existingCluster.get());
                     log.info("已删除用户 {} 在 {} 的旧话题聚类数据（因无已分析内容）", userId, reportDate);
@@ -148,7 +148,7 @@ public class TopicClusterService {
             // 如果本周没有已分析内容，删除已存在的周报话题聚类数据
             try {
                 Optional<UserTopicCluster> existingCluster = topicClusterRepository
-                        .findByUserIdAndReportDate(userId, monday);
+                        .findFirstByUserIdAndReportDateOrderByCreatedAtDesc(userId, monday);
                 if (existingCluster.isPresent()) {
                     topicClusterRepository.delete(existingCluster.get());
                     log.info("已删除用户 {} 本周 {} 的旧话题聚类数据（因无已分析内容）", userId, monday);
@@ -177,7 +177,7 @@ public class TopicClusterService {
             String clustersJson = objectMapper.writeValueAsString(clusters);
 
             UserTopicCluster topicCluster = topicClusterRepository
-                    .findByUserIdAndReportDate(userId, reportDate)
+                    .findFirstByUserIdAndReportDateOrderByCreatedAtDesc(userId, reportDate)
                     .orElse(new UserTopicCluster());
 
             topicCluster.setUserId(userId);
