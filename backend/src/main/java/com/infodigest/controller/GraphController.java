@@ -274,6 +274,14 @@ public class GraphController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/positions")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> deletePositions() {
+        Long userId = getCurrentUserId();
+        nodePositionRepository.deleteByUserId(userId);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/item-keywords/{itemId}")
     public ResponseEntity<List<KeywordSuggestion>> getItemKeywords(@PathVariable Long itemId) {
         Long userId = getCurrentUserId();
