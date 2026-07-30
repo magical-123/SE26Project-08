@@ -183,19 +183,34 @@ function classifyByText(title, excerpt) {
 function isSubtitleRelevant(title, subtitle) {
   if (!title || !subtitle) return false;
 
-  // 从标题中提取关键词（2字以上的连续中文字符或英文单词）
+  // 从标题中提取关键词
   const keywords = [];
+
   // 中文关键词：2-4 个连续汉字
-  const cnMatches = title.match(/[\u4e00-\u9fa5]{2,4}/g);
+  const cnMatches = title.match(/[一-龥]{2,4}/g);
   if (cnMatches) keywords.push(...cnMatches);
-  // 英文关键词：4个字母以上的单词
-  const enMatches = title.match(/[a-zA-Z]{4,}/g);
+
+  // 英文关键词：3个字母以上的单词（降低门槛以捕获CS2等短词）
+  const enMatches = title.match(/[a-zA-Z]{3,}/g);
   if (enMatches) keywords.push(...enMatches);
 
-  if (keywords.length === 0) return true; // 无法提取关键词时放行
+  // 数字关键词：2位以上的数字（如1800、2200）
+  const numMatches = title.match(/\d{2,}/g);
+  if (numMatches) keywords.push(...numMatches);
 
-  // 停用词
-  const stopWords = new Set(['什么', '怎么', '为什么', '如何', '一个', '这个', '那个', '可以', '不能', '不是', '就是', '还是', '有没有', '为什么', '怎么样']);
+  // 字母数字组合：如5e、CS2等
+  const alphanumMatches = title.match(/[a-zA-Z]+\d+|\d+[a-zA-Z]+/gi);
+  if (alphanumMatches) keywords.push(...alphanumMatches);
+
+  if (keywords.length === 0) return true;
+
+  // 停用词（扩展停用词列表，避免通用词误判）
+  const stopWords = new Set([
+    '什么', '怎么', '为什么', '如何', '一个', '这个', '那个',
+    '可以', '不能', '不是', '就是', '还是', '有没有', '怎么样',
+    '我们', '你们', '他们', '这样', '那样', '这里', '那里',
+    '知道', '看看', '想要', '需要', '应该', '必须', '可能'
+  ]);
 
   // 检查字幕中是否包含至少一个关键词（排除停用词）
   const relevantKeywords = keywords.filter(k => !stopWords.has(k));
@@ -459,24 +474,79 @@ async function crawlBilibili(getToken) {
             const info = await bl.fetchVideoInfo(client, aid);
             const cid = info.cid || (info.pages && info.pages[0]?.cid);
             if (!cid) return;
-            const subs = await bl.fetchSubtitleList(client, aid, cid);
-            if (subs.length > 0) {
-              const text = await bl.fetchSubtitleText(client, subs[0].url);
-              // 校验字幕与标题的相关性：字幕中应包含标题中的关键词
-              const title = (item.title || '').trim();
-              if (title && text && isSubtitleRelevant(title, text)) {
-                subtitleMap.set(aid, text);
-                console.log(`    ✓ ${title.substring(0, 30)}... 字幕匹配`);
-              } else {
-                console.log(`    ⚠ ${title.substring(0, 30)}... 字幕不匹配，丢弃`);
+
+            // 重试20次获取字幕，分两组：前5次快速重试，等待10秒后继续15次
+            let bestSubtitle = null;
+            let bestSubtitleLength = 0;
+            let foundRelevantSubtitle = false;
+            const totalRetries = 20;
+            const firstGroupEnd = 5;
+            const title = (item.title || '').trim();
+
+            for (let retry = 0; retry < totalRetries; retry++) {
+              if (retry > 0) {
+                if (retry === firstGroupEnd) {
+                  // 第5次和第6次之间，等待10秒
+                  await new Promise(resolve => setTimeout(resolve, 10000));
+                } else {
+                  // 其他重试，等待3秒
+                  await new Promise(resolve => setTimeout(resolve, 3000));
+                }
               }
+
+              const subs = await bl.fetchSubtitleList(client, aid, cid);
+              if (subs.length === 0) continue;
+
+              // 优先选择中文字幕
+              let selectedSub = subs.find(s =>
+                s.lan === '中文' || s.lan === 'zh-CN' || s.lan === 'zh-Hans' || s.lan === '中文（中国）'
+              );
+              if (!selectedSub) selectedSub = subs[0];
+
+              const text = await bl.fetchSubtitleText(client, selectedSub.url);
+              if (!text || text.length === 0) continue;
+
+              // 检查是否是音乐字幕
+              const musicSymbolCount = (text.match(/♪/g) || []).length;
+              const musicWordCount = (text.match(/音乐/g) || []).length;
+              const isMusicSubtitle = (musicSymbolCount > 10 || musicWordCount > 5) && text.length < 500;
+
+              // 检查相关性
+              const isRelevant = title && isSubtitleRelevant(title, text);
+
+              if (isMusicSubtitle && subs.length === 1 && retry < totalRetries - 1) {
+                // 只有1条字幕且是音乐字幕，继续重试
+                continue;
+              }
+
+              if (!isRelevant && retry < totalRetries - 1) {
+                // 字幕不相关且还有重试机会，继续重试
+                continue;
+              }
+
+              // 保存最佳字幕
+              if (isRelevant) {
+                bestSubtitle = text;
+                foundRelevantSubtitle = true;
+                break; // 找到相关字幕，立即退出
+              } else if (text.length > bestSubtitleLength && !isMusicSubtitle) {
+                bestSubtitle = text;
+                bestSubtitleLength = text.length;
+              }
+            }
+
+            // 保存结果
+            if (bestSubtitle && foundRelevantSubtitle) {
+              subtitleMap.set(aid, bestSubtitle);
+              console.log(`    ✓ ${title.substring(0, 30)}... 字幕匹配`);
+            } else if (bestSubtitle) {
+              console.log(`    ⚠ ${title.substring(0, 30)}... 字幕不匹配，丢弃`);
             }
           }, `B站-字幕-${item.title}`);
         } catch { /* skip */ }
       })()
     );
   }
-  // 并行等待所有字幕提取完成
   await Promise.allSettled(subtitlePromises);
 
   // 写入后端：收藏的视频直接标记为优质信息源
