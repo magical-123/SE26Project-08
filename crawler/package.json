@@ -7,10 +7,18 @@
     "start": "node index.js",
     "dev": "node --watch index.js"
   },
-  "keywords": ["crawler", "bilibili", "zhihu", "xiaohongshu", "github", "infodigest"],
+  "keywords": [
+    "crawler",
+    "bilibili",
+    "zhihu",
+    "xiaohongshu",
+    "github",
+    "infodigest"
+  ],
   "license": "MIT",
   "dependencies": {
     "axios": "^1.7.0",
+    "express": "^5.2.1",
     "playwright": "^1.61.1"
   }
 }

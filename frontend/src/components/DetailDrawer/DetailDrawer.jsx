@@ -165,7 +165,7 @@ export function DetailDrawer({ isOpen, onClose, data, draftNote, suggestedKeywor
                     {d.aiSummary || (d.processStatus === 'FAILED' ? '生成摘要失败' : '暂无摘要')}
                   </p>
                 )}
-                {!d.aiSummary && d.processStatus !== 'UNPROCESSED' && onRegenerateSummary && (
+                {(!d.aiSummary || !nutritionBars) && d.processStatus !== 'UNPROCESSED' && onRegenerateSummary && (
                   <button
                     className="regenerate-summary-btn"
                     onClick={() => onRegenerateSummary(d.id)}
