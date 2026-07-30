@@ -249,7 +249,8 @@ export function Report() {
 
         console.log('[溯源] 请求URL:', url);
         const response = await fetch(url, {
-          headers: getAuthHeaders()
+          headers: getAuthHeaders(),
+          cache: 'no-store'
         });
         console.log('[溯源] API响应状态:', response.ok, response.status);
         if (response.ok) {
