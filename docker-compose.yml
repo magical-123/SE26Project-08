@@ -6,6 +6,7 @@ services:
     container_name: infodigest-backend
     restart: always
     environment:
+      - TZ=Asia/Shanghai
       # 请在 .env 中填入宿主机的内网 IP 以连接原生数据库和缓存
       - DB_URL=${DB_URL}
       - DB_USERNAME=${DB_USERNAME}
@@ -39,6 +40,7 @@ services:
     container_name: infodigest-crawler
     restart: always
     environment:
+      - TZ=Asia/Shanghai
       - BACKEND_URL=http://backend:8080
 
   # 看门狗：每隔 5 分钟自动检查是否有新镜像，自动拉取重启
