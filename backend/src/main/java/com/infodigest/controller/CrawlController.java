@@ -74,43 +74,27 @@ public class CrawlController {
             // 生成该用户的 JWT Token（有效期 1 小时，足够爬虫使用）
             String crawlerToken = jwtUtil.generateToken(username, user.getId());
             
-            // 构建命令：node index.js [--platform=xxx] --auth-token=xxx --user-id=xxx --limit=10
-            // 手动触发（首次连接）抓取最近 10 条，避免大量历史数据涌入
-            List<String> command = new ArrayList<>();
-            command.add("node");
-            command.add(crawlerScriptPath);
-            if (!"all".equalsIgnoreCase(platform)) {
-                command.add("--platform=" + platform.toLowerCase());
+            // 通过 HTTP 调用独立的爬虫微服务
+            String crawlerUrl = System.getenv("CRAWLER_SERVICE_URL");
+            if (crawlerUrl == null || crawlerUrl.isEmpty()) {
+                crawlerUrl = "http://crawler:3000/crawl"; // 默认在 docker-compose 里的内网地址
             }
-            command.add("--auth-token=" + crawlerToken);
-            command.add("--user-id=" + user.getId());
-            command.add("--limit=10");
 
-            ProcessBuilder processBuilder = new ProcessBuilder(command);
-            // 设置工作目录。Spring Boot 运行时 user.dir 可能是项目根目录或 target
-            String userDir = System.getProperty("user.dir");
-            processBuilder.directory(new java.io.File(userDir));
-            processBuilder.redirectErrorStream(true);
+            Map<String, Object> requestBody = new HashMap<>();
+            if (!"all".equalsIgnoreCase(platform)) {
+                requestBody.put("platform", platform.toLowerCase());
+            }
+            requestBody.put("authToken", crawlerToken);
+            requestBody.put("userId", user.getId());
+            requestBody.put("limit", 10);
 
-            Process process = processBuilder.start();
-
-            // 异步读取输出
-            new Thread(() -> {
-                try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                        new java.io.InputStreamReader(process.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        System.out.println("[Crawler-" + platform + "] " + line);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }).start();
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            restTemplate.postForObject(crawlerUrl, requestBody, Map.class);
 
             result.put("status", "started");
             result.put("platform", platform);
             result.put("user", username);
-            result.put("message", "爬虫已启动，数据将在几分钟内同步到 Inbox");
+            result.put("message", "爬虫微服务已触发，数据将在几分钟内同步到 Inbox");
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {
