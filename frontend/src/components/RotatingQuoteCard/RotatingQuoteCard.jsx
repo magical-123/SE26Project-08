@@ -16,16 +16,16 @@ export function RotatingQuoteCard({ quotes }) {
   const [modalIndex, setModalIndex] = useState(0);
 
   // 随机选一个初始索引
-  const randomIndex = useCallback(() => Math.floor(Math.random() * Math.max(quotes.length, 1)), [quotes.length]);
+  const randomIndex = useCallback(() => Math.floor(Math.random() * Math.max(quotes?.length ?? 0, 1)), [quotes?.length]);
 
   useEffect(() => {
-    if (quotes.length === 0) return;
+    if (!quotes || quotes.length === 0) return;
     setCurrentIndex(randomIndex());
-  }, [quotes.length, randomIndex]);
+  }, [quotes, randomIndex]);
 
   // 自动轮换
   useEffect(() => {
-    if (quotes.length < 2) return;
+    if (!quotes || quotes.length < 2) return;
     const timer = setInterval(() => {
       setCurrentIndex(prev => {
         let next;
@@ -34,7 +34,7 @@ export function RotatingQuoteCard({ quotes }) {
       });
     }, 10000);
     return () => clearInterval(timer);
-  }, [quotes.length]);
+  }, [quotes]);
 
   if (!quotes || quotes.length === 0) {
     return (
