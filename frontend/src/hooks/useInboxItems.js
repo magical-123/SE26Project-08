@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { inboxApi } from '../utils/api';
-import { getCachedData } from '../utils/cache';
-
-const STORAGE_KEY = 'infodigest_inbox_cache_v2';
+import { getCachedData, cacheData } from '../utils/cache';
+import { setGlobalOffline } from '../utils/offlineStore';
 
 /**
  * 格式化后端的 InformationItem 为前端需要的格式
@@ -162,9 +161,9 @@ export function useInboxItems() {
     currentFilterRef.current = filter || 'All';
 
     // 先从缓存读取（离线兜底）
-    let cacheData = null;
+    let cachedInbox = null;
     try {
-      cacheData = getCachedData('inbox');
+      cachedInbox = getCachedData('inbox');
     } catch { /* ignore */ }
 
     try {
@@ -174,8 +173,8 @@ export function useInboxItems() {
 
       // 与缓存合并 note/keywords
       let merged = formatted;
-      if (cacheData && Array.isArray(cacheData)) {
-        const cacheMap = new Map(cacheData.map(c => [c.id, c]));
+      if (cachedInbox && Array.isArray(cachedInbox)) {
+        const cacheMap = new Map(cachedInbox.map(c => [c.id, c]));
         merged = formatted.map(item => {
           const cached = cacheMap.get(item.id);
           if (!cached) return item;
@@ -194,12 +193,13 @@ export function useInboxItems() {
 
       // 缓存当前页（仅缓存 note/keywords 字段供后续合并）
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        cacheData('inbox', merged);
       } catch { /* ignore */ }
     } catch (err) {
       console.warn('API 请求失败:', err.message);
-      if (cacheData && Array.isArray(cacheData)) {
-        setItems(cacheData);
+      setGlobalOffline(true);
+      if (cachedInbox && Array.isArray(cachedInbox)) {
+        setItems(cachedInbox);
       }
       setError('API 连接失败，使用本地数据');
     } finally {
@@ -266,7 +266,7 @@ export function useInboxItems() {
       );
 
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        cacheData('inbox', updated);
       } catch {}
 
       inboxApi.updateItem(id, { isPremium: newIsPremium }).catch((err) => {
@@ -278,7 +278,7 @@ export function useInboxItems() {
         );
         setItems(rolledBack);
         try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rolledBack));
+          cacheData('inbox', rolledBack);
         } catch {}
       });
 
@@ -294,7 +294,7 @@ export function useInboxItems() {
           : item
       );
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        cacheData('inbox', updated);
       } catch {}
       return updated;
     });
@@ -341,7 +341,7 @@ export function useInboxItems() {
           item.id === id ? { ...item, aiSummary: null, processStatus: 'UNPROCESSED' } : item
         );
         try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+          cacheData('inbox', updated);
         } catch {}
         return updated;
       });
