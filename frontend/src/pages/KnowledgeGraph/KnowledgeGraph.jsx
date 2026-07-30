@@ -12,7 +12,7 @@ import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
 import { ZoomIn, ZoomOut, Eye, EyeOff, Camera, Sparkles, WifiOff, RotateCcw } from 'lucide-react';
 import { buildGraphData, ConceptNode, SourceNode, MAX_LABEL_LENGTH } from './graphShared';
-import { graphApi } from '../../utils/api';
+import { graphApi, inboxApi } from '../../utils/api';
 import { cacheData, getCachedData } from '../../utils/cache';
 import './KnowledgeGraph.css';
 
@@ -40,6 +40,7 @@ function KnowledgeGraphInner() {
   const { items } = useInboxItems();
   const [selectedKeywords, setSelectedKeywords] = useState([]);
   const [suggestedKeywords, setSuggestedKeywords] = useState([]);
+  const [draftNote, setDraftNote] = useState('');
   const [kgOffline, setKgOffline] = useState(false);
   const reactFlowInstance = useReactFlow();
   const isDraggingRef = useRef(false);
@@ -223,10 +224,26 @@ function KnowledgeGraphInner() {
     }
   }, [reactFlowInstance]);
 
-  const handleDrawerClose = () => {
+  const handleDrawerClose = useCallback(() => {
+    if (selectedNode && selectedNode.data?.id) {
+      // 简单保存用户在图谱里写的笔记，调用 inboxApi
+      inboxApi.updateItem(selectedNode.data.id, { note: draftNote }).catch(() => {});
+    }
     setIsDrawerOpen(false);
-    setSelectedKeywords([]);
-    setSuggestedKeywords([]);
+    setTimeout(() => {
+      setSelectedNode(null);
+      setFocusedNodeId(null);
+    }, 300);
+  }, [selectedNode, draftNote]);
+
+  const handleRegenerateSummary = async (id) => {
+    try {
+      await inboxApi.regenerateSummary(id);
+      alert('已重新触发该卡片的 AI 摘要生成，请稍后刷新图谱查看');
+    } catch (e) {
+      console.error('重新生成摘要失败:', e);
+      alert('重新生成摘要失败，请重试');
+    }
   };
 
   const handleToggleKeyword = (kw) => {
@@ -461,6 +478,7 @@ function KnowledgeGraphInner() {
 
     if (isConcept) {
       setSelectedNode(null);
+      setDraftNote('');
       setIsDrawerOpen(false);
     } else {
       setSelectedNode({
@@ -474,6 +492,8 @@ function KnowledgeGraphInner() {
       // 获取关键词
       const itemId = nodeData?.id || node.id;
       if (itemId) {
+        // 设置草稿笔记，优先使用数据中的 userNote
+        setDraftNote(nodeData?.userNote || '');
         graphApi.getItemKeywords(itemId).then(concepts => {
           const kws = concepts.map(c => c.label);
           const highlighted = concepts.filter(c => c.highlighted !== false).map(c => c.label);
@@ -691,12 +711,15 @@ function KnowledgeGraphInner() {
         isOpen={isDrawerOpen}
         onClose={handleDrawerClose}
         data={selectedNode}
+        draftNote={draftNote}
+        onNoteChange={setDraftNote}
         sourceTitle={selectedNode?.title}
         selectedKeywords={selectedKeywords}
         suggestedKeywords={suggestedKeywords}
         onToggleKeyword={handleToggleKeyword}
         onDeleteKeyword={handleDeleteKeyword}
         onAddKeyword={handleAddKeyword}
+        onRegenerateSummary={handleRegenerateSummary}
       />
     </div>
   );
