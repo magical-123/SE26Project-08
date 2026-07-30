@@ -102,7 +102,7 @@ export function buildGraphData(premiumItems, visibleConcepts, savedPositions, co
       currentAngle += sliceAngle;
     }
 
-    const nodeSize = Math.min(40 + count * 6, 110);
+    const nodeSize = Math.min(50 + count * 15, 200);
     const sliceAngle = saved ? 0 : (weight / totalWeight) * 2 * Math.PI;
     // 计算概念节点相对于原点的角度（已保存则从坐标反算）
     const angleFromOrigin = saved ? Math.atan2(y - cy, x - cx) : centerAngle;
