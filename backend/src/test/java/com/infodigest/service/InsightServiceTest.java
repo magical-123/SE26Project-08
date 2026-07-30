@@ -20,14 +20,14 @@ import static org.mockito.Mockito.*;
 
 class InsightServiceTest {
     @Test
-    void nutritionDistributionUsesRealViewingDurationOnly() throws Exception {
+    void nutritionDistributionUsesRealDurationWithEstimatedFallback() throws Exception {
         InsightService service = new InsightService();
         ReflectionTestUtils.setField(service, "objectMapper", new ObjectMapper());
         InformationItem watched = new InformationItem(); watched.setWatchDurationSeconds(100); watched.setDurationMinutes(60); watched.setNutritionProtein(50); watched.setNutritionFats(50);
         InformationItem estimateOnly = new InformationItem(); estimateOnly.setDurationMinutes(60); estimateOnly.setNutritionProtein(100);
         var method = InsightService.class.getDeclaredMethod("calculateNutritionDistribution", List.class); method.setAccessible(true);
         @SuppressWarnings("unchecked") Map<String,Integer> result = (Map<String,Integer>) method.invoke(service, List.of(watched, estimateOnly));
-        assertEquals(50, result.get("protein")); assertEquals(50, result.get("fats")); assertEquals(0, result.get("carbs"));
+        assertEquals(99, result.get("protein")); assertEquals(1, result.get("fats")); assertEquals(0, result.get("carbs"));
     }
 
     @Test
