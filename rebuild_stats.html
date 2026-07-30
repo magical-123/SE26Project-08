@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>重建用户统计数据</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>重建用户统计数据</h1>
+    <p>请先登录系统，然后点击下面的按钮重建历史统计数据：</p>
+    <button onclick="rebuildStats()" style="padding: 10px 20px; font-size: 16px;">重建统计数据</button>
+    <pre id="result"></pre>
+    
+    <script>
+    async function rebuildStats() {
+        const resultEl = document.getElementById('result');
+        resultEl.textContent = '正在重建统计数据...';
+        
+        try {
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                resultEl.textContent = '错误：未找到token，请先在主应用中登录';
+                return;
+            }
+            
+            const response = await fetch('http://localhost:8080/api/dashboard/rebuild-stats', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+            resultEl.textContent = '错误：' + error.message;
+        }
+    }
+    </script>
+</body>
+</html>

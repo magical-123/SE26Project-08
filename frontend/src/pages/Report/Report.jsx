@@ -146,23 +146,26 @@ export function Report() {
   // 获取话题聚类数据
   useEffect(() => {
     const fetchTopicClusters = async () => {
-      // 1. 立即展示缓存
+      const type = activeTab === 'daily' ? 'daily' : 'weekly';
+
+      // 1. 立即展示对应类型的缓存
       const cached = getCachedData('report');
-      if (cached && cached.topicClusters) {
-        setTopicClusters(cached.topicClusters);
+      const cacheKey = `topicClusters_${type}`;
+      if (cached && cached[cacheKey]) {
+        setTopicClusters(cached[cacheKey]);
       }
 
       // 2. 后台请求最新数据
       try {
-        const type = activeTab === 'daily' ? 'daily' : 'weekly';
         const response = await timedFetch(`${API_BASE}/api/report/topics?type=${type}`, {
           headers: getAuthHeaders()
         });
         if (response.ok) {
           const data = await response.json();
           setTopicClusters(data || []);
-          updateReportCache({ topicClusters: data || [] });
-        } else if (!cached || !cached.topicClusters) {
+          // 使用类型特定的缓存键
+          updateReportCache({ [cacheKey]: data || [] });
+        } else if (!cached || !cached[cacheKey]) {
           console.error('[话题聚类] API失败:', response.status);
         }
       } catch (error) {
