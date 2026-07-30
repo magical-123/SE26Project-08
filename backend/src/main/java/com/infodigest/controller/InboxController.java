@@ -146,19 +146,23 @@ public class InboxController {
             }
             if (existing.isPresent()) {
                 InformationItem existingItem = existing.get();
+                boolean promotedToPremium = Boolean.TRUE.equals(item.getIsPremium())
+                        && !Boolean.TRUE.equals(existingItem.getIsPremium());
                 boolean changed = false;
                 if (shouldUpdateAuthor(existingItem.getAuthor(), item.getAuthor())) {
                     existingItem.setAuthor(item.getAuthor().trim());
                     changed = true;
                 }
                 // 收藏夹写入时自动升格为优质信息源
-                if (Boolean.TRUE.equals(item.getIsPremium())
-                        && !Boolean.TRUE.equals(existingItem.getIsPremium())) {
+                if (promotedToPremium) {
                     existingItem.setIsPremium(true);
                     changed = true;
                 }
                 if (changed) {
                     informationItemRepository.save(existingItem);
+                }
+                if (promotedToPremium) {
+                    triggerKeywordAnalysis(existingItem);
                 }
                 System.out.println("[Inbox] 跳过重复数据: " + item.getTitle() + " (" + item.getPlatform() + ")");
                 return ResponseEntity.ok(existingItem);
@@ -166,6 +170,9 @@ public class InboxController {
         }
 
         InformationItem savedItem = informationItemRepository.save(item);
+        if (Boolean.TRUE.equals(savedItem.getIsPremium())) {
+            triggerKeywordAnalysis(savedItem);
+        }
 
         // 将任务推入 Redis 队列由消费者处理
         analysisQueue.offerAsync(savedItem.getId());
@@ -245,13 +252,17 @@ public class InboxController {
                             changed = true;
                         }
                         // 收藏夹写入时自动升格为优质信息源
-                        if (Boolean.TRUE.equals(item.getIsPremium())
-                                && !Boolean.TRUE.equals(existingItem.getIsPremium())) {
+                        boolean promotedToPremium = Boolean.TRUE.equals(item.getIsPremium())
+                                && !Boolean.TRUE.equals(existingItem.getIsPremium());
+                        if (promotedToPremium) {
                             existingItem.setIsPremium(true);
                             changed = true;
                         }
                         if (changed) {
                             informationItemRepository.save(existingItem);
+                        }
+                        if (promotedToPremium) {
+                            triggerKeywordAnalysis(existingItem);
                         }
                         skipped++;
                         continue;
@@ -260,6 +271,9 @@ public class InboxController {
 
                 InformationItem savedItem = informationItemRepository.save(item);
                 savedItems.add(savedItem);
+                if (Boolean.TRUE.equals(savedItem.getIsPremium())) {
+                    triggerKeywordAnalysis(savedItem);
+                }
                 created++;
             } catch (Exception e) {
                 failed++;
@@ -415,6 +429,14 @@ public class InboxController {
         return !current.equals(incoming) && current.length() > incoming.length() + 3;
     }
 
+    /** Start the same keyword analysis used by manual premium promotion. */
+    private void triggerKeywordAnalysis(InformationItem item) {
+        if (item == null || item.getId() == null || !Boolean.TRUE.equals(item.getIsPremium())) {
+            return;
+        }
+        keywordService.analyzeAndApplyKeywordsAsync(item, item.getUserNote());
+    }
+
     // 更新信息项（真正的 PATCH 语义：只更新请求中明确包含的字段）
     // 使用 Map<String, Object> 代替 InformationItem，避免 Jackson 反序列化时
     // 用实体类的默认值（如 isPremium=false, processStatus="UNPROCESSED"）覆盖已保存的数据
@@ -425,6 +447,7 @@ public class InboxController {
         
         if (existingItem.isPresent()) {
             InformationItem item = existingItem.get();
+            boolean wasPremium = Boolean.TRUE.equals(item.getIsPremium());
             
             if (updates.containsKey("title")) item.setTitle((String) updates.get("title"));
             if (updates.containsKey("url")) item.setUrl((String) updates.get("url"));
@@ -442,6 +465,9 @@ public class InboxController {
             if (updates.containsKey("isFavorite")) item.setIsFavorite((Boolean) updates.get("isFavorite"));
             
             InformationItem updatedItem = informationItemRepository.save(item);
+            if (Boolean.TRUE.equals(item.getIsPremium()) && !wasPremium) {
+                triggerKeywordAnalysis(updatedItem);
+            }
             return ResponseEntity.ok(updatedItem);
         } else {
             return ResponseEntity.notFound().build();

@@ -54,3 +54,8 @@ __pycache__/
 # Coverage reports
 coverage/
 frontend/coverage/
+
+# Test files (not needed for deployment)
+frontend/src/test/
+backend/src/test/
+frontend/test-results.json
