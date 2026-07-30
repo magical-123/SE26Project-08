@@ -14,6 +14,7 @@ import { ZoomIn, ZoomOut, Eye, EyeOff, Camera, Sparkles, WifiOff, RotateCcw } fr
 import { buildGraphData, ConceptNode, SourceNode, MAX_LABEL_LENGTH } from './graphShared';
 import { graphApi, inboxApi } from '../../utils/api';
 import { cacheData, getCachedData } from '../../utils/cache';
+import { AIPersonaWidget } from '../../components/AIPersonaWidget/AIPersonaWidget';
 import './KnowledgeGraph.css';
 
 const toKeywordSuggestions = (concepts = []) => concepts.map(c => ({
@@ -599,6 +600,10 @@ function KnowledgeGraphInner() {
           <span>当前离线/服务超时，已切换为缓存模式</span>
         </div>
       )}
+
+      {/* AI Persona Widget */}
+      <AIPersonaWidget />
+
       <div className="kg-legend-bar">
         <div className={`kg-legend-bar-inner ${legendCollapsed ? 'collapsed' : ''}`}>
           {legendCollapsed ? (

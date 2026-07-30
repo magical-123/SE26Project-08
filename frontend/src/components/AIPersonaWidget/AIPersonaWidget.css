@@ -1,0 +1,373 @@
+.ai-persona-container {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none; /* Let clicks pass through empty space */
+}
+
+.ai-persona-collapsed, .ai-persona-expanded {
+  pointer-events: auto; /* Re-enable pointer events for the actual widgets */
+}
+
+/* Collapsed State (Pill) */
+.ai-persona-collapsed {
+  position: relative;
+  cursor: pointer;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.2), 0 0 15px rgba(139, 92, 246, 0.2);
+  padding: 8px 16px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.ai-persona-collapsed:hover {
+  border-color: rgba(139, 92, 246, 0.6);
+  box-shadow: 0 8px 25px -2px rgba(0, 0, 0, 0.3), 0 0 20px rgba(139, 92, 246, 0.4);
+}
+
+.ai-persona-collapsed-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-pulse-orb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+  animation: pulse-glow 3s infinite alternate;
+}
+
+.ai-icon {
+  color: white;
+}
+
+.ai-persona-brief {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: linear-gradient(90deg, #c4b5fd, #93c5fd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 2px;
+}
+
+.ai-subtitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+}
+
+.sparkle-icon {
+  color: #c4b5fd;
+  margin-left: 4px;
+  animation: sparkle-spin 4s linear infinite;
+}
+
+.ai-hover-glow {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: skewX(-20deg);
+  transition: all 0.5s;
+}
+
+.ai-persona-collapsed:hover .ai-hover-glow {
+  left: 150%;
+  transition: 0.7s;
+}
+
+/* Expanded State (Panel) */
+.ai-persona-expanded {
+  position: relative;
+  width: 360px;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(139, 92, 246, 0.15);
+  overflow: hidden;
+  color: white;
+}
+
+.ai-persona-actions {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.ai-action-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  border-radius: 50%;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.ai-action-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.ai-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.refreshing-overlay {
+  position: relative;
+}
+
+.refreshing-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 5;
+  border-radius: 20px 20px 0 0;
+}
+
+.refreshing-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 6;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.blur-content {
+  filter: blur(4px);
+  opacity: 0.6;
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.ai-persona-header {
+  position: relative;
+  padding: 32px 24px 24px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ai-avatar-wrapper {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+}
+
+.ai-avatar-glow {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent, #8b5cf6, #3b82f6, transparent);
+  animation: spin 4s linear infinite;
+  opacity: 0.5;
+  filter: blur(8px);
+}
+
+.ai-avatar-icon {
+  color: white;
+  position: relative;
+  z-index: 2;
+}
+
+.ai-hero-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  background: linear-gradient(90deg, #fff, #c4b5fd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ai-poetic-summary {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  margin: 0;
+  font-style: italic;
+}
+
+.ai-persona-body {
+  padding: 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.ai-persona-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-persona-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-persona-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.ai-section {
+  margin-bottom: 24px;
+}
+
+.ai-section:last-child {
+  margin-bottom: 0;
+}
+
+.ai-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.insight-icon {
+  color: #8b5cf6;
+}
+
+.ai-traits-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-trait-badge {
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #c4b5fd;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.ai-trait-badge:hover {
+  background: rgba(139, 92, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+.ai-insight-text {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 20px;
+  border-radius: 12px;
+  border-left: 3px solid #8b5cf6;
+}
+
+.ai-quote-section {
+  position: relative;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.quote-icon-bg {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: rgba(139, 92, 246, 0.2);
+  transform: scale(2);
+}
+
+.ai-golden-quote {
+  position: relative;
+  font-size: 15px;
+  font-weight: 500;
+  color: white;
+  margin: 0;
+  text-align: center;
+  font-style: italic;
+  z-index: 1;
+}
+
+.ai-persona-footer {
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 5px rgba(139, 92, 246, 0.3); }
+  100% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.8); }
+}
+
+@keyframes sparkle-spin {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
