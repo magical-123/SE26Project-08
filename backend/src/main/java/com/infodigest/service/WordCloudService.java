@@ -177,6 +177,13 @@ public class WordCloudService {
             for (Integer videoId : videoIds) {
                 Long id = videoId.longValue();
                 InformationItem item = itemMap.get(id);
+                
+                // Fallback: 如果 AI 返回的是序号（1, 2, ...）而不是真实的ID
+                if (item == null && id > 0 && id <= allItems.size()) {
+                    item = allItems.get((int)(id - 1));
+                    id = item.getId();
+                }
+                
                 if (item != null) {
                     relatedVideoIds.add(id);
                     if (item.getCompletionRate() != null) {

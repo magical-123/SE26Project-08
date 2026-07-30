@@ -330,13 +330,15 @@ public class DashboardController {
      * 手动触发生成今日词云
      */
     @PostMapping("/wordcloud/generate")
-    public ResponseEntity<Map<String, Object>> generateWordCloud() {
-        Long userId = getCurrentUserId();
-        LocalDate today = LocalDate.now();
-
+    public ResponseEntity<Map<String, Object>> generateWordCloud(
+            @RequestParam(required = false) String date) {
+        Long userId = null;
         try {
-            log.info("开始为用户 {} 生成词云数据 ({})", userId, today);
-            wordCloudService.generateWordCloud(userId, today);
+            userId = getCurrentUserId();
+            LocalDate targetDate = date != null ? LocalDate.parse(date) : LocalDate.now();
+            log.info("用户请求手动重新生成 {} 词云", targetDate);
+
+            wordCloudService.generateWordCloud(userId, targetDate);
             log.info("用户 {} 词云生成成功", userId);
 
             Map<String, Object> result = new LinkedHashMap<>();
