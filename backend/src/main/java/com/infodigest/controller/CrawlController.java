@@ -31,9 +31,9 @@ public class CrawlController {
     @Autowired
     private CredentialCryptoService credentialCryptoService;
 
-    // 爬虫脚本路径，相对于后端项目根目录
-    @Value("${crawler.script.path:../crawler/index.js}")
-    private String crawlerScriptPath;
+    // 爬虫微服务 API 地址
+    @Value("${crawler.api.url:http://crawler:3000/crawl}")
+    private String crawlerApiUrl;
 
     /**
      * 触发爬虫抓取指定平台
@@ -73,39 +73,22 @@ public class CrawlController {
             
             // 生成该用户的 JWT Token（有效期 1 小时，足够爬虫使用）
             String crawlerToken = jwtUtil.generateToken(username, user.getId());
-            
-            // 构建命令：node index.js [--platform=xxx] --auth-token=xxx --user-id=xxx --limit=10
-            // 手动触发（首次连接）抓取最近 10 条，避免大量历史数据涌入
-            List<String> command = new ArrayList<>();
-            command.add("node");
-            command.add(crawlerScriptPath);
+            // 构建 HTTP 请求调用爬虫微服务
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            Map<String, Object> requestBody = new HashMap<>();
             if (!"all".equalsIgnoreCase(platform)) {
-                command.add("--platform=" + platform.toLowerCase());
+                requestBody.put("platform", platform.toLowerCase());
             }
-            command.add("--auth-token=" + crawlerToken);
-            command.add("--user-id=" + user.getId());
-            command.add("--limit=10");
-
-            ProcessBuilder processBuilder = new ProcessBuilder(command);
-            // 设置工作目录。Spring Boot 运行时 user.dir 可能是项目根目录或 target
-            String userDir = System.getProperty("user.dir");
-            processBuilder.directory(new java.io.File(userDir));
-            processBuilder.redirectErrorStream(true);
-
-            Process process = processBuilder.start();
-
-            // 异步读取输出
-            new Thread(() -> {
-                try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                        new java.io.InputStreamReader(process.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        System.out.println("[Crawler-" + platform + "] " + line);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }).start();
+            requestBody.put("authToken", crawlerToken);
+            requestBody.put("userId", user.getId());
+            requestBody.put("limit", 10);
+            
+            // 发送请求，触发爬虫异步执行
+            try {
+                restTemplate.postForObject(crawlerApiUrl, requestBody, String.class);
+            } catch (Exception e) {
+                System.err.println("[Crawler API Error] " + e.getMessage());
+            }
 
             result.put("status", "started");
             result.put("platform", platform);
