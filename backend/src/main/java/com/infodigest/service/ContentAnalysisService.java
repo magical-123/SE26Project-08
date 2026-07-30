@@ -33,18 +33,32 @@ public class ContentAnalysisService {
     private AIService aiService;
 
     @Autowired
-    private AiSummaryService aiSummaryService;
-
-    @Autowired
     private UserRepository userRepository;
 
     @Autowired
     private QuoteExtractRepository quoteExtractRepository;
 
+    @Autowired
+    private UserDailyStatsService dailyStatsService;
+
     private static final int MAX_CONTENT_LENGTH = 100000;  // 提升到100k，支持完整字幕分析
 
     private static final String SYSTEM_PROMPT = """
         你是一个专业的数字内容营养师。请分析以下视频内容，按照"数字饮食营养成分"模型进行评估。
+
+        ⚠️⚠️⚠️ 最高优先级规则（必须严格遵守）：
+        **完全忽略标题，100% 基于正文内容评分。**
+
+        很多视频为了吸引点击会使用误导性标题（如技术教程用"搞笑"做标题），你必须：
+        1. 阅读完整的正文内容（字幕/文本）
+        2. 根据正文的实际内容类型和知识密度评分
+        3. 完全不考虑标题的暗示或包装
+
+        示例：
+        - 标题："搞笑-程序员沙雕操作" + 正文：1500字Docker技术讲解 → 应评为：蛋白质50%+碳水40%（技术教程）
+        - 标题："深度技术分析" + 正文：明星八卦闲聊 → 应评为：脂肪80%（纯娱乐）
+
+        记住：标题只是营销手段，正文内容才是真实价值所在。
 
         请为视频在以下 5 个维度分配百分比（总和必须为 100%）：
 
@@ -64,9 +78,10 @@ public class ContentAnalysisService {
         例如：《2026年最佳网页动效赏析》、《宫崎骏的色彩哲学》。
 
         🍔 4. 脂肪与糖分 (fats) —— 纯娱乐与情绪多巴胺
-        定义：搞笑短视频、无脑爽剧、明星八卦、情绪煽动型的口水文。
+        定义：正文内容确实是搞笑短视频、无脑爽剧、明星八卦、情绪煽动型的口水文。
         特点：口感极佳，能瞬间飙升多巴胺，但毫无长期价值。适量摄入可以解压，但过量会导致"数字肥胖"。
         例如：《某网红最新狗血大瓜》、《3分钟看完这部爽剧》。
+        注意：仅当正文内容确实是纯娱乐时才归为此类，不要因标题中的"搞笑"等字眼就误判。
 
         🥬 5. 膳食纤维 (fiber) —— 哲思与心理复原力
         定义：哲学探讨、心理疏导、历史宏观感悟、慢节奏的自然纪录片或人物访谈。
@@ -181,6 +196,19 @@ public class ContentAnalysisService {
                 // 3. 保存 AI 提取的金句（如果有）
                 saveQuotesFromAnalysis(result, item);
 
+                // 4. 更新每日统计数据（增量累加）
+                try {
+                    // 重新加载 item 以获取最新的营养数据
+                    Optional<InformationItem> updatedItem = itemRepository.findById(itemId);
+                    if (updatedItem.isPresent()) {
+                        dailyStatsService.updateDailyStats(item.getUserId(), updatedItem.get());
+                        log.debug("Daily stats updated for item {}", itemId);
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to update daily stats for item {}: {}", itemId, e.getMessage());
+                    // 不影响主流程，继续执行
+                }
+
             } catch (Exception e) {
                 String msg = e.getMessage() != null ? e.getMessage() : "";
                 if (msg.contains("429") || msg.toLowerCase().contains("rate limit")) {
@@ -196,34 +224,8 @@ public class ContentAnalysisService {
             }
         }
 
-        // 2. AI 摘要生成（如果还没有摘要）
-        if (!hasSummary) {
-            try {
-                // 重新从数据库加载最新的 item 状态（营养分析可能刚完成）
-                Optional<InformationItem> freshItem = itemRepository.findById(itemId);
-                if (freshItem.isPresent()) {
-                    boolean ok = aiSummaryService.generateSummary(freshItem.get());
-                    if (ok) {
-                        InformationItem updated = freshItem.get();
-                        itemRepository.updateAiSummaryFields(
-                                itemId,
-                                updated.getAiSummary(),
-                                updated.getKnowledgeScore(),
-                                updated.getScoreReasoning(),
-                                updated.getCategory(),
-                                LocalDateTime.now()
-                        );
-                        log.info("✅ AI summary generated for item {}: score={}, category={}",
-                                itemId, updated.getKnowledgeScore(), updated.getCategory());
-                    } else {
-                        log.warn("AI summary generation returned false for item {}", itemId);
-                    }
-                }
-            } catch (Exception e) {
-                log.error("AI summary generation failed for item {}: {}", itemId, e.getMessage());
-                // 不抛异常：营养分析已经成功，摘要可以下次调度重试
-            }
-        }
+        // 注意：营养分析已经包含了 summary 字段，不需要再次调用 aiSummaryService.generateSummary()
+        // 移除重复的 AI 摘要生成，避免第二次分析覆盖第一次的正确结果
 
         // 3. 清空字幕内容（AI分析完成后不再需要存储）
         // 只有当营养分析和AI摘要都完成后才清空，避免中途失败导致数据丢失
