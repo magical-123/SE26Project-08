@@ -42,7 +42,12 @@ export function Dashboard() {
 
   // 监听Report页面的词云更新通知 + 页面进入时立即加载
   useEffect(() => {
+    let isFetching = false; // 防止并发请求
+
     const fetchWordCloud = async () => {
+      if (isFetching) return; // 如果正在获取，跳过
+      isFetching = true;
+
       try {
         const token = sessionStorage.getItem('token');
         if (!token) return;
@@ -101,6 +106,7 @@ export function Dashboard() {
         }
       } finally {
         setLoadingWordCloud(false);
+        isFetching = false;
       }
     };
 
@@ -114,11 +120,11 @@ export function Dashboard() {
       }
     };
 
+    // 清除可能存在的旧更新通知
+    sessionStorage.removeItem('dashboard:wordcloudUpdated');
+
     // 页面加载时立即获取一次词云数据
     fetchWordCloud();
-
-    // 页面加载后也检查一次是否有待处理的更新通知
-    checkWordCloudUpdate();
 
     // 每5秒检查一次是否有更新通知（降低轮询频率）
     const interval = setInterval(checkWordCloudUpdate, 5000);
@@ -144,7 +150,7 @@ export function Dashboard() {
         const headers = getAuthHeaders();
         // 移除词云API调用，统一由上面的useEffect处理
         const [nutritionRes, insightsRes, reviewsRes, summaryRes, quotesRes] = await Promise.all([
-          fetch(`${API_BASE}/api/dashboard/nutrition`, { headers }),
+          fetch(`${API_BASE}/api/dashboard/nutrition?type=all`, { headers }),
           fetch(`${API_BASE}/api/dashboard/insights`, { headers }),
           fetch(`${API_BASE}/api/dashboard/reviews/today`, { headers }),
           fetch(`${API_BASE}/api/dashboard/summary`, { headers }),

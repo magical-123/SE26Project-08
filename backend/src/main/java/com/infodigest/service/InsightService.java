@@ -188,22 +188,21 @@ public class InsightService {
     private UserReport generateWeeklyInsightFromDailyReports(Long userId, LocalDate reportDate) throws Exception {
         log.info("基于日报生成周报：userId={}, date={}", userId, reportDate);
 
-        // 1. AI 周报用于解释左侧营养表，因此采用相同的滚动最近 7 天范围。
-        LocalDate startDate = reportDate.minusDays(7);
-        LocalDate endDate = reportDate;
-        // 存储键继续使用自然周周一，兼容既有报告查询和版本历史。
-        LocalDate storageDate = reportDate.with(DayOfWeek.MONDAY);
+        // 1. 使用严格的自然周（周一到周日）
+        LocalDate monday = reportDate.with(DayOfWeek.MONDAY);
+        LocalDate sunday = reportDate.with(DayOfWeek.SUNDAY);
+        LocalDate storageDate = monday; // 使用周一作为存储键
 
         // 2. 获取本周所有日报
         List<UserReport> dailyReports = reportRepository.findByUserIdAndTypeAndReportDateBetween(
-                userId, ReportType.DAILY, startDate, endDate);
+                userId, ReportType.DAILY, monday, sunday);
 
-        // 3. 获取本周内容。即使历史日报尚未生成，也可以直接从内容生成周报。
+        // 3. 获取本周内容
         List<InformationItem> weekItems = itemRepository
                 .findByUserIdAndProcessStatusAndCrawledAtBetween(
                         userId, "PROCESSED",
-                        startDate.atStartOfDay(),
-                        endDate.atTime(23, 59, 59)
+                        monday.atStartOfDay(),
+                        sunday.atTime(23, 59, 59)
                 );
 
         if (weekItems.isEmpty()) {
@@ -218,7 +217,7 @@ public class InsightService {
                 : buildDailyInsightsSummary(dailyReports);
 
         // 5. 构建周报提示词
-        String timeRange = startDate + " 至 " + endDate;
+        String timeRange = monday + " 至 " + sunday;
         String prompt = String.format(
                 WEEKLY_INSIGHT_PROMPT_TEMPLATE,
                 timeRange,
