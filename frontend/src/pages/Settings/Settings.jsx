@@ -79,9 +79,10 @@ export function Settings() {
     google: { label: 'Google', needsApiKey: true, endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', models: {
       'gemini-pro': { label: 'Gemini Pro', modelType: 'GEMINI_PRO' },
     }},
-    deepseek: { label: 'DeepSeek (深度求索)', needsApiKey: true, endpoint: 'https://api.deepseek.com/v1/chat/completions', models: {
+    deepseek: { label: 'DeepSeek (深度求索)', needsApiKey: true, endpoint: 'https://api.deepseek.com/chat/completions', models: {
       'deepseek-v4-flash': { label: 'DeepSeek V4 Flash', modelType: 'DEEPSEEK' },
-      'deepseek-chat': { label: 'DeepSeek Chat', modelType: 'DEEPSEEK' },
+      'deepseek-reasoner': { label: 'DeepSeek R1 (Reasoner)', modelType: 'DEEPSEEK' },
+      'deepseek-chat': { label: 'DeepSeek V3 (Chat)', modelType: 'DEEPSEEK' },
     }},
     qwen: { label: '通义千问 (Alibaba)', needsApiKey: true, endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', models: {
       'qwen-plus': { label: 'Qwen Plus', modelType: 'QWEN' },
@@ -95,6 +96,7 @@ export function Settings() {
     kimi: { label: '月之暗面 Kimi (Moonshot)', needsApiKey: true, endpoint: 'https://api.moonshot.cn/v1/chat/completions', models: {
       'moonshot-v1-8k': { label: 'Moonshot v1 8K', modelType: 'KIMI' },
       'moonshot-v1-32k': { label: 'Moonshot v1 32K', modelType: 'KIMI' },
+      'moonshot-v1-128k': { label: 'Moonshot v1 128K', modelType: 'KIMI' },
     }},
     doubao: { label: '字节豆包 (ByteDance)', needsApiKey: true, endpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', models: {
       'doubao-pro-32k': { label: 'Doubao Pro 32K', modelType: 'DOUBAO' },
