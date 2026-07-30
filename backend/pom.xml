@@ -89,7 +89,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.11.0</version>
 				<configuration>
-					<statusLoggerName>NOP</statusLoggerName>
+					<!-- Disable compiler status-file generation so builds remain stable on Windows workspaces whose path contains non-ASCII characters. -->
+					<useIncrementalCompilation>false</useIncrementalCompilation>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>

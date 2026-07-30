@@ -402,8 +402,9 @@ async function crawlBilibili(getToken) {
       console.error(`  ❌ 点赞抓取失败: ${err.message}`);
     }
 
-    // 抓取收藏夹列表（仅用于判断哪些历史条目被收藏）
-    console.log('  ⭐ 拉取收藏夹列表（仅用于标记）...');
+    // 抓取收藏夹视频：标记历史记录 + 收集最新20条作为优质信息源
+    console.log('  ⭐ 拉取收藏夹视频（标记 + 收集优质信息源）...');
+    const rawFavoriteVideos = [];
     try {
       const folders = await withRetry(
         () => bl.fetchFavoriteFolders(client, userMid),
@@ -411,11 +412,14 @@ async function crawlBilibili(getToken) {
       );
       for (const folder of folders.slice(0, 3)) {
         const resResult = await withRetry(
-          () => bl.fetchFavoriteResources(client, folder.id, { pn: 1, ps: 10 }),
+          () => bl.fetchFavoriteResources(client, folder.id, { pn: 1, ps: 20 }),
           `B站-收藏夹-${folder.title}`
         );
         for (const m of resResult.items) {
-          if (m.aid) favedAids.add(m.aid);
+          if (m.aid) {
+            favedAids.add(m.aid);
+            rawFavoriteVideos.push(m);
+          }
         }
       }
       console.log(`  ✓ 收藏视频: ${favedAids.size} 条`);
@@ -475,17 +479,43 @@ async function crawlBilibili(getToken) {
   // 并行等待所有字幕提取完成
   await Promise.allSettled(subtitlePromises);
 
-  // 写入后端
+  // 写入后端：收藏的视频直接标记为优质信息源
   console.log('  💾 写入后端...');
   const transformed = allItems.map(item => {
     const aid = item.history?.oid || item.oid;
     const result = transformBilibiliItem(item, subtitleMap.get(aid) || '');
     result.isLiked = item.isLiked || false;
     result.isFavorite = item.isFavorite || false;
+    result.isPremium = item.isFavorite || false; // 收藏的视频自动升格为优质信息源
     return result;
   });
   const result = await batchWriteItems(transformed, getToken);
   console.log(`  📊 B站: 成功 ${result.success} / 失败 ${result.failed}\n`);
+
+  // 写入收藏夹中未在历史记录里出现的视频（补充优质信息源）
+  const historyAids = new Set(allItems.map(item => item.history?.oid || item.oid || item.aid));
+  const newFavoriteVideos = rawFavoriteVideos.filter(m => !historyAids.has(m.aid));
+  if (newFavoriteVideos.length > 0) {
+    const premiumTransformed = newFavoriteVideos.slice(0, 20).map(m => ({
+      title: m.title || '无标题',
+      url: `https://www.bilibili.com/video/av${m.aid}`,
+      platform: 'BILIBILI',
+      author: m.author || '',
+      category: classifyByText(m.title || '', m.intro || ''),
+      durationMinutes: 1,
+      contentRaw: m.intro || m.title || '',
+      isPremium: true,
+      isLiked: false,
+      isFavorite: true,
+      processStatus: 'UNPROCESSED',
+    }));
+    console.log(`  ⭐ 写入收藏夹优质信息源（${premiumTransformed.length} 条，已过滤历史记录中的 ${rawFavoriteVideos.length - newFavoriteVideos.length} 条）...`);
+    const premiumResult = await batchWriteItems(premiumTransformed, getToken);
+    console.log(`   优质信息源: 成功 ${premiumResult.success} / 失败 ${premiumResult.failed}`);
+  } else {
+    console.log('   收藏夹视频已全部在历史记录中，无需额外写入');
+  }
+
   return result;
 }
 
