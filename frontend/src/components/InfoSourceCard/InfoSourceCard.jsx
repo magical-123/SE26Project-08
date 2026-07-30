@@ -14,7 +14,8 @@ const shouldShowRedDot = (data) => {
 };
 
 export function InfoSourceCard({ data, onClick, onTogglePremium, isPremium, premiumLabel }) {
-  const showRedDot = shouldShowRedDot(data);
+  // 优质信息源卡片只显示黄色边框，不显示红点
+  const showRedDot = !isPremium && shouldShowRedDot(data);
 
   const handleTogglePremium = (e) => {
     e.stopPropagation();
