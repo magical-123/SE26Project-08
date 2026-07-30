@@ -50,3 +50,7 @@ __pycache__/
 
 # Local-only docs (not for remote)
 会话上下文文档.md
+
+# Coverage reports
+coverage/
+frontend/coverage/
