@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -322,13 +323,14 @@ public class WordCloudService {
     }
 
     /**
-     * 获取周词云数据（最近7天）
+     * 获取周词云数据（严格的自然周：周一到周日）
      */
     public List<Map<String, Object>> getWeeklyWordClouds(Long userId, LocalDate endDate) {
-        LocalDate startDate = endDate.minusDays(6);
+        LocalDate monday = endDate.with(DayOfWeek.MONDAY);
+        LocalDate sunday = endDate.with(DayOfWeek.SUNDAY);
 
         List<UserWordCloud> wordClouds = wordCloudRepository
-                .findByUserIdAndReportDateBetweenOrderByReportDateDesc(userId, startDate, endDate);
+                .findByUserIdAndReportDateBetweenOrderByReportDateDesc(userId, monday, sunday);
 
         return wordClouds.stream().map(wc -> {
             try {

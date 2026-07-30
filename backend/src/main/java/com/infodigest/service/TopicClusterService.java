@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -127,16 +128,17 @@ public class TopicClusterService {
             log.info("缓存未命中，开始生成周报话题聚类");
         }
 
-        // 缓存未命中，重新生成
-        LocalDate startDate = endDate.minusDays(6);
-        LocalDateTime startTime = startDate.atStartOfDay();
-        LocalDateTime endTime = endDate.plusDays(1).atStartOfDay();
+        // 使用严格的自然周（周一到周日）
+        LocalDate monday = endDate.with(DayOfWeek.MONDAY);
+        LocalDate sunday = endDate.with(DayOfWeek.SUNDAY);
+        LocalDateTime startTime = monday.atStartOfDay();
+        LocalDateTime endTime = sunday.atTime(23, 59, 59);
 
         List<InformationItem> items = informationItemRepository
                 .findByUserIdAndAnalyzedAtBetweenOrderByAnalyzedAtDesc(userId, startTime, endTime);
 
         if (items.isEmpty()) {
-            log.warn("用户 {} 在 {} 到 {} 没有已分析的视频", userId, startDate, endDate);
+            log.warn("用户 {} 在 {} 到 {} 没有已分析的视频", userId, monday, sunday);
             return Collections.emptyList();
         }
 

@@ -19,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -104,15 +105,19 @@ public class DashboardController {
 
         } else {
             // 兼容旧的时间范围查询（如有其他页面需要）
-            LocalDateTime now = LocalDateTime.now();
             LocalDateTime startTime;
+            LocalDateTime endTime;
             if ("daily".equalsIgnoreCase(type)) {
-                startTime = now.toLocalDate().atStartOfDay();
+                startTime = today.atStartOfDay();
+                endTime = today.atTime(23, 59, 59);
             } else {
-                // weekly
-                startTime = now.minusDays(7).toLocalDate().atStartOfDay();
+                // weekly - 使用严格的自然周（周一到周日）
+                LocalDate monday = today.with(DayOfWeek.MONDAY);
+                LocalDate sunday = today.with(DayOfWeek.SUNDAY);
+                startTime = monday.atStartOfDay();
+                endTime = sunday.atTime(23, 59, 59);
             }
-            List<InformationItem> analyzedItems = informationItemRepository.findByUserIdAndProcessStatusAndCrawledAtBetween(userId, "PROCESSED", startTime, now);
+            List<InformationItem> analyzedItems = informationItemRepository.findByUserIdAndProcessStatusAndCrawledAtBetween(userId, "PROCESSED", startTime, endTime);
 
             for (InformationItem item : analyzedItems) {
                 double itemSeconds = DurationMetrics.effectiveSeconds(item);
@@ -803,6 +808,53 @@ public class DashboardController {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("success", false);
             result.put("message", "重建失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
+        }
+    }
+
+    /**
+     * 批量重建所有用户的历史统计数据（管理员接口）
+     */
+    @PostMapping("/rebuild-stats-all")
+    public ResponseEntity<Map<String, Object>> rebuildStatsForAllUsers() {
+        try {
+            List<User> allUsers = userRepository.findAll();
+            int successCount = 0;
+            int failCount = 0;
+            List<String> errors = new ArrayList<>();
+
+            log.info("开始为 {} 个用户重建历史统计数据", allUsers.size());
+
+            for (User user : allUsers) {
+                try {
+                    dailyStatsService.rebuildAllStats(user.getId());
+                    successCount++;
+                    log.info("用户 {} (ID: {}) 统计数据重建成功", user.getUsername(), user.getId());
+                } catch (Exception e) {
+                    failCount++;
+                    String errorMsg = String.format("用户 %s (ID: %d) 重建失败: %s",
+                            user.getUsername(), user.getId(), e.getMessage());
+                    errors.add(errorMsg);
+                    log.error(errorMsg, e);
+                }
+            }
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", true);
+            result.put("totalUsers", allUsers.size());
+            result.put("successCount", successCount);
+            result.put("failCount", failCount);
+            if (!errors.isEmpty()) {
+                result.put("errors", errors);
+            }
+            result.put("message", String.format("批量重建完成：成功 %d，失败 %d", successCount, failCount));
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("批量重建统计数据失败: {}", e.getMessage(), e);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("success", false);
+            result.put("message", "批量重建失败: " + e.getMessage());
             return ResponseEntity.status(500).body(result);
         }
     }
