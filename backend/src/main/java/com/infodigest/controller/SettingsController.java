@@ -255,23 +255,19 @@ public class SettingsController {
     }
 
     /**
-     * 删除平台凭证
+     * 删除平台凭证（仅删除授权信息，保留已捕获的内容）
      */
     @DeleteMapping("/platforms/{platform}")
     public ResponseEntity<Map<String, Object>> deletePlatformCredential(@PathVariable String platform) {
         Long userId = getCurrentUserId();
 
-        // 同时删除该平台的数据和凭证
-        informationItemRepository.findByUserId(userId).stream()
-                .filter(item -> platform.equalsIgnoreCase(item.getPlatform()))
-                .forEach(item -> informationItemRepository.deleteById(item.getId()));
-
+        // 仅删除平台凭证，保留已捕获的内容
         userPlatformRepository.findByUserIdAndPlatform(userId, platform.toUpperCase())
                 .ifPresent(userPlatformRepository::delete);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("success", true);
-        response.put("message", "已删除 " + platform + " 的授权和数据");
+        response.put("message", "已断开 " + platform + " 的连接，已捕获的内容已保留");
         return ResponseEntity.ok(response);
     }
 

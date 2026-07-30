@@ -964,7 +964,7 @@ export function Settings() {
         onClose={() => setConfirmState(null)}
         onConfirm={handleConfirmDisconnect}
         title="断开平台连接"
-        message={`确定要断开 ${confirmState?.platform || ''} 的连接吗？该平台已抓取的数据也将被删除。`}
+        message={`确定要断开 ${confirmState?.platform || ''} 的连接吗？已捕获的内容会保留，但将无法继续从该平台抓取新内容。`}
         confirmText="断开"
         danger
       />
