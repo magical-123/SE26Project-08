@@ -334,5 +334,13 @@ public class ContentAnalysisService {
             quoteExtractRepository.saveAll(toSave);
             log.info("✅ Saved {} quotes for item {} (title: {})", toSave.size(), item.getId(), item.getTitle());
         }
+
+        // 每个用户最多保留 20 条金句，超出则删除最旧的
+        List<QuoteExtract> allUserQuotes = quoteExtractRepository.findByUserIdOrderByCreatedAtDesc(item.getUserId());
+        if (allUserQuotes.size() > 20) {
+            List<QuoteExtract> toDelete = allUserQuotes.subList(20, allUserQuotes.size());
+            quoteExtractRepository.deleteAll(toDelete);
+            log.info("Trimmed {} oldest quotes for user {} to keep limit of 20", toDelete.size(), item.getUserId());
+        }
     }
 }

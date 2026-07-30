@@ -25,12 +25,11 @@ public class QuoteExtractController {
      * 获取当前用户的所有金句，按时间倒序
      */
     @GetMapping
-    public ResponseEntity<List<QuoteExtract>> getQuotes(
-            @RequestParam(required = false, defaultValue = "20") int limit) {
+    public ResponseEntity<List<QuoteExtract>> getQuotes() {
         Long userId = getCurrentUserId();
         List<QuoteExtract> quotes = quoteExtractRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        if (quotes.size() > limit) {
-            quotes = quotes.subList(0, limit);
+        if (quotes.size() > 20) {
+            quotes = quotes.subList(0, 20);
         }
         return ResponseEntity.ok(quotes);
     }

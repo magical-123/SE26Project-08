@@ -99,12 +99,18 @@ public class InboxController {
                 ? filteredItems.subList(fromIndex, toIndex)
                 : Collections.emptyList();
 
+        // 全局统计（基于用户所有数据，不受分页和 maxTotal 限制）
+        long premiumCount = informationItemRepository.countByUserIdAndIsPremiumTrue(userId);
+        long aiSummaryCount = informationItemRepository.countByUserIdAndAiSummaryIsNotNull(userId);
+
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("items", pageContent);
         response.put("totalItems", (long) total);
         response.put("totalPages", (int) Math.ceil((double) total / size));
         response.put("currentPage", page);
         response.put("hasMore", toIndex < total);
+        response.put("premiumCount", premiumCount);
+        response.put("aiSummaryCount", aiSummaryCount);
 
         return ResponseEntity.ok(response);
     }
