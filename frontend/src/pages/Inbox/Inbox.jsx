@@ -28,15 +28,14 @@ const toKeywordSuggestions = (concepts = []) => concepts.map(c => ({
 
 export function Inbox() {
   const [filter, setFilter] = useState('All');
-  const { items, togglePremium, regenerateSummary, saveNote, updateItem, loading, error, hasMore, loadMore, refetching } = useInboxItems();
+  const { items, togglePremium, regenerateSummary, saveNote, updateItem, loading, error, totalItems, totalPages, currentPage, fetchPage, refetching } = useInboxItems();
   const [selectedItem, setSelectedItem] = useState(null);
   const [draftNote, setDraftNote] = useState('');
   const [selectedKeywords, setSelectedKeywords] = useState([]);
   const [suggestedKeywords, setSuggestedKeywords] = useState([]);
 
-  const filteredItems = filter === 'All' ? items : filter === 'Premium' ? items.filter(item => item.hasNote) : items.filter(item => item.platform === filter);
   const aiSummaryCount = items.filter(i => i.aiSummary).length;
-  const totalCount = items.length;
+  const totalCount = totalItems;
 
   const unprocessedCount = items.filter(i => !i.aiSummary && i.processStatus === 'UNPROCESSED').length;
   
@@ -89,27 +88,10 @@ export function Inbox() {
   const processingPercent = batchTotal === 0 ? 0 : Math.round((batchProcessedCount / batchTotal) * 100);
   const isProcessing = unprocessedCount > 0;
 
-  // 切换平台筛选时，如果当前过滤结果为空且还有更多数据，自动加载更多（Premium 过滤不触发自动加载）
-  useEffect(() => {
-    if (filter === 'All' || filter === 'Premium') return;
-    if (filteredItems.length > 0) return;
-    if (!hasMore || loading) return;
-
-    const key = `inbox:autoload:${filter}`;
-    const attempts = parseInt(sessionStorage.getItem(key) || '0', 10);
-    if (attempts >= 10) return; // 最多自动加载 10 页，防止无限请求
-
-    sessionStorage.setItem(key, (attempts + 1).toString());
-    const timer = setTimeout(() => loadMore(), 100);
-    return () => clearTimeout(timer);
-  }, [filter, filteredItems.length, hasMore, loading]);
-
-  // 切换 filter 时重置自动加载计数
+  // 切换 filter 时请求后端第 0 页
   const handleFilterChange = (newFilter) => {
     setFilter(newFilter);
-    if (newFilter !== 'All' && newFilter !== 'Premium') {
-      sessionStorage.removeItem(`inbox:autoload:${newFilter}`);
-    }
+    fetchPage(0, newFilter);
   };
 
   const openDrawer = async (item) => {
@@ -304,9 +286,6 @@ export function Inbox() {
           }
         }
       }
-      setTimeout(() => {
-        window.location.reload();
-      }, 3500);
     } catch (err) {
       showToast('启动爬虫失败：' + err.message, 'error');
     }
@@ -314,6 +293,22 @@ export function Inbox() {
 
   const getPremiumLabel = (item) => {
     return '优质信息源';
+  };
+
+  // 生成分页页码数组（最多显示 7 个页码按钮）
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 7;
+    const safePage = Math.min(currentPage, Math.max(0, totalPages - 1));
+    let start = Math.max(0, safePage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible);
+    if (end - start < maxVisible) {
+      start = Math.max(0, end - maxVisible);
+    }
+    for (let i = start; i < end; i++) {
+      pages.push(i);
+    }
+    return pages;
   };
 
   return (
@@ -381,24 +376,25 @@ export function Inbox() {
         </div>
       )}
 
-      <motion.div
-        className="inbox-grid"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-        {filteredItems.map(item => (
-          <motion.div key={item.id} variants={itemVariants}>
-            <InfoSourceCard
-              data={item}
-              isPremium={item.hasNote}
-              premiumLabel={getPremiumLabel(item)}
-              onTogglePremium={handleTogglePremium}
-              onClick={() => openDrawer(item)}
-            />
-          </motion.div>
-        ))}
-      </motion.div>
+      <div className="inbox-scroll-area">
+        <motion.div
+          className="inbox-grid"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+          {items.map(item => (
+            <motion.div key={item.id} variants={itemVariants}>
+              <InfoSourceCard
+                data={item}
+                isPremium={item.hasNote}
+                premiumLabel={getPremiumLabel(item)}
+                onTogglePremium={handleTogglePremium}
+                onClick={() => openDrawer(item)}
+              />
+            </motion.div>
+          ))}
+        </motion.div>
 
       {/* 加载状态 */}
       {loading && (
@@ -416,36 +412,69 @@ export function Inbox() {
       )}
 
       {/* 自动加载中提示 */}
-      {!loading && filter !== 'All' && hasMore && filteredItems.length === 0 && items.length > 0 && (
+      {!loading && filter !== 'All' && filter !== 'Premium' && items.length === 0 && totalItems > 0 && (
         <div className="inbox-banner inbox-banner-loading">
           <div className="inbox-spinner" />
           <span>正在加载 {filter} 平台数据...</span>
         </div>
       )}
 
-      {/* 加载更多 */}
-      {!loading && hasMore && (filter === 'All' || filteredItems.length > 0) && (
-        <div className="inbox-load-more">
-          <button className="load-more-btn" onClick={loadMore} disabled={loading}>
-            加载更多 ↓
-          </button>
-          <span className="load-more-count">
-            已显示 {filter === 'All' ? items.length : filteredItems.length} 条
-          </span>
-        </div>
-      )}
+      </div>
 
-      {/* 全部加载完成 */}
-      {!loading && !hasMore && items.length > 0 && (
-        <div className="inbox-load-more">
-          <span className="load-more-count">
-            已显示全部 {filter === 'All' ? items.length : filteredItems.length} 条
+      {/* 分页导航 */}
+      {!loading && items.length > 0 && totalPages > 1 && (
+        <div className="inbox-pagination">
+          <span className="inbox-pagination-info">
+            共 {totalItems} 条，第 {currentPage + 1}/{totalPages} 页
           </span>
+          <div className="inbox-pagination-nav">
+            <button
+              className="page-btn"
+              onClick={() => fetchPage(0, filter)}
+              disabled={currentPage === 0}
+              title="第一页"
+            >
+              «
+            </button>
+            <button
+              className="page-btn"
+              onClick={() => fetchPage(currentPage - 1, filter)}
+              disabled={currentPage === 0}
+              title="上一页"
+            >
+              ‹
+            </button>
+            {getPageNumbers().map(pNum => (
+              <button
+                key={pNum}
+                className={`page-btn ${pNum === currentPage ? 'page-btn-active' : ''}`}
+                onClick={() => fetchPage(pNum, filter)}
+              >
+                {pNum + 1}
+              </button>
+            ))}
+            <button
+              className="page-btn"
+              onClick={() => fetchPage(currentPage + 1, filter)}
+              disabled={currentPage >= totalPages - 1}
+              title="下一页"
+            >
+              ›
+            </button>
+            <button
+              className="page-btn"
+              onClick={() => fetchPage(totalPages - 1, filter)}
+              disabled={currentPage >= totalPages - 1}
+              title="最后一页"
+            >
+              »
+            </button>
+          </div>
         </div>
       )}
 
       {/* 空状态 */}
-      {!loading && !hasMore && filteredItems.length === 0 && (
+      {!loading && items.length === 0 && totalItems === 0 && (
         <div className="inbox-banner inbox-banner-empty">
           <p>{filter === 'All' ? '📭 暂无捕获的信息项' : filter === 'Premium' ? '📭 暂无优质信息源' : `📭 暂无 ${filter} 平台数据`}</p>
           <p className="inbox-banner-empty-hint">

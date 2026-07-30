@@ -1,0 +1,86 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Backend
+        run: |
+          cd backend
+          chmod +x mvnw
+          ./mvnw clean package -DskipTests
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm ci --legacy-peer-deps
+          npm run build
+
+      - name: Package deployment artifacts
+        run: |
+          mkdir -p deploy
+          cp backend/target/backend-0.0.1-SNAPSHOT.jar deploy/backend.jar
+          cp -r frontend/dist deploy/frontend
+
+      - name: Deploy to server via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          source: deploy/*
+          target: /opt/infodigest/deploy-input
+          strip_components: 1
+
+      - name: Run deployment on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            echo "=== Stopping backend ==="
+            systemctl stop infodigest-backend
+
+            echo "=== Deploying backend ==="
+            cp /opt/infodigest/deploy-input/backend.jar /opt/infodigest/backend.jar
+
+            echo "=== Deploying frontend ==="
+            rm -rf /opt/infodigest/frontend
+            cp -r /opt/infodigest/deploy-input/frontend /opt/infodigest/frontend
+
+            echo "=== Restarting services ==="
+            systemctl daemon-reload
+            systemctl start infodigest-backend
+            systemctl restart nginx
+
+            echo "=== Cleaning up ==="
+            rm -rf /opt/infodigest/deploy-input
+
+            sleep 8
+            echo "=== Health check ==="
+            curl -s -o /dev/null -w "Frontend: %{http_code}\n" http://localhost/
+            curl -s -o /dev/null -w "API: %{http_code}\n" http://localhost:8080/api/auth/login
+            systemctl status infodigest-backend --no-pager -l | grep "Active:"
+            echo "=== Deploy complete ==="

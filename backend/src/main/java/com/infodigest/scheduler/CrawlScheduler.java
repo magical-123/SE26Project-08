@@ -33,8 +33,8 @@ public class CrawlScheduler {
     @Autowired
     private JwtUtil jwtUtil;
 
-    @Value("${crawler.api.url:http://crawler:3000/crawl}")
-    private String crawlerApiUrl;
+    @Value("${crawler.script.path:../crawler/index.js}")
+    private String crawlerScriptPath;
 
     /** 防止上一次爬虫周期还没结束就启动新的 */
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -106,19 +106,45 @@ public class CrawlScheduler {
         try {
             String crawlerToken = jwtUtil.generateToken(user.getUsername(), user.getId());
 
-            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-            java.util.Map<String, Object> requestBody = new java.util.HashMap<>();
-            requestBody.put("platform", platform);
-            requestBody.put("authToken", crawlerToken);
-            requestBody.put("userId", user.getId());
+            List<String> command = new ArrayList<>();
+            command.add("node");
+            command.add(crawlerScriptPath);
+            command.add("--platform=" + platform);
+            command.add("--auth-token=" + crawlerToken);
+            command.add("--user-id=" + user.getId());
 
-            System.out.println("[CrawlScheduler] 发送爬虫请求: user=" + user.getUsername() + " platform=" + platform);
-            
-            try {
-                restTemplate.postForObject(crawlerApiUrl, requestBody, String.class);
-            } catch (Exception ex) {
-                System.err.println("[Crawler API Error] " + ex.getMessage());
+            ProcessBuilder processBuilder = new ProcessBuilder(command);
+            String userDir = System.getProperty("user.dir");
+            processBuilder.directory(new java.io.File(userDir));
+            processBuilder.redirectErrorStream(true);
+
+            Process process = processBuilder.start();
+
+            System.out.println("[CrawlScheduler] 启动爬虫: user=" + user.getUsername()
+                    + " platform=" + platform + " pid=" + process.pid());
+
+            // 等待进程结束（最多 2 分钟）
+            Thread outputReader = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        System.out.println("[Crawler-" + platform + "-" + user.getId() + "] " + line);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            outputReader.start();
+
+            boolean finished = process.waitFor(120, java.util.concurrent.TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                System.out.println("[CrawlScheduler] 爬虫超时，已强制终止: user=" + user.getUsername()
+                        + " platform=" + platform);
             }
+
+            outputReader.join(5000);
         } catch (Exception e) {
             System.err.println("[CrawlScheduler] 爬虫异常: user=" + user.getUsername()
                     + " platform=" + platform + " - " + e.getMessage());

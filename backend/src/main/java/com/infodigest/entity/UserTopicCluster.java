@@ -30,12 +30,6 @@ public class UserTopicCluster {
     private LocalDate reportDate;
 
     /**
-     * 报告类型（daily=日报, weekly=周报）
-     */
-    @Column(nullable = false, length = 10)
-    private String reportType;
-
-    /**
      * 话题聚类 JSON 数据
      * 格式：[{"name": "话题名", "count": 5, "tags": ["标签1"], "videoIds": [1,2,3]}]
      */
