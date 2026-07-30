@@ -147,9 +147,22 @@ public class ReportController {
         try {
             List<Map<String, Object>> clusters;
             if ("daily".equalsIgnoreCase(type)) {
-                clusters = topicClusterService.getTopicClusters(userId, today);
+                // 日报：使用今天的日期作为key
+                try {
+                    clusters = topicClusterService.getTopicClusters(userId, today);
+                } catch (Exception e) {
+                    log.info("日报话题聚类缓存未命中 (userId={}, date={}): {}", userId, today, e.getMessage());
+                    clusters = new ArrayList<>();
+                }
             } else {
-                clusters = topicClusterService.generateWeeklyTopicClusters(userId, today);
+                // 周报：使用本周周一作为key
+                LocalDate monday = today.with(DayOfWeek.MONDAY);
+                try {
+                    clusters = topicClusterService.getTopicClusters(userId, monday);
+                } catch (Exception e) {
+                    log.info("周报话题聚类缓存未命中 (userId={}, date={}): {}", userId, monday, e.getMessage());
+                    clusters = new ArrayList<>();
+                }
             }
             return ResponseEntity.ok(clusters != null ? clusters : new ArrayList<>());
         } catch (Exception e) {

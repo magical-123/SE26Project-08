@@ -102,6 +102,19 @@ public class TopicClusterService {
 
         if (items.isEmpty()) {
             log.warn("用户 {} 在 {} 没有已分析的视频", userId, reportDate);
+
+            // 如果本日没有已分析内容，删除已存在的日报话题聚类数据
+            try {
+                Optional<UserTopicCluster> existingCluster = topicClusterRepository
+                        .findByUserIdAndReportDate(userId, reportDate);
+                if (existingCluster.isPresent()) {
+                    topicClusterRepository.delete(existingCluster.get());
+                    log.info("已删除用户 {} 在 {} 的旧话题聚类数据（因无已分析内容）", userId, reportDate);
+                }
+            } catch (Exception e) {
+                log.error("删除旧话题聚类数据失败", e);
+            }
+
             return Collections.emptyList();
         }
 
@@ -114,23 +127,15 @@ public class TopicClusterService {
     }
 
     /**
-     * 生成周报话题聚类（带缓存，优先从数据库读取今日生成的周报）
+     * 生成周报话题聚类（强制重新生成，覆盖已有缓存）
      */
     public List<Map<String, Object>> generateWeeklyTopicClusters(Long userId, LocalDate endDate) throws Exception {
         log.info("开始生成用户 {} 的周报话题聚类 (截止{})", userId, endDate);
 
-        // 尝试从数据库读取今日的周报缓存
-        try {
-            List<Map<String, Object>> cached = getTopicClusters(userId, endDate);
-            log.info("从缓存读取用户 {} 的周报话题聚类", userId);
-            return cached;
-        } catch (Exception e) {
-            log.info("缓存未命中，开始生成周报话题聚类");
-        }
-
         // 使用严格的自然周（周一到周日）
         LocalDate monday = endDate.with(DayOfWeek.MONDAY);
         LocalDate sunday = endDate.with(DayOfWeek.SUNDAY);
+
         LocalDateTime startTime = monday.atStartOfDay();
         LocalDateTime endTime = sunday.atTime(23, 59, 59);
 
@@ -139,14 +144,28 @@ public class TopicClusterService {
 
         if (items.isEmpty()) {
             log.warn("用户 {} 在 {} 到 {} 没有已分析的视频", userId, monday, sunday);
+
+            // 如果本周没有已分析内容，删除已存在的周报话题聚类数据
+            try {
+                Optional<UserTopicCluster> existingCluster = topicClusterRepository
+                        .findByUserIdAndReportDate(userId, monday);
+                if (existingCluster.isPresent()) {
+                    topicClusterRepository.delete(existingCluster.get());
+                    log.info("已删除用户 {} 本周 {} 的旧话题聚类数据（因无已分析内容）", userId, monday);
+                }
+            } catch (Exception e) {
+                log.error("删除旧话题聚类数据失败", e);
+            }
+
             return Collections.emptyList();
         }
 
         List<Map<String, Object>> clusters = clusterTopics(items, userId);
 
-        // 保存周报缓存（使用今天的日期作为key）
-        saveTopicClusters(userId, endDate, clusters);
+        // 保存周报缓存（使用周一作为key，覆盖已有数据）
+        saveTopicClusters(userId, monday, clusters);
 
+        log.info("周报话题聚类生成完成，共 {} 个话题", clusters.size());
         return clusters;
     }
 
