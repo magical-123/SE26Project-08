@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface NodePositionRepository extends JpaRepository<NodePosition, Long> {
     List<NodePosition> findByUserId(Long userId);
     Optional<NodePosition> findByUserIdAndNodeId(Long userId, String nodeId);
+    void deleteByUserId(Long userId);
 }

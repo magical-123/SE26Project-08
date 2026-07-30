@@ -46,9 +46,6 @@ export function truncateLabel(text, len) {
 export function buildGraphData(premiumItems, visibleConcepts, savedPositions, conceptNodes, sourceConceptMap) {
   if (premiumItems.length === 0) return { nodes: [], edges: [] };
 
-  const nodes = [];
-  const edges = [];
-
   // Calculate counts for each concept based on premium items
   const conceptCounts = {};
   conceptNodes.forEach(c => conceptCounts[c.id] = 0);
@@ -70,180 +67,128 @@ export function buildGraphData(premiumItems, visibleConcepts, savedPositions, co
   });
   const activeConcepts = validConcepts.filter(c => !visibleConcepts || visibleConcepts.has(c.id));
   
-  const width = window.innerWidth || 800;
-  const height = window.innerHeight || 600;
-  const conceptRadius = Math.min(width, height) * 0.28 || 240; 
+  // 按包含的文章数量降序排序，让大节点靠近中心 (但我们会把它们放在外圈，所以排序决定顺序)
+  activeConcepts.sort((a, b) => (conceptCounts[b.id] || 0) - (conceptCounts[a.id] || 0));
+
+  const activeConceptIds = new Set(activeConcepts.map(c => c.id));
+  const activeItems = premiumItems.filter(item => {
+    const cids = sourceConceptMap[item.id] || [];
+    return cids.some(cid => activeConceptIds.has(cid));
+  });
+
+  // 统一所有节点到一个数组：信息源节点放在最前（在螺旋最内层），接着是大领域，最后是小领域
+  const combinedSequence = [
+    ...activeItems.map(i => ({ ...i, _type: 'source' })),
+    ...activeConcepts.map(c => ({ ...c, _type: 'concept' }))
+  ];
+
+  const nodesMap = {};
   const conceptPositions = {};
   
   const cx = 0;
   const cy = 0;
+  const goldenAngle = 2.39996323;
+  let currentArea = 0;
 
-  // 计算总权重以分配角度
-  const getWeight = (c) => Math.max(conceptCounts[c.id] || 0, 1);
-  const totalWeight = activeConcepts.reduce((sum, c) => sum + getWeight(c), 0);
-  let currentAngle = 0;
-
-  activeConcepts.forEach((concept) => {
-    const count = conceptCounts[concept.id] || 0;
-    const weight = getWeight(concept);
+  // 第一遍：计算所有节点的物理位置（基于累计面积的自适应螺旋）
+  combinedSequence.forEach((item, index) => {
+    const isConcept = item._type === 'concept';
+    const id = isConcept ? item.id : `source-${item.id}`;
     
-    // 如果有保存的位置，直接使用；否则按圆形排列计算
-    const saved = savedPositions[concept.id];
+    let size, count, weight;
+    if (isConcept) {
+      count = conceptCounts[item.id] || 0;
+      size = Math.min(50 + count * 15, 200);
+    } else {
+      weight = getNodeWeight(item);
+      size = 30 + weight * 3;
+    }
+
+    const saved = savedPositions[id];
     let x, y;
-    let centerAngle = 0;
+    
     if (saved) {
       x = saved.x;
       y = saved.y;
     } else {
-      const sliceAngle = (weight / totalWeight) * 2 * Math.PI;
-      centerAngle = currentAngle + sliceAngle / 2;
-      x = cx + conceptRadius * Math.cos(centerAngle);
-      y = cy + conceptRadius * Math.sin(centerAngle);
-      currentAngle += sliceAngle;
+      // 通过累加节点面积来推算当前螺旋半径，确保不同大小的节点都能完美分布不重叠
+      const padding = isConcept ? 40 : 15; 
+      const nodeRadius = (size / 2) + padding;
+      currentArea += Math.PI * nodeRadius * nodeRadius;
+      
+      const r = Math.sqrt(currentArea / Math.PI) * 1.35; // 增加间距系数
+      const angle = index * goldenAngle;
+      
+      // X轴乘以 1.6 实现椭圆伸展，完美契合 16:9 宽屏玻璃面板，消灭左右大白边！
+      x = cx + Math.cos(angle) * r * 1.6; 
+      y = cy + Math.sin(angle) * r;
     }
 
-    const nodeSize = Math.min(50 + count * 15, 200);
-    const sliceAngle = saved ? 0 : (weight / totalWeight) * 2 * Math.PI;
-    // 计算概念节点相对于原点的角度（已保存则从坐标反算）
-    const angleFromOrigin = saved ? Math.atan2(y - cy, x - cx) : centerAngle;
-
-    conceptPositions[concept.id] = { x, y, color: concept.color, angle: angleFromOrigin, sliceAngle, size: nodeSize };
-
-    nodes.push({
-      id: concept.id,
-      type: 'concept',
-      position: { x, y },
-      data: { ...concept, type: 'concept', count, size: nodeSize }
-    });
-
-    currentAngle += sliceAngle;
-  });
-
-  const comboCounts = {};
-
-  const singleDegreeItemsCount = {};
-  premiumItems.forEach((item) => {
-    const itemConceptIds = sourceConceptMap[item.id] || [];
-    const activeItemConcepts = itemConceptIds.filter(cid => conceptPositions[cid]);
-    if (activeItemConcepts.length === 1) {
-      const cid = activeItemConcepts[0];
-      singleDegreeItemsCount[cid] = (singleDegreeItemsCount[cid] || 0) + 1;
-    }
-  });
-  const singleDegreeCount = {};
-
-  // Add Source Nodes
-  premiumItems.forEach((item) => {
-    const itemConceptIds = sourceConceptMap[item.id] || [];
-    const activeItemConcepts = itemConceptIds.filter(cid => conceptPositions[cid]);
-
-    if (activeItemConcepts.length === 0) return;
-
-    const sourceNodeId = `source-${item.id}`;
-    const saved = savedPositions[sourceNodeId];
-
-    const activeColors = activeItemConcepts.map(cid => conceptPositions[cid].color);
-    const primaryColor = blendColors(activeColors);
-    const secondaryColor = activeItemConcepts.length > 1 ? conceptPositions[activeItemConcepts[1]].color : null;
-
-    let sx, sy;
-    if (saved) {
-      sx = saved.x;
-      sy = saved.y;
+    if (isConcept) {
+      conceptPositions[item.id] = { x, y, color: item.color, size, count };
+      nodesMap[id] = {
+        id,
+        type: 'concept',
+        position: { x, y },
+        width: size + 60,
+        height: size + 60,
+        data: { ...item, type: 'concept', count, size }
+      };
     } else {
-      sx = 0;
-      sy = 0;
-
-      const comboKey = activeItemConcepts.slice().sort().join(',');
-      comboCounts[comboKey] = (comboCounts[comboKey] || 0) + 1;
-      const localIndex = comboCounts[comboKey];
-
-      if (activeItemConcepts.length === 1) {
-        // 单节点：均匀分布在圆环外侧的弧线上
-        const cid = activeItemConcepts[0];
-        const pos = conceptPositions[cid];
-        
-        const totalSingles = singleDegreeItemsCount[cid] || 1;
-        singleDegreeCount[cid] = (singleDegreeCount[cid] || 0);
-        const localIndex = singleDegreeCount[cid]++;
-
-        // 每圈最多排 4 个节点
-        const orbit = Math.floor(localIndex / 4);
-        const indexInOrbit = localIndex % 4;
-        const itemsInThisOrbit = Math.min(4, totalSingles - orbit * 4);
-
-        // 半径向外扩散
-        const r = (pos.size / 2) + 35 + orbit * 40;
-
-        // 在所属切片内均匀分布，留出 10% 的安全边距
-        const safeSlice = pos.sliceAngle * 0.8; 
-        let a = pos.angle;
-        if (itemsInThisOrbit > 1) {
-          const step = safeSlice / (itemsInThisOrbit - 1);
-          a = pos.angle - (safeSlice / 2) + step * indexInOrbit;
-        }
-        
-        sx = pos.x + Math.cos(a) * r;
-        sy = pos.y + Math.sin(a) * r;
-      } else {
-        activeItemConcepts.forEach(cid => {
-          sx += conceptPositions[cid].x;
-          sy += conceptPositions[cid].y;
-        });
-        sx /= activeItemConcepts.length;
-        sy /= activeItemConcepts.length;
-
-        const jitterRadius = 18 + localIndex * 20;
-        const angle = localIndex * 2.39996;
-        sx += jitterRadius * Math.cos(angle);
-        sy += jitterRadius * Math.sin(angle);
-      }
-    }
-
-    const weight = getNodeWeight(item);
-
-    const size = 20 + weight * 2;
-    nodes.push({
-      id: `source-${item.id}`,
-      type: 'source',
-      position: { x: sx, y: sy },
-      data: {
-        ...item,
+      nodesMap[id] = {
+        id,
         type: 'source',
-        sourceTitle: item.title,
-        primaryColor,
-        secondaryColor,
-        weight,
-        conceptIds: activeItemConcepts,
-        size
-      }
-    });
+        position: { x, y },
+        width: size + 80,
+        height: size + 80,
+        data: { ...item, type: 'source', sourceTitle: item.title, weight, size }
+      };
+    }
+  });
+
+  const edges = [];
+  
+  // 第二遍：为信息源节点计算颜色并连线
+  activeItems.forEach(item => {
+    const id = `source-${item.id}`;
+    const sourceNode = nodesMap[id];
+    if (!sourceNode) return;
+    
+    const itemConceptIds = sourceConceptMap[item.id] || [];
+    const activeItemConcepts = itemConceptIds.filter(cid => activeConceptIds.has(cid));
+    sourceNode.data.conceptIds = activeItemConcepts;
+
+    const activeColors = activeItemConcepts.map(cid => conceptPositions[cid]?.color).filter(Boolean);
+    sourceNode.data.primaryColor = blendColors(activeColors);
+    sourceNode.data.secondaryColor = activeItemConcepts.length > 1 && conceptPositions[activeItemConcepts[1]] ? conceptPositions[activeItemConcepts[1]].color : null;
 
     activeItemConcepts.forEach(cid => {
       edges.push({
         id: `edge-${item.id}-${cid}`,
-        source: `source-${item.id}`,
+        source: id,
         target: cid,
         data: {
           type: 'belongs',
-          color: conceptPositions[cid].color
+          color: conceptPositions[cid]?.color || '#999'
         }
       });
     });
   });
 
-  // ===== 重叠检测与推开：确保未保存位置的圆不会重叠 =====
-  const MIN_PADDING = 6;
+  const nodes = Object.values(nodesMap);
+
+  // ===== 重叠检测与推开：确保未保存位置的圆绝对不会重叠 =====
+  const MIN_PADDING = 12;
   const MAX_ITER = 15;
   for (let iter = 0; iter < MAX_ITER; iter++) {
     let moved = false;
     for (let i = 0; i < nodes.length; i++) {
       const ni = nodes[i];
-      // 概念节点和已保存位置的节点不动
-      if (ni.type === 'concept' || savedPositions[ni.id]) continue;
-      for (let j = 0; j < nodes.length; j++) {
-        if (i === j) continue;
+      if (savedPositions[ni.id]) continue;
+      
+      for (let j = i + 1; j < nodes.length; j++) {
         const nj = nodes[j];
+        
         const radiusI = (ni.data.size || 24) / 2;
         const radiusJ = (nj.data.size || 24) / 2;
 
@@ -256,13 +201,15 @@ export function buildGraphData(premiumItems, visibleConcepts, savedPositions, co
           const push = (minDist - dist) / 2;
           const nx = dx / dist;
           const ny = dy / dist;
-          // 移动当前节点（source 且未保存）
+          
           ni.position.x -= nx * push;
           ni.position.y -= ny * push;
-          // 如果对方也是可移动节点（source 且未保存），一起推开
-          if (nj.type !== 'concept' && !savedPositions[nj.id]) {
+          if (!savedPositions[nj.id]) {
             nj.position.x += nx * push;
             nj.position.y += ny * push;
+          } else {
+            ni.position.x -= nx * push * 2;
+            ni.position.y -= ny * push * 2;
           }
           moved = true;
         }
@@ -306,6 +253,7 @@ export function ConceptNode({ data }) {
   }
 
   const opacity = dimmed ? 0.1 : 1;
+  const fontSize = Math.max(20, Math.min(36, Math.round(size * 0.22)));
 
   return (
     <div
@@ -331,12 +279,12 @@ export function ConceptNode({ data }) {
       <span
         style={{
           background: 'rgba(255,255,255,0.85)',
-          padding: '4px 8px',
-          borderRadius: 4,
-          fontSize: 12,
-          fontWeight: 700,
-          color: '#2a2a2a',
-          marginTop: 4,
+          padding: '6px 12px',
+          borderRadius: 6,
+          fontSize: fontSize,
+          fontWeight: 800,
+          color: '#1a1a1a',
+          marginTop: 8,
           maxWidth: 160,
           lineHeight: 1.3,
           textAlign: 'center',
@@ -419,13 +367,13 @@ export function SourceNode({ data }) {
       {label && (
         <span
           style={{
-            background: 'rgba(255,255,255,0.78)',
-            padding: '3px 7px',
-            borderRadius: 4,
-            fontSize: 10,
-            fontWeight: 600,
-            color: '#2a2a2a',
-            marginTop: 4,
+            background: 'rgba(255,255,255,0.85)',
+            padding: '5px 10px',
+            borderRadius: 6,
+            fontSize: 16,
+            fontWeight: 700,
+            color: '#1a1a1a',
+            marginTop: 8,
             whiteSpace: 'nowrap',
             lineHeight: 1.3,
           }}
