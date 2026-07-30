@@ -70,6 +70,14 @@ public interface InformationItemRepository extends JpaRepository<InformationItem
     @Query("SELECT i.id FROM InformationItem i WHERE i.crawledAt < :cutoff AND (i.isPremium IS NULL OR i.isPremium = false)")
     List<Long> findExpiredNonPremiumItemIds(@Param("cutoff") LocalDateTime cutoff);
 
+    // 按关键词模糊搜索标题和AI摘要（用于词云溯源回退）
+    @Query("SELECT i FROM InformationItem i WHERE i.userId = :userId AND i.processStatus = 'PROCESSED' " +
+            "AND (LOWER(i.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(i.aiSummary) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "ORDER BY i.crawledAt DESC")
+    List<InformationItem> findByUserIdAndKeywordInTitleOrSummary(
+            @Param("userId") Long userId, @Param("keyword") String keyword);
+
     // 按标题+平台+用户查找最新的一条（用于去重）
     Optional<InformationItem> findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(Long userId, String title, String platform);
 
