@@ -89,7 +89,7 @@ public class InsightService {
                - 本周营养摄入的亮点和不足
                - 与上周相比的明显变化
                - 持续的兴趣点或新出现的关注领域
-            3. **用户画像**：仔细阅读每日洞察中提到的内容主题、关键词和兴趣点，分析归纳用户的兴趣特征
+            3. **用户画像**：仔细阅读内容主题、关键词和兴趣点，分析归纳用户的兴趣特征
                - 识别用户观看内容的主要领域（游戏/科技/影视/学习/生活/娱乐等）
                - 根据内容领域给出精准的用户标签，例如：
                  * 游戏内容占主导 → “游戏爱好者”或”电竞玩家”
@@ -103,7 +103,8 @@ public class InsightService {
                  * 维生素高 → 追求创意和灵感
                  * 脂肪高 → 倾向轻松娱乐
                  * 纤维高 → 关注哲思反思
-               - 必须给出至少1-2个清晰的用户标签（如”游戏爱好者”），并简要说明判断依据
+               - 必须给出至少1-2个清晰的用户标签（如”泛娱乐爱好者”或”哲思型消遣者”）。
+               - 【非常重要】在说明判断依据时，必须说的实在一点，要明确举出参考内容中提到的具体视频为例，来证明为什么赋予该标签。例如：“因为你本周观看了《xxx视频》和《xxx视频》，展现了...所以你是典型的‘泛娱乐爱好者’”。
             4. **建议**：给出2-3条针对下周的内容摄入建议
 
             请用JSON格式返回：
@@ -213,9 +214,11 @@ public class InsightService {
         Map<String, Integer> weeklyNutrition = calculateNutritionDistribution(weekItems);
 
         // 4. 优先使用日报汇总；没有历史日报时直接使用本周内容摘要，保证周报链路可独立运行。
+        // 同时附加本周核心视频列表，以便 AI 能举出具体视频例子。
+        String weekVideoList = buildVideoList(weekItems);
         String dailyInsightsSummary = dailyReports.isEmpty()
-                ? buildVideoList(weekItems)
-                : buildDailyInsightsSummary(dailyReports);
+                ? weekVideoList
+                : buildDailyInsightsSummary(dailyReports) + "\n\n【本周核心视频列表参考】\n" + weekVideoList;
 
         // 5. 构建周报提示词
         String timeRange = startDate + " 至 " + endDate;
