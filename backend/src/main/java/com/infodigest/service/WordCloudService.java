@@ -304,7 +304,7 @@ public class WordCloudService {
      */
     public Map<String, Object> getWordCloud(Long userId, LocalDate reportDate) throws Exception {
         Optional<UserWordCloud> wordCloudOpt = wordCloudRepository
-                .findFirstByUserIdAndReportDateOrderByCreatedAtDesc(userId, reportDate);
+                .findFirstByUserIdAndReportDateOrderByUpdatedAtDesc(userId, reportDate);
 
         if (wordCloudOpt.isEmpty()) {
             throw new Exception("未找到该日期的词云数据");
@@ -330,38 +330,34 @@ public class WordCloudService {
     }
 
     /**
-     * 获取周词云数据（严格的自然周：周一到周日）
+     * 获取周词云数据（严格的自然周：周一到周日），同日期取最新一条，去重
      */
     public List<Map<String, Object>> getWeeklyWordClouds(Long userId, LocalDate endDate) {
         LocalDate monday = endDate.with(DayOfWeek.MONDAY);
         LocalDate sunday = endDate.with(DayOfWeek.SUNDAY);
 
         List<UserWordCloud> wordClouds = wordCloudRepository
-                .findByUserIdAndReportDateBetweenOrderByReportDateDescCreatedAtDesc(userId, monday, sunday);
+                .findByUserIdAndReportDateBetweenOrderByUpdatedAtDesc(userId, monday, sunday);
 
-        // Deduplicate by reportDate, keeping the latest one
-        Map<LocalDate, UserWordCloud> deduplicated = new LinkedHashMap<>();
-        for (UserWordCloud wc : wordClouds) {
-            if (!deduplicated.containsKey(wc.getReportDate())) {
-                deduplicated.put(wc.getReportDate(), wc);
-            }
-        }
+        // 去重：同一 reportDate 只保留 updatedAt 最新的一条（已按 updatedAt DESC 排序）
+        Set<LocalDate> seen = new HashSet<>();
+        return wordClouds.stream()
+                .filter(wc -> seen.add(wc.getReportDate()))
+                .map(wc -> {
+                    try {
+                        List<Map<String, Object>> keywords = objectMapper.readValue(
+                                wc.getKeywords(),
+                                new TypeReference<List<Map<String, Object>>>() {});
 
-        return deduplicated.values().stream().map(wc -> {
-            try {
-                List<Map<String, Object>> keywords = objectMapper.readValue(
-                        wc.getKeywords(),
-                        new TypeReference<List<Map<String, Object>>>() {});
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("reportDate", wc.getReportDate());
+                        result.put("keywords", keywords);
 
-                Map<String, Object> result = new HashMap<>();
-                result.put("reportDate", wc.getReportDate());
-                result.put("keywords", keywords);
-
-                return result;
-            } catch (Exception e) {
-                log.error("解析词云数据失败", e);
-                return null;
-            }
-        }).filter(Objects::nonNull).collect(Collectors.toList());
+                        return result;
+                    } catch (Exception e) {
+                        log.error("解析词云数据失败", e);
+                        return null;
+                    }
+                }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 }
