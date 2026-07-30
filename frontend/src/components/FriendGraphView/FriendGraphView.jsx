@@ -252,8 +252,17 @@ export function FriendGraphView({ friendId, friendName, onClose }) {
   useEffect(() => {
     const el = document.querySelector('.main-glass-board');
     const prevOverflow = el ? el.style.overflow : '';
-    if (el) el.style.overflow = 'hidden';
-    return () => { if (el) el.style.overflow = prevOverflow; };
+    const prevScrollTop = el ? el.scrollTop : 0;
+    if (el) {
+      el.style.overflow = 'hidden';
+      el.scrollTop = 0;
+    }
+    return () => {
+      if (el) {
+        el.style.overflow = prevOverflow;
+        el.scrollTop = prevScrollTop;
+      }
+    };
   }, []);
 
   return (
