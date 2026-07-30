@@ -98,6 +98,8 @@ export function useInboxItems() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
+  const [premiumCount, setPremiumCount] = useState(0);
+  const [aiSummaryCount, setAiSummaryCount] = useState(0);
   const pageSize = 100;
 
   // 当前 filter（由 Inbox.jsx 传入，避免闭包陈旧）
@@ -134,6 +136,8 @@ export function useInboxItems() {
               setTotalItems(data.totalItems ?? 0);
               setTotalPages(data.totalPages ?? 0);
               setCurrentPage(data.currentPage ?? 0);
+              setPremiumCount(data.premiumCount ?? 0);
+              setAiSummaryCount(data.aiSummaryCount ?? 0);
               setInitialized(true);
             } else if (pollCount >= maxPolls) {
               clearInterval(pollTimer);
@@ -190,6 +194,8 @@ export function useInboxItems() {
       setTotalItems(data.totalItems ?? 0);
       setTotalPages(data.totalPages ?? 0);
       setCurrentPage(data.currentPage ?? pageNum);
+      setPremiumCount(data.premiumCount ?? 0);
+      setAiSummaryCount(data.aiSummaryCount ?? 0);
 
       // 缓存当前页（仅缓存 note/keywords 字段供后续合并）
       try {
@@ -227,6 +233,8 @@ export function useInboxItems() {
           setItems(formatted);
           setTotalItems(data.totalItems ?? 0);
           setTotalPages(data.totalPages ?? 0);
+          setPremiumCount(data.premiumCount ?? 0);
+          setAiSummaryCount(data.aiSummaryCount ?? 0);
         }
       } catch { /* silent */ }
     }, 30000);
@@ -359,6 +367,8 @@ export function useInboxItems() {
     totalItems,
     totalPages,
     currentPage,
+    premiumCount,
+    aiSummaryCount,
     fetchPage,
     createItem,
     togglePremium,

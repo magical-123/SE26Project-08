@@ -28,13 +28,12 @@ const toKeywordSuggestions = (concepts = []) => concepts.map(c => ({
 
 export function Inbox() {
   const [filter, setFilter] = useState('All');
-  const { items, togglePremium, regenerateSummary, saveNote, updateItem, loading, error, totalItems, totalPages, currentPage, fetchPage, refetching } = useInboxItems();
+  const { items, togglePremium, regenerateSummary, saveNote, updateItem, loading, error, totalItems, totalPages, currentPage, premiumCount, aiSummaryCount, fetchPage, refetching } = useInboxItems();
   const [selectedItem, setSelectedItem] = useState(null);
   const [draftNote, setDraftNote] = useState('');
   const [selectedKeywords, setSelectedKeywords] = useState([]);
   const [suggestedKeywords, setSuggestedKeywords] = useState([]);
 
-  const aiSummaryCount = items.filter(i => i.aiSummary).length;
   const totalCount = totalItems;
 
   const unprocessedCount = items.filter(i => !i.aiSummary && i.processStatus === 'UNPROCESSED').length;
@@ -320,7 +319,7 @@ export function Inbox() {
           <div>
             <h1>捕获箱 (Inbox)</h1>
             <div className="inbox-subtitle">
-              共捕获 <strong>{totalCount}</strong> 条内容，其中 <strong>{items.filter(i => i.hasNote).length}</strong> 条优质信息源，<strong>{aiSummaryCount}</strong> 条已生成 AI 摘要
+              共捕获 <strong>{totalCount}</strong> 条内容，其中 <strong>{premiumCount}</strong> 条优质信息源，<strong>{aiSummaryCount}</strong> 条已生成 AI 摘要
             </div>
           </div>
           <div className="inbox-filters">
