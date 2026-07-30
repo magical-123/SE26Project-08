@@ -2,6 +2,21 @@
   padding: 32px;
 }
 
+.report-offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: #FFF3CD;
+  border: 1px solid #FFEAA7;
+  color: #856404;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  animation: slideDown 0.3s ease;
+}
+
 .report-header {
   display: flex;
   justify-content: space-between;

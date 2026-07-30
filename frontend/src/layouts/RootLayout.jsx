@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Compass, BookOpen, Search, PieChart, User, Settings, UserCircle, Menu, X } from 'lucide-react';
+import { Compass, BookOpen, Search, PieChart, User, Settings, UserCircle, Menu, X, WifiOff } from 'lucide-react';
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { useInboxItems } from '../hooks/useInboxItems';
+import { onGlobalOfflineChange, checkConnection } from '../utils/offlineStore';
 import './RootLayout.css';
 
 export function RootLayout({ children }) {
@@ -20,6 +21,29 @@ export function RootLayout({ children }) {
   const [avatar, setAvatar] = useState(() => sessionStorage.getItem('avatarUrl'));
   const [username, setUsername] = useState(() => sessionStorage.getItem('username') || 'User');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [globalOffline, setGlobalOffline] = useState(() => !navigator.onLine);
+
+  useEffect(() => {
+    // 持久订阅 + 定时检测
+    const unsub = onGlobalOfflineChange((offline) => setGlobalOffline(offline));
+    const handleOffline = () => setGlobalOffline(true);
+    const handleOnline = () => checkConnection({ optimistic: false });
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    // 初始检测（刷新时触发）
+    checkConnection();
+
+    // 每 5 秒定时检测
+    const interval = window.setInterval(() => checkConnection({ optimistic: false }), 5000);
+
+    return () => {
+      unsub();
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+      window.clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const handleAvatarChange = () => {
@@ -72,6 +96,13 @@ export function RootLayout({ children }) {
             {mobileNavOpen ? <X size={24} strokeWidth={1.8} /> : <Menu size={24} strokeWidth={1.8} />}
           </button>
         </div>
+
+        {globalOffline && (
+          <div className="sidebar-offline-banner">
+            <WifiOff size={14} />
+            <span>当前离线/服务超时，已切换为缓存模式</span>
+          </div>
+        )}
 
         <div className="nav-container-inner">
           <nav className="plain-nav-stack">
