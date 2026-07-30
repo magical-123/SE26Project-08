@@ -35,6 +35,9 @@ public class CrawlController {
     @Value("${crawler.script.path:../crawler/index.js}")
     private String crawlerScriptPath;
 
+    @Value("${crawler.api.url}")
+    private String crawlerApiUrl;
+
     /**
      * 触发爬虫抓取指定平台
      * POST /api/crawl/trigger?platform=xiaohongshu
@@ -75,11 +78,6 @@ public class CrawlController {
             String crawlerToken = jwtUtil.generateToken(username, user.getId());
             
             // 通过 HTTP 调用独立的爬虫微服务
-            String crawlerUrl = System.getenv("CRAWLER_SERVICE_URL");
-            if (crawlerUrl == null || crawlerUrl.isEmpty()) {
-                crawlerUrl = "http://crawler:3000/crawl"; // 默认在 docker-compose 里的内网地址
-            }
-
             Map<String, Object> requestBody = new HashMap<>();
             if (!"all".equalsIgnoreCase(platform)) {
                 requestBody.put("platform", platform.toLowerCase());
@@ -89,7 +87,7 @@ public class CrawlController {
             requestBody.put("limit", 10);
 
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-            restTemplate.postForObject(crawlerUrl, requestBody, Map.class);
+            restTemplate.postForObject(crawlerApiUrl, requestBody, Map.class);
 
             result.put("status", "started");
             result.put("platform", platform);

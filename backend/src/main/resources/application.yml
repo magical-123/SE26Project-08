@@ -48,3 +48,8 @@ ai:
     api-url: https://api.deepseek.com/v1/chat/completions
     api-key: ${DEEPSEEK_API_KEY:}
     model: deepseek-v4-flash
+
+# 爬虫微服务配置
+crawler:
+  api:
+    url: ${CRAWLER_SERVICE_URL:http://localhost:3000/crawl}
