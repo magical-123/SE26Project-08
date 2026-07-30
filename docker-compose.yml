@@ -16,6 +16,7 @@ services:
       - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
       - SPRING_DATA_REDIS_PORT=6379
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - CRAWLER_SERVICE_URL=${CRAWLER_SERVICE_URL:-http://crawler:3000/crawl}
     ports:
       - "8080:8080"
     extra_hosts:
