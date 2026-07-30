@@ -18,6 +18,23 @@ export function FriendTrendView({ friendId, friendName, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // 打开时锁定背景滚动并重置到顶部
+  useEffect(() => {
+    const el = document.querySelector('.main-glass-board');
+    const prevOverflow = el ? el.style.overflow : '';
+    const prevScrollTop = el ? el.scrollTop : 0;
+    if (el) {
+      el.style.overflow = 'hidden';
+      el.scrollTop = 0;
+    }
+    return () => {
+      if (el) {
+        el.style.overflow = prevOverflow;
+        el.scrollTop = prevScrollTop;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const headers = getAuthHeaders();
     Promise.all([
