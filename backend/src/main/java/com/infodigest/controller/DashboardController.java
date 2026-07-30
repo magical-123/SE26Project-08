@@ -266,8 +266,26 @@ public class DashboardController {
             }
 
             if (relatedVideoIds == null || relatedVideoIds.isEmpty()) {
-                log.warn("[溯源API] 未找到关键词 '{}' 的相关视频", word);
-                return ResponseEntity.ok(new ArrayList<>());
+                log.warn("[溯源API] 关键词 '{}' 的 relatedVideos 为空，回退到模糊搜索", word);
+                // 回退：根据关键词模糊搜索标题和AI摘要
+                List<InformationItem> fallbackItems = informationItemRepository
+                        .findByUserIdAndKeywordInTitleOrSummary(userId, word);
+                log.info("[溯源API] 模糊搜索找到 {} 条记录", fallbackItems.size());
+
+                List<Map<String, Object>> sources = new ArrayList<>();
+                for (InformationItem item : fallbackItems) {
+                    Map<String, Object> source = new LinkedHashMap<>();
+                    source.put("id", item.getId());
+                    source.put("title", item.getTitle());
+                    source.put("platform", item.getPlatform());
+                    source.put("link", item.getUrl());
+                    source.put("summary", item.getAiSummary());
+                    source.put("completionRate", item.getCompletionRate());
+                    source.put("deleted", false);
+                    source.put("fallback", true);
+                    sources.add(source);
+                }
+                return ResponseEntity.ok(sources);
             }
 
             // 查询相关视频的详细信息
