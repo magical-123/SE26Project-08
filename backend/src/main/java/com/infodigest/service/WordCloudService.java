@@ -278,7 +278,7 @@ public class WordCloudService {
             String keywordsJson = objectMapper.writeValueAsString(keywords);
 
             UserWordCloud wordCloud = wordCloudRepository
-                    .findByUserIdAndReportDate(userId, reportDate)
+                    .findFirstByUserIdAndReportDateOrderByCreatedAtDesc(userId, reportDate)
                     .orElse(new UserWordCloud());
 
             wordCloud.setUserId(userId);
@@ -297,7 +297,7 @@ public class WordCloudService {
      */
     public Map<String, Object> getWordCloud(Long userId, LocalDate reportDate) throws Exception {
         Optional<UserWordCloud> wordCloudOpt = wordCloudRepository
-                .findByUserIdAndReportDate(userId, reportDate);
+                .findFirstByUserIdAndReportDateOrderByCreatedAtDesc(userId, reportDate);
 
         if (wordCloudOpt.isEmpty()) {
             throw new Exception("未找到该日期的词云数据");
@@ -330,9 +330,17 @@ public class WordCloudService {
         LocalDate sunday = endDate.with(DayOfWeek.SUNDAY);
 
         List<UserWordCloud> wordClouds = wordCloudRepository
-                .findByUserIdAndReportDateBetweenOrderByReportDateDesc(userId, monday, sunday);
+                .findByUserIdAndReportDateBetweenOrderByReportDateDescCreatedAtDesc(userId, monday, sunday);
 
-        return wordClouds.stream().map(wc -> {
+        // Deduplicate by reportDate, keeping the latest one
+        Map<LocalDate, UserWordCloud> deduplicated = new LinkedHashMap<>();
+        for (UserWordCloud wc : wordClouds) {
+            if (!deduplicated.containsKey(wc.getReportDate())) {
+                deduplicated.put(wc.getReportDate(), wc);
+            }
+        }
+
+        return deduplicated.values().stream().map(wc -> {
             try {
                 List<Map<String, Object>> keywords = objectMapper.readValue(
                         wc.getKeywords(),
