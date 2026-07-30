@@ -57,30 +57,22 @@ public class DashboardController {
     /**
      * 返回 weeklyPieData 格式（前端 Dashboard 营养分析组件使用）
      * 从已分析的视频中统计真实营养成分数据
-     *
-     * 仪表盘展示：所有已分析内容的累计营养分布
      */
     @GetMapping("/nutrition")
-    public ResponseEntity<Map<String, Object>> getNutrition(@RequestParam(required = false, defaultValue = "all") String type) {
+    public ResponseEntity<Map<String, Object>> getNutrition(@RequestParam(required = false, defaultValue = "weekly") String type) {
         Long userId = getCurrentUserId();
 
-        List<InformationItem> analyzedItems;
-
-        if ("all".equalsIgnoreCase(type)) {
-            // 仪表盘：查询所有已分析的内容
-            analyzedItems = informationItemRepository.findByUserIdAndProcessStatus(userId, "PROCESSED");
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startTime;
+        if ("daily".equalsIgnoreCase(type)) {
+            startTime = now.toLocalDate().atStartOfDay();
         } else {
-            // 兼容旧的时间范围查询（如有其他页面需要）
-            LocalDateTime now = LocalDateTime.now();
-            LocalDateTime startTime;
-            if ("daily".equalsIgnoreCase(type)) {
-                startTime = now.toLocalDate().atStartOfDay();
-            } else {
-                // weekly
-                startTime = now.minusDays(7).toLocalDate().atStartOfDay();
-            }
-            analyzedItems = informationItemRepository.findByUserIdAndProcessStatusAndCrawledAtBetween(userId, "PROCESSED", startTime, now);
+            // 周报展示滚动最近 7 天，便于实时观察数字饮食变化。
+            startTime = now.minusDays(7).toLocalDate().atStartOfDay();
         }
+
+        // 查询时间范围内的已分析视频
+        List<InformationItem> analyzedItems = informationItemRepository.findByUserIdAndProcessStatusAndCrawledAtBetween(userId, "PROCESSED", startTime, now);
 
         if (analyzedItems.isEmpty()) {
             Map<String, Object> response = new LinkedHashMap<>();

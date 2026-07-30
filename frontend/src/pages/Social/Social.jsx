@@ -3,6 +3,8 @@ import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { FriendGraphView } from '../../components/FriendGraphView/FriendGraphView';
 import { FriendTrendView } from '../../components/FriendTrendView/FriendTrendView';
 import { UserPlus, Search, X, Check, Loader2, Eye, ChevronDown, TrendingUp } from 'lucide-react';
+import { cacheData, getCachedData } from '../../utils/cache';
+import { setGlobalOffline } from '../../utils/offlineStore';
 import './Social.css';
 
 const API_BASE = '';
@@ -144,7 +146,15 @@ export function Social() {
   }, []);
 
   const fetchAll = () => {
-    setLoading(true);
+    // 1. 立即展示缓存
+    const cached = getCachedData('social');
+    if (cached) {
+      setFriends(cached.friends || []);
+      setRequests(cached.requests || []);
+      setLoading(false);
+    }
+
+    // 2. 后台请求最新数据
     const token = sessionStorage.getItem('token');
     const headers = { Authorization: `Bearer ${token}` };
     Promise.all([
@@ -154,10 +164,10 @@ export function Social() {
       .then(([friendsData, requestsData]) => {
         setFriends(friendsData);
         setRequests(requestsData);
+        cacheData('social', { friends: friendsData, requests: requestsData });
       })
       .catch(() => {
-        setFriends([]);
-        setRequests([]);
+        setGlobalOffline(true);
       })
       .finally(() => setLoading(false));
   };

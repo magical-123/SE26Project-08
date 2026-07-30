@@ -4,10 +4,17 @@ spring:
   application:
     name: infodigest-backend
   datasource:
-    url: ${DB_URL:jdbc:mysql://host.docker.internal:3306/info_digest?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
+    url: ${DB_URL:jdbc:mysql://10.119.3.25:3306/info_digest?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:root123}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: 2000
+      validation-timeout: 2000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      minimum-idle: 2
+      maximum-pool-size: 10
   jpa:
     hibernate:
       ddl-auto: update
@@ -38,6 +45,6 @@ logging:
 # AI 摘要配置（每条数据入库时异步触发，无需定时调度）
 ai:
   deepseek:
-    api-url: https://api.deepseek.com/chat/completions
+    api-url: https://api.deepseek.com/v1/chat/completions
     api-key: ${DEEPSEEK_API_KEY:}
     model: deepseek-v4-flash

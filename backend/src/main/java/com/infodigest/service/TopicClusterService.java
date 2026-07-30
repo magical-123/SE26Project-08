@@ -66,9 +66,9 @@ public class TopicClusterService {
     /**
      * 获取指定日期的话题聚类数据（优先从数据库读取）
      */
-    public List<Map<String, Object>> getTopicClusters(Long userId, LocalDate reportDate, String reportType) throws Exception {
+    public List<Map<String, Object>> getTopicClusters(Long userId, LocalDate reportDate) throws Exception {
         Optional<UserTopicCluster> topicClusterOpt = topicClusterRepository
-                .findByUserIdAndReportDateAndReportType(userId, reportDate, reportType);
+                .findByUserIdAndReportDate(userId, reportDate);
 
         if (topicClusterOpt.isPresent()) {
             UserTopicCluster topicCluster = topicClusterOpt.get();
@@ -76,7 +76,7 @@ public class TopicClusterService {
                 List<Map<String, Object>> clusters = objectMapper.readValue(
                         topicCluster.getClusters(),
                         new TypeReference<List<Map<String, Object>>>() {});
-                log.info("从数据库读取用户 {} 日期 {} 类型 {} 的话题聚类", userId, reportDate, reportType);
+                log.info("从数据库读取用户 {} 日期 {} 的话题聚类", userId, reportDate);
                 return clusters;
             } catch (Exception e) {
                 log.error("解析话题聚类数据失败", e);
@@ -106,8 +106,8 @@ public class TopicClusterService {
 
         List<Map<String, Object>> clusters = clusterTopics(items, userId);
 
-        // 保存到数据库，类型为 daily
-        saveTopicClusters(userId, reportDate, "daily", clusters);
+        // 保存到数据库
+        saveTopicClusters(userId, reportDate, clusters);
 
         return clusters;
     }
@@ -120,7 +120,7 @@ public class TopicClusterService {
 
         // 尝试从数据库读取今日的周报缓存
         try {
-            List<Map<String, Object>> cached = getTopicClusters(userId, endDate, "weekly");
+            List<Map<String, Object>> cached = getTopicClusters(userId, endDate);
             log.info("从缓存读取用户 {} 的周报话题聚类", userId);
             return cached;
         } catch (Exception e) {
@@ -142,8 +142,8 @@ public class TopicClusterService {
 
         List<Map<String, Object>> clusters = clusterTopics(items, userId);
 
-        // 保存周报缓存（使用今天的日期作为key，类型为 weekly）
-        saveTopicClusters(userId, endDate, "weekly", clusters);
+        // 保存周报缓存（使用今天的日期作为key）
+        saveTopicClusters(userId, endDate, clusters);
 
         return clusters;
     }
@@ -151,21 +151,20 @@ public class TopicClusterService {
     /**
      * 保存话题聚类到数据库
      */
-    private void saveTopicClusters(Long userId, LocalDate reportDate, String reportType, List<Map<String, Object>> clusters) throws Exception {
+    private void saveTopicClusters(Long userId, LocalDate reportDate, List<Map<String, Object>> clusters) throws Exception {
         try {
             String clustersJson = objectMapper.writeValueAsString(clusters);
 
             UserTopicCluster topicCluster = topicClusterRepository
-                    .findByUserIdAndReportDateAndReportType(userId, reportDate, reportType)
+                    .findByUserIdAndReportDate(userId, reportDate)
                     .orElse(new UserTopicCluster());
 
             topicCluster.setUserId(userId);
             topicCluster.setReportDate(reportDate);
-            topicCluster.setReportType(reportType);
             topicCluster.setClusters(clustersJson);
 
             topicClusterRepository.save(topicCluster);
-            log.info("话题聚类数据已保存到数据库 (type={})", reportType);
+            log.info("话题聚类数据已保存到数据库");
         } catch (Exception e) {
             log.error("保存话题聚类数据失败", e);
             throw new Exception("保存话题聚类数据失败: " + e.getMessage());

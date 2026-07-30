@@ -392,3 +392,27 @@
   .plain-nav-stack .nav-item { min-width: 62px; padding: 0 8px; }
   .nav-label { font-size: 9px; }
 }
+
+/* ====================
+   Sidebar Offline Banner
+   ==================== */
+.sidebar-offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: #FFF3CD;
+  border: 1px solid #FFEAA7;
+  color: #856404;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+  .sidebar-offline-banner {
+    font-size: 11px;
+    padding: 8px 12px;
+  }
+}

@@ -15,13 +15,25 @@ function getToken() {
 }
 
 /**
+ * 数据获取超时（毫秒） — 用于缓存降级场景，快速失败
+ */
+const DATA_FETCH_TIMEOUT = 4000;
+
+/**
  * 带超时的 fetch 封装
  */
-function fetchWithTimeout(url, options, timeoutMs = 30000) {
+function fetchWithTimeout(url, options, timeoutMs = DATA_FETCH_TIMEOUT) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...options, signal: controller.signal })
     .finally(() => clearTimeout(timeoutId));
+}
+
+/**
+ * 快速数据获取 — 用于 Dashboard / Report / 知识图谱 的缓存降级场景
+ */
+export function fetchData(url, options) {
+  return fetchWithTimeout(url, options, DATA_FETCH_TIMEOUT);
 }
 
 /**
@@ -79,12 +91,13 @@ async function apiFetch(path, options = {}) {
 // ===== Inbox API =====
 
 export const inboxApi = {
-  /** 获取当前用户的信息项（支持分页） */
-  async getItems(page = 0, size = 10, silent = false) {
-    const res = await apiFetch(
-      `/api/inbox/items?page=${page}&size=${size}`,
-      { silent }
-    );
+  /** 获取当前用户的信息项（支持分页 + 筛选） */
+  async getItems(page = 0, size = 100, options = {}) {
+    const { silent = false, platform, premium } = options;
+    let url = `/api/inbox/items?page=${page}&size=${size}`;
+    if (platform) url += `&platform=${encodeURIComponent(platform)}`;
+    if (premium) url += `&premium=true`;
+    const res = await apiFetch(url, { silent });
     return res.json();
   },
 
