@@ -7,9 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/quotes")
@@ -32,6 +34,17 @@ public class QuoteExtractController {
             quotes = quotes.subList(0, 20);
         }
         return ResponseEntity.ok(quotes);
+    }
+
+    /**
+     * 清除当前用户的所有金句（用于重新生成前清理旧数据）
+     */
+    @Transactional
+    @DeleteMapping
+    public ResponseEntity<Map<String, Object>> clearQuotes() {
+        Long userId = getCurrentUserId();
+        quoteExtractRepository.deleteByUserId(userId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "已清除所有金句"));
     }
 
     private Long getCurrentUserId() {
