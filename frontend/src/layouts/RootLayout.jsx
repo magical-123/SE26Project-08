@@ -111,6 +111,7 @@ export function RootLayout({ children }) {
                 key={item.path} 
                 to={item.path} 
                 className={({isActive}) => isActive ? "nav-item active" : "nav-item"}
+                id={`nav-${item.path === '/' ? 'dashboard' : item.path.substring(1)}`}
                 onClick={() => setMobileNavOpen(false)}
               >
                 <div className="nav-content">

@@ -10,6 +10,7 @@ import { Settings } from './pages/Settings/Settings';
 import { ProfilePage } from './pages/Profile/ProfilePage';
 import { AuthPage } from './pages/Auth/AuthPage';
 import { ToastProvider } from './components/Toast/Toast';
+import { TourProvider } from './components/Tour/TourContext';
 
 // ProtectedRoute component checks if the user is authenticated
 const ProtectedRoute = ({ children }) => {
@@ -40,26 +41,28 @@ function App() {
   return (
     <BrowserRouter>
       <AuthRedirectListener />
-      <ToastProvider>
-      <Routes>
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/*" element={
-          <ProtectedRoute>
-            <RootLayout>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/inbox" element={<Inbox />} />
-                <Route path="/graph" element={<KnowledgeGraph />} />
-                <Route path="/report" element={<Report />} />
-                <Route path="/social" element={<Social />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/profile" element={<ProfilePage />} />
-              </Routes>
-            </RootLayout>
-          </ProtectedRoute>
-        } />
-      </Routes>
-      </ToastProvider>
+      <TourProvider>
+        <ToastProvider>
+          <Routes>
+            <Route path="/login" element={<AuthPage />} />
+            <Route path="/*" element={
+              <ProtectedRoute>
+                <RootLayout>
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/inbox" element={<Inbox />} />
+                    <Route path="/graph" element={<KnowledgeGraph />} />
+                    <Route path="/report" element={<Report />} />
+                    <Route path="/social" element={<Social />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                  </Routes>
+                </RootLayout>
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </ToastProvider>
+      </TourProvider>
     </BrowserRouter>
   );
 }

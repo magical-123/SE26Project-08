@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { nutritionData, wordCloudData, aiQuotes, reviewCards } from '../../mock/dashboardData';
 import { cacheData, getCachedData } from '../../utils/cache';
 import { fetchData as timedFetch } from '../../utils/api';
+import { useTour } from '../../components/Tour/TourContext';
 import './Dashboard.css';
 
 const API_BASE = '';
@@ -37,8 +38,45 @@ export function Dashboard() {
   const [realWordCloudData, setRealWordCloudData] = useState(null);
   const [loadingWordCloud, setLoadingWordCloud] = useState(true);
   const [isRegeneratingReview, setIsRegeneratingReview] = useState(false);
+  const { tourStep, updateStep, runTourStep } = useTour();
 
-  // 删除重复的词云获取逻辑 - 统一使用下面的轮询机制
+  // Tour logic
+  useEffect(() => {
+    if (tourStep === 0 && !loading) {
+      // First login, start the tour
+      updateStep(1);
+    }
+  }, [tourStep, loading, updateStep]);
+
+  useEffect(() => {
+    if (tourStep === 1 && !loading) {
+      runTourStep({
+        steps: [
+          {
+            element: '.dashboard-header',
+            popover: {
+              title: '欢迎来到 InfoDigest！',
+              description: '这是您的信息中枢。首先，让我们来配置一下 AI，以便为您智能处理海量信息。',
+              side: "bottom", align: 'start'
+            }
+          },
+          {
+            element: '#nav-settings',
+            popover: {
+              title: '前往设置',
+              description: '点击这里进入设置页面，配置您的 API Key。',
+              side: "right", align: 'start',
+              onNextClick: (element, step, options) => {
+                options.driver.destroy();
+                updateStep(2);
+                navigate('/settings');
+              }
+            }
+          }
+        ]
+      });
+    }
+  }, [tourStep, loading, runTourStep, navigate, updateStep]);
 
   // 监听Report页面的词云更新通知 + 页面进入时立即加载
   useEffect(() => {

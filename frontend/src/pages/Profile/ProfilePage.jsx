@@ -4,6 +4,7 @@ import { GlassCard } from '../../components/GlassCard/GlassCard';
 import { User, Mail, LogOut, Loader2, CheckCircle, AlertCircle, Camera, UserCircle } from 'lucide-react';
 import { useToast } from '../../components/Toast/Toast';
 import { cacheData, getCachedData } from '../../utils/cache';
+import { useTour } from '../../components/Tour/TourContext';
 import './ProfilePage.css';
 
 const API_BASE = '';
@@ -21,6 +22,38 @@ export function ProfilePage() {
   const [email, setEmail] = useState('');
   const [selfPortrait, setSelfPortrait] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
+  const { tourStep, updateStep, runTourStep } = useTour();
+
+  // Tour logic
+  useEffect(() => {
+    if (tourStep === 4 && !loading) {
+      runTourStep({
+        steps: [
+          {
+            element: '#tour-persona',
+            popover: {
+              title: '配置 AI 自画像',
+              description: 'AI 会根据您的身份、兴趣等定制化地为您筛选信息。一时间不想写也没关系，可以留空以后再来补上。填完之后，让我们回到设置页面。',
+              side: "top", align: 'start'
+            }
+          },
+          {
+            element: '#nav-settings',
+            popover: {
+              title: '返回设置并接入平台',
+              description: '点击这里返回设置，接入数据源平台以进行您的第一次捕获。',
+              side: "right", align: 'start',
+              onNextClick: (element, step, options) => {
+                options.driver.destroy();
+                updateStep(6);
+                navigate('/settings');
+              }
+            }
+          }
+        ]
+      });
+    }
+  }, [tourStep, loading, runTourStep, navigate, updateStep]);
 
   useEffect(() => {
     fetchProfile();
@@ -272,7 +305,7 @@ export function ProfilePage() {
         </GlassCard>
 
         {/* Self-Portrait Section */}
-        <GlassCard className="profile-portrait-section">
+        <GlassCard className="profile-portrait-section" id="tour-persona">
           <h2>
             <UserCircle size={18} />
             用户自画像

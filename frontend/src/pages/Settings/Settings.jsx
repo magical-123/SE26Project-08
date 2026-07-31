@@ -4,6 +4,8 @@ import { settingsApi, crawlApi, aiConfigApi } from '../../utils/api';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '../../components/Toast/Toast';
 import { ConfirmModal } from '../../components/ConfirmModal/ConfirmModal';
+import { useTour } from '../../components/Tour/TourContext';
+import { useNavigate } from 'react-router-dom';
 import './Settings.css';
 
 function defaultPlatforms() {
@@ -17,6 +19,8 @@ function defaultPlatforms() {
 
 export function Settings() {
   const toast = useToast();
+  const navigate = useNavigate();
+  const { tourStep, updateStep, runTourStep, completeTour } = useTour();
   const [platforms, setPlatforms] = useState(defaultPlatforms);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -239,6 +243,55 @@ export function Settings() {
       console.error('加载 AI 配置失败:', error);
     }
   };
+
+  // Tour logic
+  useEffect(() => {
+    if (tourStep === 2 && !loading) {
+      runTourStep({
+        steps: [
+          {
+            element: '#tour-ai-config',
+            popover: {
+              title: 'AI 模型配置',
+              description: '请在这里选择您的供应商并填入 API Key。填写完毕后，建议您点击下方的“测试连接”按钮，确保配置生效。最后不要忘了点击保存配置哦！',
+              side: "top", align: 'start'
+            }
+          },
+          {
+            element: '#nav-profile',
+            popover: {
+              title: '定制自画像 (可选)',
+              description: '现在，去个人档案(Profile)页面定制一下您的 AI 助手人设吧！',
+              side: "right", align: 'start',
+              onNextClick: (element, step, options) => {
+                options.driver.destroy();
+                updateStep(4);
+                navigate('/profile');
+              }
+            }
+          }
+        ]
+      });
+    } else if (tourStep === 6 && !loading) {
+      runTourStep({
+        steps: [
+          {
+            element: '#tour-platforms',
+            popover: {
+              title: '接入平台',
+              description: '配置好 AI 后，就可以在这里接入各大平台了。您可以扫码登录或者使用浏览器扩展自动捕获数据。当有新信息被捕获时，AI 会在后台自动处理它们。',
+              side: "top", align: 'start',
+              onNextClick: (element, step, options) => {
+                options.driver.destroy();
+                updateStep(7);
+                navigate('/inbox');
+              }
+            }
+          }
+        ]
+      });
+    }
+  }, [tourStep, loading, runTourStep, navigate, updateStep, completeTour, toast]);
 
   const handleProviderChange = (e) => {
     const newProvider = e.target.value;
@@ -614,7 +667,7 @@ export function Settings() {
       </header>
 
       <div className="settings-content">
-        <GlassCard className="settings-section">
+        <GlassCard className="settings-section" id="tour-platforms">
           <h2>平台接入管理</h2>
           <p className="section-desc">B站和 GitHub 使用官方凭据授权；知乎和小红书推荐使用浏览器扩展在真实浏览时自动捕获，无需提交平台 Cookie。</p>
           {loading && <p className="section-desc" style={{ color: 'var(--text-muted)' }}>正在获取平台连接状态...</p>}
@@ -723,7 +776,7 @@ export function Settings() {
           </div>
         </GlassCard>
 
-        <GlassCard className="settings-section">
+        <GlassCard className="settings-section" id="tour-ai-config">
           <h2>AI 模型配置</h2>
           <p className="section-desc">选择并配置用于内容分析和摘要的 AI 模型</p>
 

@@ -4,6 +4,7 @@ import { InfoSourceCard } from '../../components/InfoSourceCard/InfoSourceCard';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
 import { graphApi, crawlApi, settingsApi } from '../../utils/api';
+import { useTour } from '../../components/Tour/TourContext';
 import './Inbox.css';
 
 const containerVariants = {
@@ -42,11 +43,43 @@ export function Inbox() {
 
   const [toast, setToast] = useState(null);
   const reauthNotifiedRef = useRef(false);
+  const { tourStep, completeTour, runTourStep } = useTour();
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
+
+  // Tour logic
+  useEffect(() => {
+    if (tourStep === 7 && !loading) {
+      runTourStep({
+        steps: [
+          {
+            element: '.inbox-scroll-area',
+            popover: {
+              title: '信息收件箱',
+              description: '所有被捕获的卡片都会出现在这里。如果您很喜欢这条信息，可以升格为优质信息源。同时我们会自动捕捉并升格20条您过去收藏夹里看过的信息源，作为您的“信息底色”。',
+              side: "top", align: 'start'
+            }
+          },
+          {
+            element: '#nav-graph',
+            popover: {
+              title: '知识图谱',
+              description: '优质信息源会自动被保存到“知识图谱 (Knowledge)”中，供您长期沉淀和检索。',
+              side: "right", align: 'start',
+              onNextClick: (element, step, options) => {
+                options.driver.destroy();
+                completeTour();
+                showToast("新手指引已完成，开始您的探索之旅吧！");
+              }
+            }
+          }
+        ]
+      });
+    }
+  }, [tourStep, loading, runTourStep, completeTour]);
 
   useEffect(() => {
     let cancelled = false;
