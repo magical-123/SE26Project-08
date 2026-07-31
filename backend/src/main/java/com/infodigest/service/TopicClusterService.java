@@ -120,8 +120,10 @@ public class TopicClusterService {
 
         List<Map<String, Object>> clusters = clusterTopics(items, userId);
 
-        // 保存到数据库
-        saveTopicClusters(userId, reportDate, clusters);
+        // 仅当聚类结果非空时才保存到数据库
+        if (clusters != null && !clusters.isEmpty()) {
+            saveTopicClusters(userId, reportDate, clusters);
+        }
 
         return clusters;
     }
@@ -162,8 +164,10 @@ public class TopicClusterService {
 
         List<Map<String, Object>> clusters = clusterTopics(items, userId);
 
-        // 保存周报缓存（使用周一作为key，覆盖已有数据）
-        saveTopicClusters(userId, monday, clusters);
+        // 仅当聚类结果非空时才保存周报缓存（使用周一作为key，覆盖已有数据）
+        if (clusters != null && !clusters.isEmpty()) {
+            saveTopicClusters(userId, monday, clusters);
+        }
 
         log.info("周报话题聚类生成完成，共 {} 个话题", clusters.size());
         return clusters;

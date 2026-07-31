@@ -38,6 +38,9 @@ public class CrawlController {
     @Value("${crawler.api.url}")
     private String crawlerApiUrl;
 
+    /** RestTemplate 用于调用爬虫微服务（包级可见，便于测试 mock） */
+    org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+
     /**
      * 触发爬虫抓取指定平台
      * POST /api/crawl/trigger?platform=xiaohongshu
@@ -86,7 +89,6 @@ public class CrawlController {
             requestBody.put("userId", user.getId());
             requestBody.put("limit", 10);
 
-            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
             restTemplate.postForObject(crawlerApiUrl, requestBody, Map.class);
 
             result.put("status", "started");

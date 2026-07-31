@@ -8,6 +8,7 @@ import {
   Background,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { toPng } from 'html-to-image';
 import { DetailDrawer } from '../../components/DetailDrawer/DetailDrawer';
 import { useInboxItems } from '../../hooks/useInboxItems';
 import { ZoomIn, ZoomOut, Eye, EyeOff, Camera, Sparkles, WifiOff, RotateCcw } from 'lucide-react';
@@ -202,26 +203,33 @@ function KnowledgeGraphInner() {
   };
 
   const exportImage = useCallback(async () => {
-    if (!reactFlowInstance) return;
-    try {
-      const dataUrl = await reactFlowInstance.toImage();
+    let dataUrl = null;
+
+    // 方案1：使用 ReactFlow 的 toImage() 截取当前视口
+    if (reactFlowInstance?.toImage) {
+      try {
+        dataUrl = await reactFlowInstance.toImage({ backgroundColor: '#f5f5f5' });
+      } catch { /* fall through */ }
+    }
+
+    // 方案2：截取 react-flow 容器（避免 SVG foreignObject 的文字问题）
+    if (!dataUrl && containerRef.current) {
+      try {
+        const flowEl = containerRef.current.querySelector('.react-flow');
+        if (flowEl) {
+          dataUrl = await toPng(flowEl, {
+            backgroundColor: '#f5f5f5',
+            pixelRatio: 2,
+          });
+        }
+      } catch { /* fall through */ }
+    }
+
+    if (dataUrl) {
       const link = document.createElement('a');
       link.download = 'knowledge-graph.png';
       link.href = dataUrl;
       link.click();
-    } catch {
-      // Fallback: serialize the SVG viewport
-      const svgEl = document.querySelector('.react-flow__renderer svg');
-      if (svgEl) {
-        const clone = svgEl.cloneNode(true);
-        const serializer = new XMLSerializer();
-        const svgStr = serializer.serializeToString(clone);
-        const dataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
-        const link = document.createElement('a');
-        link.download = 'knowledge-graph.png';
-        link.href = dataUrl;
-        link.click();
-      }
     }
   }, [reactFlowInstance]);
 

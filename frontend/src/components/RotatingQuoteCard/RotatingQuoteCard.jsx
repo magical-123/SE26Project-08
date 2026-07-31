@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard } from '../GlassCard/GlassCard';
-import { ChevronLeft, ChevronRight, ExternalLink, Quote as QuoteIcon, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Quote as QuoteIcon, Trash2 } from 'lucide-react';
 import './RotatingQuoteCard.css';
 
 /**
@@ -10,10 +10,11 @@ import './RotatingQuoteCard.css';
  * - 每 10 秒自动轮换
  * - 点击卡片打开复习卡片界面，可前后翻阅
  */
-export function RotatingQuoteCard({ quotes }) {
+export function RotatingQuoteCard({ quotes, onDelete }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalIndex, setModalIndex] = useState(0);
+  const [deletingId, setDeletingId] = useState(null);
 
   // 随机选一个初始索引
   const randomIndex = useCallback(() => Math.floor(Math.random() * Math.max(quotes?.length ?? 0, 1)), [quotes?.length]);
@@ -62,6 +63,23 @@ export function RotatingQuoteCard({ quotes }) {
   const navigateNext = (e) => {
     e.stopPropagation();
     setModalIndex(prev => (prev + 1) % quotes.length);
+  };
+
+  const handleDelete = async (e) => {
+    e.stopPropagation();
+    if (!onDelete) return;
+    const quoteId = quotes[modalIndex]?.id;
+    if (!quoteId) return;
+    setDeletingId(quoteId);
+    try {
+      const success = await onDelete(quoteId);
+      if (success) {
+        // 删除后关闭弹窗
+        setIsModalOpen(false);
+      }
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -128,9 +146,21 @@ export function RotatingQuoteCard({ quotes }) {
                 <button className="rq-nav-btn" onClick={navigatePrev}>
                   <ChevronLeft size={20} />
                 </button>
-                <span className="rq-modal-counter">
-                  {modalIndex + 1} / {quotes.length}
-                </span>
+                <div className="rq-modal-header-center">
+                  <span className="rq-modal-counter">
+                    {modalIndex + 1} / {quotes.length}
+                  </span>
+                  {onDelete && (
+                    <button
+                      className="rq-delete-btn"
+                      onClick={handleDelete}
+                      disabled={deletingId === quotes[modalIndex]?.id}
+                      title="删除此金句"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
                 <button className="rq-nav-btn" onClick={navigateNext}>
                   <ChevronRight size={20} />
                 </button>

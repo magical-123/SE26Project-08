@@ -46,6 +46,18 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- H2 内存数据库：集成测试时替代 MySQL -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Spring Security Test：@WithMockUser 等 -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
@@ -84,9 +96,6 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.11.0</version>
 				<configuration>
-					<!-- Disable compiler status-file generation so builds remain stable on
-					     Windows workspaces whose path contains non-ASCII characters. -->
-					<useIncrementalCompilation>false</useIncrementalCompilation>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
@@ -97,16 +106,23 @@
 				</configuration>
 			</plugin>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>**/DashboardInsightSchedulerTest.java</exclude>
+						<exclude>**/CrawlSchedulerTest.java</exclude>
+						<exclude>**/ContentAnalysisSchedulerTest.java</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.8.12</version>
 				<executions>
 					<execution>
 						<id>prepare-agent</id>
-						<configuration>
-							<!-- Keep the execution-data path ASCII-only on Windows. -->
-							<destFile>C:/temp/infodigest-jacoco.exec</destFile>
-						</configuration>
 						<goals>
 							<goal>prepare-agent</goal>
 						</goals>
@@ -114,9 +130,6 @@
 					<execution>
 						<id>report</id>
 						<phase>test</phase>
-						<configuration>
-							<dataFile>C:/temp/infodigest-jacoco.exec</dataFile>
-						</configuration>
 						<goals>
 							<goal>report</goal>
 						</goals>

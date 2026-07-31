@@ -46,14 +46,14 @@ public class SettingsController {
     private CredentialCryptoService credentialCryptoService;
 
     // ===== B 站扫码登录会话缓存 =====
-    private static final ConcurrentHashMap<String, QrSession> BILI_QR_SESSIONS = new ConcurrentHashMap<>();
+    static ConcurrentHashMap<String, QrSession> BILI_QR_SESSIONS = new ConcurrentHashMap<>();
     private static final Duration QR_SESSION_TTL = Duration.ofMinutes(5);
 
     // ===== 知乎扫码登录会话缓存 =====
-    private static final ConcurrentHashMap<String, ZhihuQrSession> ZHIHU_QR_SESSIONS = new ConcurrentHashMap<>();
+    static ConcurrentHashMap<String, ZhihuQrSession> ZHIHU_QR_SESSIONS = new ConcurrentHashMap<>();
     private static final Duration ZHIHU_QR_SESSION_TTL = Duration.ofMinutes(5);
 
-    private static class QrSession {
+    static class QrSession {
         final String qrcodeKey;
         final HttpClient httpClient;
         final CookieManager cookieManager;
@@ -67,7 +67,7 @@ public class SettingsController {
         }
     }
 
-    private static class ZhihuQrSession {
+    static class ZhihuQrSession {
         final String qrcodeKey;
         final HttpClient httpClient;
         final CookieManager cookieManager;
@@ -334,7 +334,7 @@ public class SettingsController {
                     .GET()
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = executeHttpRequest(httpClient, request);
             Map<String, Object> body = parseJson(response.body());
 
             if (body == null || !Integer.valueOf(0).equals(body.get("code"))) {
@@ -384,7 +384,7 @@ public class SettingsController {
                     .GET()
                     .build();
 
-            HttpResponse<String> response = session.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = executeHttpRequest(session.httpClient, request);
             Map<String, Object> body = parseJson(response.body());
 
             if (body == null) {
@@ -556,7 +556,7 @@ public class SettingsController {
                     .timeout(Duration.ofSeconds(15))
                     .POST(HttpRequest.BodyPublishers.noBody())
                     .build();
-            HttpResponse<String> udidResp = httpClient.send(udidRequest, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> udidResp = executeHttpRequest(httpClient, udidRequest);
             System.out.println("[ZhihuQR] udid status: " + udidResp.statusCode());
 
             // 2. 请求二维码 token
@@ -568,7 +568,7 @@ public class SettingsController {
                     .timeout(Duration.ofSeconds(15))
                     .POST(HttpRequest.BodyPublishers.noBody())
                     .build();
-            HttpResponse<String> tokenResponse = httpClient.send(tokenRequest, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> tokenResponse = executeHttpRequest(httpClient, tokenRequest);
             System.out.println("[ZhihuQR] token status: " + tokenResponse.statusCode() + " body: " + tokenResponse.body().substring(0, Math.min(200, tokenResponse.body().length())));
 
             Map<String, Object> tokenBody = parseJson(tokenResponse.body());
@@ -632,7 +632,7 @@ public class SettingsController {
                     .GET()
                     .build();
 
-            HttpResponse<String> response = (HttpResponse<String>) session.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = executeHttpRequest(session.httpClient, request);
             long elapsed = System.currentTimeMillis() - t0;
             String respBody = response.body();
             System.out.println("[ZhihuPoll] HTTP " + response.statusCode() + " in " + elapsed + "ms, body: " + (respBody != null ? respBody.substring(0, Math.min(300, respBody.length())) : "null"));
@@ -715,6 +715,13 @@ public class SettingsController {
         Instant now = Instant.now();
         ZHIHU_QR_SESSIONS.entrySet().removeIf(entry ->
                 Duration.between(entry.getValue().createdAt, now).compareTo(ZHIHU_QR_SESSION_TTL) > 0);
+    }
+
+    /**
+     * 包级可见，便于测试 mock 网络调用
+     */
+    HttpResponse<String> executeHttpRequest(HttpClient client, HttpRequest request) throws Exception {
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     @SuppressWarnings("unchecked")

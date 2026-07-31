@@ -258,6 +258,23 @@ export function Dashboard() {
     }
   };
 
+  // 删除金句
+  const handleDeleteQuote = async (quoteId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/quotes/${quoteId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        setQuoteExtracts(prev => prev.filter(q => q.id !== quoteId));
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
   // 重新生成复习卡片
   const handleRegenerateReview = async (e) => {
     e.stopPropagation(); // 防止触发卡片点击
@@ -402,7 +419,7 @@ export function Dashboard() {
         </GlassCard>
 
         <div className="bento-quote">
-          <RotatingQuoteCard quotes={quoteExtracts} />
+          <RotatingQuoteCard quotes={quoteExtracts} onDelete={handleDeleteQuote} />
         </div>
 
         <motion.div whileHover={{ y: -4 }} className="bento-review">

@@ -47,6 +47,21 @@ public class QuoteExtractController {
         return ResponseEntity.ok(Map.of("success", true, "message", "已清除所有金句"));
     }
 
+    /**
+     * 删除指定金句（仅限当前用户的）
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteQuote(@PathVariable Long id) {
+        Long userId = getCurrentUserId();
+        QuoteExtract quote = quoteExtractRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Quote not found: " + id));
+        if (!quote.getUserId().equals(userId)) {
+            return ResponseEntity.status(403).build();
+        }
+        quoteExtractRepository.delete(quote);
+        return ResponseEntity.noContent().build();
+    }
+
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();

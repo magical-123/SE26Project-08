@@ -152,6 +152,37 @@
   color: var(--text-secondary);
 }
 
+.rq-modal-header-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rq-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.8);
+  color: #999;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rq-delete-btn:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.08);
+  border-color: rgba(244, 63, 94, 0.3);
+  color: #F43F5E;
+}
+
+.rq-delete-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .rq-modal-body {
   flex: 1;
   display: flex;
