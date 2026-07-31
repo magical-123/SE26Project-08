@@ -67,7 +67,7 @@ export function Inbox() {
             element: '#nav-graph',
             popover: {
               title: '知识图谱',
-              description: '优质信息源会自动被保存到“知识图谱 (Knowledge)”中，供您长期沉淀和检索。',
+              description: '优质信息源会自动被保存到“脑海图景 (Mindscape)”中，供您长期沉淀和探索。',
               side: "right", align: 'start',
               onNextClick: (element, step, options) => {
                 options.driver.destroy();

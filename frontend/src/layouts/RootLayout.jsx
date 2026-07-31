@@ -11,7 +11,7 @@ export function RootLayout({ children }) {
   const navItems = [
     { path: "/", icon: Compass, label: "DASHBOARD" },
     { path: "/inbox", icon: BookOpen, label: "INBOX" },
-    { path: "/graph", icon: Search, label: "KNOWLEDGE" },
+    { path: "/graph", icon: Search, label: "MINDSCAPE" },
     { path: "/report", icon: PieChart, label: "REPORT" },
     { path: "/social", icon: User, label: "SOCIAL" },
     { path: "/settings", icon: Settings, label: "SETTINGS" },

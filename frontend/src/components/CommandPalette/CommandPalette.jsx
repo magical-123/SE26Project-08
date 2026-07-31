@@ -42,7 +42,7 @@ export function CommandPalette() {
                 <BookOpen size={16} /> 捕获箱 (Inbox)
               </Command.Item>
               <Command.Item onSelect={() => runCommand(() => navigate('/graph'))}>
-                <Search size={16} /> 知识图谱 (Knowledge Graph)
+                <Search size={16} /> 脑海图景 (Mindscape)
               </Command.Item>
               <Command.Item onSelect={() => runCommand(() => navigate('/report'))}>
                 <PieChart size={16} /> 数字报告 (Report)
