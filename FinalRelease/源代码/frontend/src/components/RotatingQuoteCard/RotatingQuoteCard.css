@@ -1,0 +1,243 @@
+/* ===== bento 中的旋转金句卡片 ===== */
+.bento-rotating-quote {
+  grid-column: span 2;
+  height: 100%;
+}
+
+.rq-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  height: 100%;
+}
+
+.rq-empty {
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  gap: 12px;
+}
+
+.rq-empty-icon {
+  opacity: 0.3;
+}
+
+.rq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rq-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rq-icon {
+  color: var(--accent-color, #8B5CF6);
+  flex-shrink: 0;
+}
+
+.rq-title {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+}
+
+.rq-counter {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.04);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.rq-content {
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text-primary);
+  font-style: italic;
+  margin: 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent-color, #8B5CF6);
+  background: rgba(139, 92, 246, 0.06);
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  align-items: center;
+}
+
+.rq-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.rq-source {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.rq-hint {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+/* ===== 复习卡片弹窗 ===== */
+.rq-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.rq-modal {
+  width: 560px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.rq-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+.rq-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.8);
+  color: #444;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rq-nav-btn:hover {
+  background: #fff;
+  color: #000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.rq-modal-counter {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rq-modal-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.rq-modal-quote-icon {
+  color: var(--accent-color, #8B5CF6);
+  opacity: 0.3;
+  flex-shrink: 0;
+}
+
+.rq-modal-quote {
+  font-size: 20px;
+  line-height: 1.8;
+  color: #1a1a1a;
+  font-style: italic;
+  text-align: center;
+  margin: 0;
+  max-width: 480px;
+}
+
+.rq-modal-reason {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+  text-align: center;
+}
+
+.rq-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+.rq-modal-source {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.rq-modal-platform {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rq-modal-title {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rq-modal-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--accent-color, #8B5CF6);
+  text-decoration: none;
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  transition: all 0.2s;
+}
+
+.rq-modal-link:hover {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: var(--accent-color, #8B5CF6);
+}
+
+@media (max-width: 640px) {
+  .rq-modal { width: 95vw; max-height: 85dvh; border-radius: 16px; }
+  .rq-modal-body { padding: 32px 20px; }
+  .rq-modal-quote { font-size: 17px; }
+}

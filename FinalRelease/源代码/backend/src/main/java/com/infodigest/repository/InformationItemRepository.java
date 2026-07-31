@@ -1,0 +1,151 @@
+package com.infodigest.repository;
+
+import com.infodigest.entity.InformationItem;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface InformationItemRepository extends JpaRepository<InformationItem, Long> {
+    List<InformationItem> findByUserId(Long userId);
+    Page<InformationItem> findByUserId(Long userId, Pageable pageable);
+    List<InformationItem> findByUserIdAndProcessStatus(Long userId, String processStatus);
+    List<InformationItem> findByProcessStatus(String processStatus, Pageable pageable);
+    List<InformationItem> findByProcessStatusAndUserIdIn(String processStatus, java.util.Collection<Long> userIds, Pageable pageable);
+    Optional<InformationItem> findByIdAndUserId(Long id, Long userId);
+
+    // 查询用户在指定时间范围内的已分析视频
+    List<InformationItem> findByUserIdAndProcessStatusAndAnalyzedAtBetween(
+            Long userId, String processStatus, LocalDateTime startTime, LocalDateTime endTime);
+
+    // 查询用户在指定时间之后的已分析视频
+    List<InformationItem> findByUserIdAndProcessStatusAndAnalyzedAtAfter(
+            Long userId, String processStatus, LocalDateTime afterTime);
+
+    // 查询用户在指定时间范围内的已分析视频（使用crawledAt）
+    List<InformationItem> findByUserIdAndProcessStatusAndCrawledAtBetween(
+            Long userId, String processStatus, LocalDateTime startTime, LocalDateTime endTime);
+
+    // 查询用户在指定时间范围内的已分析视频（任何状态，按分析时间排序）
+    List<InformationItem> findByUserIdAndAnalyzedAtBetweenOrderByAnalyzedAtDesc(
+            Long userId, LocalDateTime startTime, LocalDateTime endTime);
+
+    long countByUserIdAndPlatform(Long userId, String platform);
+    long countByUserIdAndProcessStatus(Long userId, String processStatus);
+    long countByIsPremiumTrue();
+    long countByUserIdAndIsPremiumTrue(Long userId);
+    List<InformationItem> findTop10ByUserIdAndIsPremiumTrueOrderByCrawledAtDesc(Long userId);
+    long countByUserIdAndAiSummaryIsNotNull(Long userId);
+    List<InformationItem> findByAiSummaryIsNull(Pageable pageable);
+    List<InformationItem> findByProcessStatusAndAiSummaryIsNullAndUserIdIn(
+            String processStatus, java.util.Collection<Long> userIds, Pageable pageable);
+
+    // 查询 UNPROCESSED 条目，优先处理缺少 AI 摘要的（按 id 升序，旧数据优先）
+    List<InformationItem> findByProcessStatusAndUserIdInOrderByAiSummaryAscIdAsc(
+            String processStatus, java.util.Collection<Long> userIds, Pageable pageable);
+    // 查询 AI 摘要为空的条目（不论状态），按 id 升序
+    @Query("SELECT i FROM InformationItem i WHERE i.processStatus IN :statuses AND i.userId IN :userIds AND (i.aiSummary IS NULL OR i.aiSummary = '') ORDER BY i.id ASC")
+    List<InformationItem> findWithoutSummaryByStatusesAndUserIdOrderByIdAsc(
+            @Param("statuses") java.util.Collection<String> statuses,
+            @Param("userIds") java.util.Collection<Long> userIds,
+            Pageable pageable);
+
+    // 查询 AI 摘要为空的条目，非娱乐内容优先（娱乐短剧/娱乐科普排后面）
+    @Query("SELECT i FROM InformationItem i WHERE i.processStatus IN :statuses AND i.userId IN :userIds AND (i.aiSummary IS NULL OR i.aiSummary = '') " +
+            "ORDER BY CASE WHEN i.category IN ('娱乐短剧', '娱乐科普') THEN 1 ELSE 0 END ASC, i.id ASC")
+    List<InformationItem> findWithoutSummaryPriorityNonEntertainment(
+            @Param("statuses") java.util.Collection<String> statuses,
+            @Param("userIds") java.util.Collection<Long> userIds,
+            Pageable pageable);
+
+    // 查找超过指定天数且非优质信息源的条目（用于清理）
+    @Query("SELECT i.id FROM InformationItem i WHERE i.crawledAt < :cutoff AND (i.isPremium IS NULL OR i.isPremium = false)")
+    List<Long> findExpiredNonPremiumItemIds(@Param("cutoff") LocalDateTime cutoff);
+
+    // 按关键词模糊搜索标题和AI摘要（用于词云溯源回退）
+    @Query("SELECT i FROM InformationItem i WHERE i.userId = :userId AND i.processStatus = 'PROCESSED' " +
+            "AND (LOWER(i.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(i.aiSummary) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "ORDER BY i.crawledAt DESC")
+    List<InformationItem> findByUserIdAndKeywordInTitleOrSummary(
+            @Param("userId") Long userId, @Param("keyword") String keyword);
+
+    // 按标题+平台+用户查找最新的一条（用于去重）
+    Optional<InformationItem> findTopByUserIdAndTitleAndPlatformOrderByCrawledAtDesc(Long userId, String title, String platform);
+
+    // 行为记录按稳定 URL 归并，避免标题变化或多次上报造成重复条目
+    Optional<InformationItem> findTopByUserIdAndUrlAndPlatformOrderByCrawledAtDesc(Long userId, String url, String platform);
+
+    // 局部更新：仅更新营养分析相关字段和 AI 摘要，不影响 isPremium 等由用户手动维护的字段
+    @org.springframework.transaction.annotation.Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE InformationItem i SET " +
+            "i.nutritionProtein = COALESCE(:protein, i.nutritionProtein), " +
+            "i.nutritionCarbs = COALESCE(:carbs, i.nutritionCarbs), " +
+            "i.nutritionVitamins = COALESCE(:vitamins, i.nutritionVitamins), " +
+            "i.nutritionFats = COALESCE(:fats, i.nutritionFats), " +
+            "i.nutritionFiber = COALESCE(:fiber, i.nutritionFiber), " +
+            "i.nutritionReasoning = COALESCE(:reasoning, i.nutritionReasoning), " +
+            "i.aiSummary = CASE WHEN :aiSummary IS NULL THEN i.aiSummary ELSE :aiSummary END, " +
+            "i.processStatus = 'PROCESSED', " +
+            "i.analyzedAt = :analyzedAt " +
+            "WHERE i.id = :id")
+    void updateAnalysisFields(@Param("id") Long id,
+                              @Param("protein") Integer protein,
+                              @Param("carbs") Integer carbs,
+                              @Param("vitamins") Integer vitamins,
+                              @Param("fats") Integer fats,
+                              @Param("fiber") Integer fiber,
+                              @Param("reasoning") String reasoning,
+                              @Param("aiSummary") String aiSummary,
+                              @Param("analyzedAt") LocalDateTime analyzedAt);
+
+    // 局部更新：仅更新 AI 摘要相关字段（null 值不覆盖数据库现有值）
+    // clearAutomatically=true 防止 Hibernate 脏检查在事务提交时误覆盖 isPremium 等用户手动标记
+    @org.springframework.transaction.annotation.Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE InformationItem i SET " +
+            "i.aiSummary = CASE WHEN :summary IS NULL THEN i.aiSummary ELSE :summary END, " +
+            "i.knowledgeScore = CASE WHEN :score IS NULL THEN i.knowledgeScore ELSE :score END, " +
+            "i.scoreReasoning = CASE WHEN :reasoning IS NULL THEN i.scoreReasoning ELSE :reasoning END, " +
+            "i.category = CASE WHEN :category IS NULL THEN i.category ELSE :category END, " +
+            "i.processStatus = 'PROCESSED', " +
+            "i.analyzedAt = :analyzedAt " +
+            "WHERE i.id = :id")
+    void updateAiSummaryFields(@Param("id") Long id,
+                               @Param("summary") String summary,
+                               @Param("score") Integer score,
+                               @Param("reasoning") String reasoning,
+                               @Param("category") String category,
+                               @Param("analyzedAt") LocalDateTime analyzedAt);
+
+    // 局部更新：仅更新 processStatus
+    @org.springframework.transaction.annotation.Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE InformationItem i SET i.processStatus = :status WHERE i.id = :id")
+    void updateProcessStatus(@Param("id") Long id, @Param("status") String status);
+
+    // 切换点赞状态
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE InformationItem i SET i.isLiked = :liked WHERE i.id = :id")
+    void updateIsLiked(@Param("id") Long id, @Param("liked") Boolean liked);
+
+    // 切换收藏状态
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE InformationItem i SET i.isFavorite = :favorite WHERE i.id = :id")
+    void updateIsFavorite(@Param("id") Long id, @Param("favorite") Boolean favorite);
+
+    // 更新 contentRaw 字段（用于AI处理完后清空字幕内容）
+    @org.springframework.transaction.annotation.Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE InformationItem i SET i.contentRaw = :contentRaw WHERE i.id = :id")
+    void updateContentRaw(@Param("id") Long id, @Param("contentRaw") String contentRaw);
+}

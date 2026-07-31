@@ -1,0 +1,44 @@
+spring:
+  config:
+    import: ""
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MYSQL;DB_CLOSE_DELAY=-1;IGNORECASE=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+  autoconfigure:
+    exclude: >
+      org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,
+      org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+security:
+  jwt:
+    secret: testSecretKeyWithAtLeast32CharsForTestingPurposes12345
+  credentials:
+    encryption-key: REPLACE_ME
+
+app:
+  cors:
+    allowed-origin-patterns: http://localhost:5173
+
+crawler:
+  api:
+    url: http://localhost:3001
+  script:
+    path: ../crawler/index.js
+
+ai:
+  deepseek:
+    api-url: https://api.deepseek.com
+    api-key: test-key
+    model: deepseek-chat
+
+logging:
+  level:
+    com.infodigest: WARN
+    org.springframework: WARN

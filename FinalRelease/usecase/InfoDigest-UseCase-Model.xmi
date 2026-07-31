@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE XMI SYSTEM "Uml.dtd" []>
+<XMI xmi.version="1.2"
+     xmlns:UML="org.omg/UML/1.4"
+     xmlns:xmi="http://www.omg.org/XMI">
+
+  <XMI.header>
+    <XMI.documentation>
+      <XMI.exporter>Reasonix Code</XMI.exporter>
+      <XMI.exporterVersion>1.0</XMI.exporterVersion>
+    </XMI.documentation>
+    <XMI.metamodel xmi.name="UML" xmi.version="1.4"/>
+  </XMI.header>
+
+  <XMI.content>
+    <!-- ============================== 模型 ============================== -->
+    <UML:Model xmi.id="M_InfoDigest" name="InfoDigest Use-Case Model" isSpecification="false" isLeaf="false" isRoot="false" isAbstract="false">
+
+      <!-- ====== 包：信息源管理 ====== -->
+      <UML:Namespace.ownedElement>
+        <UML:Package xmi.id="PKG_SRC" name="信息源管理" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+          <UML:Namespace.ownedElement>
+            <UML:UseCase xmi.id="UC01" name="UC-01 授权信息源接入" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC02" name="UC-02 自动捕获浏览记录" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC03" name="UC-03 查看信息源元数据" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC05" name="UC-05 接收智能引导提示" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+          </UML:Namespace.ownedElement>
+        </UML:Package>
+
+        <!-- ====== 包：报告与分析 ====== -->
+        <UML:Package xmi.id="PKG_RPT" name="报告与分析" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+          <UML:Namespace.ownedElement>
+            <UML:UseCase xmi.id="UC06" name="UC-06 查看每日/周知识总结报告" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC07" name="UC-07 查看信息营养成分表" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC08" name="UC-08 查看关注点流变分析" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+          </UML:Namespace.ownedElement>
+        </UML:Package>
+
+        <!-- ====== 包：社交与隐私 ====== -->
+        <UML:Package xmi.id="PKG_SOCIAL" name="社交与隐私" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+          <UML:Namespace.ownedElement>
+            <UML:UseCase xmi.id="UC11" name="UC-11 添加好友" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC12" name="UC-12 查看好友浏览趋势" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC13" name="UC-13 查看好友知识图谱" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC14" name="UC-14 管理隐私设置" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+          </UML:Namespace.ownedElement>
+        </UML:Package>
+
+        <!-- ====== 包：笔记与标注 ====== -->
+        <UML:Package xmi.id="PKG_NOTE" name="笔记与标注" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+          <UML:Namespace.ownedElement>
+            <UML:UseCase xmi.id="UC04" name="UC-04 记录笔记并标注优质源" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+          </UML:Namespace.ownedElement>
+        </UML:Package>
+
+        <!-- ====== 包：知识图谱 ====== -->
+        <UML:Package xmi.id="PKG_GRAPH" name="知识图谱" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+          <UML:Namespace.ownedElement>
+            <UML:UseCase xmi.id="UC09" name="UC-09 浏览个人知识图谱" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC10" name="UC-10 AI 构建知识图谱" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+          </UML:Namespace.ownedElement>
+        </UML:Package>
+
+        <!-- ====== 包：进阶功能 ====== -->
+        <UML:Package xmi.id="PKG_ADV" name="进阶功能" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false">
+          <UML:Namespace.ownedElement>
+            <UML:UseCase xmi.id="UC15" name="UC-15 接收跨平台智能推荐" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC16" name="UC-16 多模态内容理解" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC17" name="UC-17 接收抗遗忘复习推送" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+            <UML:UseCase xmi.id="UC18" name="UC-18 一键生成分享海报" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+          </UML:Namespace.ownedElement>
+        </UML:Package>
+
+        <!-- ====== 角色 (Actors) ====== -->
+        <UML:Actor xmi.id="ACT_USER" name="用户" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+        <UML:Actor xmi.id="ACT_FRIEND" name="好友" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+        <UML:Actor xmi.id="ACT_SYSTEM" name="系统" isSpecification="false" isRoot="false" isLeaf="false" isAbstract="false"/>
+
+        <!-- ====== Include 关系：UC-06 include UC-07 ====== -->
+        <UML:Include xmi.id="INC_06_07">
+          <UML:Include.addition>
+            <UML:UseCase xmi.idref="UC07"/>
+          </UML:Include.addition>
+          <UML:Include.base>
+            <UML:UseCase xmi.idref="UC06"/>
+          </UML:Include.base>
+        </UML:Include>
+
+        <!-- ====== Include 关系：UC-06 include UC-08 ====== -->
+        <UML:Include xmi.id="INC_06_08">
+          <UML:Include.addition>
+            <UML:UseCase xmi.idref="UC08"/>
+          </UML:Include.addition>
+          <UML:Include.base>
+            <UML:UseCase xmi.idref="UC06"/>
+          </UML:Include.base>
+        </UML:Include>
+
+        <!-- ====== Extend 关系：UC-02 extends UC-01 ====== -->
+        <UML:Extend xmi.id="EXT_02_01">
+          <UML:Extend.base>
+            <UML:UseCase xmi.idref="UC01"/>
+          </UML:Extend.base>
+          <UML:Extend.extension>
+            <UML:UseCase xmi.idref="UC02"/>
+          </UML:Extend.extension>
+          <UML:Extend.extensionPoint>
+            <UML:ExtensionPoint xmi.id="EP_AUTO" name="自动捕获"/>
+          </UML:Extend.extensionPoint>
+        </UML:Extend>
+
+        <!-- ====== 角色→用例 关联 (用户 → 各用例) ====== -->
+        <UML:Association xmi.id="A_U_01" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_01" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant>
+                <UML:Actor xmi.idref="ACT_USER"/>
+              </UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_01" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant>
+                <UML:UseCase xmi.idref="UC01"/>
+              </UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_03" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_03" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_03" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC03"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_04" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_04" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_04" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC04"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_05" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_05" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_05" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC05"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_06" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_06" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_06" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC06"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_07" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_07" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_07" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC07"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_08" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_08" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_08" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC08"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_09" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_09" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_09" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC09"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_11" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_11" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_11" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC11"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_12" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_12" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_12" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC12"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_13" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_13" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_13" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC13"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_14" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_14" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_14" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC14"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_15" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_15" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_15" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC15"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_17" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_17" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_17" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC17"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_U_18" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_U_18" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_USER"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_UC_18" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC18"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <!-- ====== 角色→用例 关联 (好友 → UC-12 / UC-13) ====== -->
+        <UML:Association xmi.id="A_F_12" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_F_12" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_FRIEND"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_FC_12" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC12"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_F_13" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_F_13" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_FRIEND"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_FC_13" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC13"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <!-- ====== 角色→用例 关联 (系统 → UC-10 / UC-16) ====== -->
+        <UML:Association xmi.id="A_S_10" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_S_10" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_SYSTEM"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_SC_10" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC10"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+        <UML:Association xmi.id="A_S_16" name="">
+          <UML:Association.connection>
+            <UML:AssociationEnd xmi.id="AE_S_16" name="" isSpecification="false" isNavigable="true" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:Actor xmi.idref="ACT_SYSTEM"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+            <UML:AssociationEnd xmi.id="AE_SC_16" name="" isSpecification="false" isNavigable="false" ordering="unordered" aggregation="none" targetScope="instance" changeability="changeable">
+              <UML:AssociationEnd.participant><UML:UseCase xmi.idref="UC16"/></UML:AssociationEnd.participant>
+            </UML:AssociationEnd>
+          </UML:Association.connection>
+        </UML:Association>
+
+      </UML:Namespace.ownedElement>
+    </UML:Model>
+  </XMI.content>
+
+</XMI>
