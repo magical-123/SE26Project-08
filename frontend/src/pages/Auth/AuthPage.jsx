@@ -87,7 +87,7 @@ export function AuthPage() {
       <div className="auth-glass-card">
         <div className="auth-header">
           <h2>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
-          <p>{isLogin ? 'Log in to continue to InfoDigest' : 'Start synthesizing your information'}</p>
+          <p>{isLogin ? '每天都在手机上看了什么？您的智能信息源管理平台' : '注册账号，开启信息探索与沉淀之旅'}</p>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
