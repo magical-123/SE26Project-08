@@ -34,7 +34,7 @@ app.post('/crawl', (req, res) => {
     args.push(`--limit=${limit}`);
   }
 
-  console.log(`[${new Date().toISOString()}] Triggering crawler: node ${args.join(' ')}`);
+  console.log(`[${new Date().toISOString()}] Triggering crawler task`);
 
   // 异步生成子进程执行爬虫
   const child = spawn('node', args, {
@@ -53,11 +53,14 @@ app.post('/crawl', (req, res) => {
   // 不阻塞，立刻返回成功
   res.json({ 
     status: 'started', 
-    message: 'Crawler process spawned successfully',
-    command: `node ${args.join(' ')}` 
+    message: 'Crawler process spawned successfully'
   });
 });
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Crawler microservice listening on port ${port}`);
-});
+if (require.main === module) {
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Crawler microservice listening on port ${port}`);
+  });
+}
+
+module.exports = app;

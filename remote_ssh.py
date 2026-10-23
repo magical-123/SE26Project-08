@@ -1,11 +1,11 @@
-import paramiko
+from deployment_config import create_ssh_client, ssh_connect_kwargs
 import sys
 
 def run_remote(command):
     try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect('127.0.0.1', username='root', password='REPLACE_ME', timeout=10)
+        ssh = create_ssh_client()
+
+        ssh.connect(**ssh_connect_kwargs(timeout=10))
         print(f"Executing: {command}")
         stdin, stdout, stderr = ssh.exec_command(command)
         

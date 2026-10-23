@@ -1,17 +1,16 @@
-import paramiko
+from deployment_config import create_ssh_client, ssh_connect_kwargs
 import os
 
-host = "127.0.0.1"
-user = "root"
-password = "REPLACE_ME"
-local_file = "c:\\Users\\15600\\Desktop\\软工原\\InfoDigest-\\docker-compose.yml"
+
+
+local_file = os.path.join(os.path.dirname(__file__), "docker-compose.yml")
 remote_file = "/opt/infodigest/repo/docker-compose.yml"
 
 def upload_compose():
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client = create_ssh_client()
+
     try:
-        client.connect(host, username=user, password=password, timeout=10)
+        client.connect(**ssh_connect_kwargs(timeout=10))
         sftp = client.open_sftp()
         sftp.put(local_file, remote_file)
         print("Successfully uploaded the new GHCR docker-compose.yml to remote server")

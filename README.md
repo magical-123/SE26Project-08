@@ -1,5 +1,7 @@
 # InfoDigest
 
+部署配置和公开发布前的迁移步骤见 [公开发布与凭据迁移](docs/public-release.md)。密码和应用密钥必须通过私有环境配置提供，示例文件不包含可用凭据。
+
 ### 当前实现边界（2026-07）
 
 - 后端定时调度器目前只自动抓取 Bilibili 和 GitHub，周期为 1 小时。
@@ -109,7 +111,7 @@ InfoDigest-
 
 ## 数据库配置
 
-项目默认连接团队共享的远程 MySQL 数据库，配置位于：
+项目通过环境变量连接自己的 MySQL 数据库，不包含团队服务器的默认地址或密码。配置位于：
 
 [backend/src/main/resources/application.yml](backend/src/main/resources/application.yml)
 
@@ -121,7 +123,7 @@ spring:
     password: ${DB_PASSWORD}
 ```
 
-> 注意：连接远程数据库需要处于校园网内，且服务器安全组已放行 3306 端口。详细说明请参考 [远程数据库连接指南.md](远程数据库连接指南.md)。
+> 开发前先把 `backend/.env.example` 复制为 `backend/.env.local`，填写自己的数据库配置；用 `python scripts/generate_secrets.py` 生成并填入两项独立密钥。后端需在 `backend` 目录启动。详细说明请参考 [公开发布与凭据迁移](docs/public-release.md)。
 
 如需切换为本地数据库，修改 `application.yml` 中的 `url` 为：
 
@@ -250,4 +252,4 @@ Authorization: Bearer <Your-JWT-Token>
 
 ## License
 
-本项目为课程实践项目，仅供团队内部学习使用。
+本项目为课程实践项目，目前尚未选择覆盖整个仓库的统一开源许可证。代码、文档和素材的授权范围由共同作者确认。

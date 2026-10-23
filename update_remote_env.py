@@ -1,16 +1,15 @@
-import paramiko
+from deployment_config import create_ssh_client, ssh_connect_kwargs
 import re
 
-host = "127.0.0.1"
-user = "root"
-password = "REPLACE_ME"
+
+
 remote_env_path = "/opt/infodigest/repo/.env"
 
 def update_env():
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client = create_ssh_client()
+
     try:
-        client.connect(host, username=user, password=password, timeout=10)
+        client.connect(**ssh_connect_kwargs(timeout=10))
         sftp = client.open_sftp()
         
         # 读取远程的 .env 文件

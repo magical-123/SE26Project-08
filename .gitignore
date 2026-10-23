@@ -25,6 +25,16 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
+*.cookie
+cookies*.json
+storage-state*.json
+.reasonix/
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Logs
 logs/
@@ -59,3 +69,13 @@ frontend/coverage/
 frontend/src/test/
 backend/src/test/
 frontend/test-results.json
+
+# Personal administration helpers and downloaded runtimes
+/fix_env.py
+/fix_env2.py
+/upload_fixes.py
+/docker-compose-linux
+/backend_tests.zip
+/frontend_tests.zip
+**/jdk17/
+**/jdk17.zip

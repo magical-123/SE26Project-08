@@ -1,11 +1,12 @@
 import mysql.connector
-conn = mysql.connector.connect(host="127.0.0.1", port=3306, user="infodigest", password="REPLACE_ME", database="info_digest")
+from deployment_config import database_options
+conn = mysql.connector.connect(**database_options())
 cur = conn.cursor()
 
 print("=== Users ===")
-cur.execute('SELECT id, username, password FROM users WHERE username like "test%"')
+cur.execute('SELECT id, username FROM users WHERE username like "test%"')
 for r in cur.fetchall():
-    print("  id=%s, username=%s, password=%s" % r)
+    print("  id=%s, username=%s" % r)
 
 print()
 print("=== Concepts for test users ===")

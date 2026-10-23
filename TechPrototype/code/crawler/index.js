@@ -13,8 +13,8 @@
  *   ZHIHU_COOKIE      - 知乎 Cookie
  *   ENABLED_PLATFORMS - 启用的平台，逗号分隔（默认 bilibili,zhihu）
  *   BACKEND_URL       - 后端地址（默认 http://localhost:8080）
- *   AUTH_USERNAME     - 登录用户名（默认 testuser）
- *   AUTH_PASSWORD     - 登录密码（默认 REPLACE_ME）
+ *   AUTH_USERNAME     - 自己的登录用户名（无默认值）
+ *   AUTH_PASSWORD     - 自己的登录密码（无默认值）
  */
 
 const config = require('./config');

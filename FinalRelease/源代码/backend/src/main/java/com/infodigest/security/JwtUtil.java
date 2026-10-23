@@ -14,12 +14,23 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    @Value("${security.jwt.secret}")
-    private String secret;
+    private final SecretKey signingKey;
     private final long EXPIRATION_TIME = 30L * 24 * 60 * 60 * 1000; // 30 days in ms
 
+    public JwtUtil(@Value("${security.jwt.secret}") String secret) {
+        if (secret == null || secret.isBlank() || secret.startsWith("CHANGE_ME")
+                || secret.startsWith("REPLACE_ME")) {
+            throw new IllegalArgumentException("JWT_SECRET must be configured with an independent random secret");
+        }
+        byte[] keyBytes = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException("JWT_SECRET must contain at least 32 UTF-8 bytes");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
+    }
+
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return signingKey;
     }
 
     public String generateToken(String username, Long userId) {

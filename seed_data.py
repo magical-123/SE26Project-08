@@ -1,12 +1,14 @@
 """Seed mock data into the database via backend APIs."""
+import os
 import requests
+from deployment_config import required_env
 import re
 
-BASE = "http://localhost:8080"
+BASE = os.environ.get("BACKEND_URL", "http://localhost:8080").rstrip("/")
 
 # ── 1. Login ──
 print(">>> Logging in...")
-r = requests.post(f"{BASE}/api/auth/login", json={"username": "test_user", "password": "1"})
+r = requests.post(f"{BASE}/api/auth/login", json={"username": required_env("SEED_USERNAME"), "password": required_env("SEED_PASSWORD")})
 r.raise_for_status()
 token = r.json()["token"]
 headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}

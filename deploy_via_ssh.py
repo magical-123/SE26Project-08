@@ -1,11 +1,11 @@
 import sys
-import paramiko
+from deployment_config import create_ssh_client, ssh_connect_kwargs
 
-client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+client = create_ssh_client()
+
 try:
-    print("Connecting to 127.0.0.1...")
-    client.connect("127.0.0.1", username="root", password="REPLACE_ME", timeout=10)
+    print("Connecting to the configured deployment host...")
+    client.connect(**ssh_connect_kwargs(timeout=10))
     print("Connected. Executing deployment...")
     
     command = "cd /opt/infodigest/repo && docker-compose ps"

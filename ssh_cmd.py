@@ -1,11 +1,11 @@
 import sys
-import paramiko
+from deployment_config import create_ssh_client, ssh_connect_kwargs
 
-def run_ssh_command(host, user, password, command):
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+def run_ssh_command(command):
+    client = create_ssh_client()
+
     try:
-        client.connect(host, username=user, password=password, timeout=600)
+        client.connect(**ssh_connect_kwargs(timeout=600))
         stdin, stdout, stderr = client.exec_command(command)
         
         out = stdout.read().decode('utf-8', errors='replace')
@@ -25,7 +25,7 @@ if __name__ == "__main__":
         sys.exit(1)
         
     cmd = " ".join(sys.argv[1:])
-    out, err, status = run_ssh_command("127.0.0.1", "root", "REPLACE_ME", cmd)
+    out, err, status = run_ssh_command(cmd)
     print(out)
     if err:
         print(f"STDERR: {err}")

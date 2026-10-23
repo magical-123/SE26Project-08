@@ -2,9 +2,9 @@
  * InfoDigest 爬虫配置文件
  * 
  * 使用说明：
- * 1. 将你的各平台 Cookie 填入下方
+ * 1. 通过环境变量提供平台 Cookie，不要写入本文件
  * 2. 确保后端已启动在 BACKEND_URL
- * 3. 填写你的前端登录账号密码（用于通过 JWT 认证写入数据）
+ * 3. 通过 AUTH_USERNAME / AUTH_PASSWORD 提供自己的前端账号（用于通过 JWT 认证写入数据）
  * 4. 在 ENABLED_PLATFORMS 中启用需要抓取的平台
  */
 module.exports = {
@@ -40,8 +40,8 @@ module.exports = {
   BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:8080',
 
   /** 前端登录账号（用于获取 JWT Token 写入数据） */
-  AUTH_USERNAME: process.env.AUTH_USERNAME || 'testuser',
-  AUTH_PASSWORD: process.env.AUTH_PASSWORD || 'REPLACE_ME',
+  AUTH_USERNAME: process.env.AUTH_USERNAME || '',
+  AUTH_PASSWORD: process.env.AUTH_PASSWORD || '',
 
   // ===== 爬虫调优参数 =====
   /** 每次请求之间随机休眠 [min, max] 毫秒（降低延迟以加快抓取速度） */

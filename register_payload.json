@@ -1,1 +1,5 @@
-{"username":"perf_agent","email":"demo@example.invalid","password":"REPLACE_ME"}
+{
+  "username": "demo-user",
+  "email": "demo@example.invalid",
+  "password": "CHANGE_ME_DEMO_PASSWORD"
+}

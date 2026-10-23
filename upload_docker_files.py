@@ -1,4 +1,4 @@
-import paramiko
+from deployment_config import create_ssh_client, ssh_connect_kwargs
 import os
 
 files_to_upload = [
@@ -9,16 +9,15 @@ files_to_upload = [
     "frontend/nginx.conf"
 ]
 
-host = "127.0.0.1"
-user = "root"
-password = "REPLACE_ME"
+
+
 remote_dir = "/opt/infodigest/repo"
 
 def upload():
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client = create_ssh_client()
+
     try:
-        client.connect(host, username=user, password=password, timeout=10)
+        client.connect(**ssh_connect_kwargs(timeout=10))
         sftp = client.open_sftp()
         for f in files_to_upload:
             local_path = os.path.join(".", f)

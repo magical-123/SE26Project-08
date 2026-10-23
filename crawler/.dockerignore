@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+!.env.example
+*.cookie
+cookies*.json
+storage-state*.json
+node_modules
+coverage
+*.log
+test

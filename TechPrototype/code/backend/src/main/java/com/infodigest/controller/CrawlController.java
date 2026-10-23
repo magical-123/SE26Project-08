@@ -31,7 +31,7 @@ public class CrawlController {
      * POST /api/crawl/trigger?platform=xiaohongshu
      * 
      * 后端生成当前用户的 JWT Token，通过命令行参数传给爬虫进程。
-     * 爬虫不再依赖 config.js 中硬编码的 testuser/REPLACE_ME。
+     * 爬虫使用后端传入的令牌认证，不依赖内置账号。
      */
     @PostMapping("/trigger")
     public ResponseEntity<Map<String, Object>> triggerCrawl(@RequestParam(defaultValue = "all") String platform) {

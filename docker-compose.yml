@@ -8,15 +8,16 @@ services:
     environment:
       - TZ=Asia/Shanghai
       # 请在 .env 中填入宿主机的内网 IP 以连接原生数据库和缓存
-      - DB_URL=${DB_URL}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - JWT_SECRET=${JWT_SECRET}
-      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
-      - CORS_ALLOWED_ORIGIN_PATTERNS=${CORS_ALLOWED_ORIGIN_PATTERNS:-*}
-      - SPRING_DATA_REDIS_HOST=${REDIS_HOST}
-      - SPRING_DATA_REDIS_PORT=6379
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DB_URL=${DB_URL:?Set DB_URL in your private .env}
+      - DB_USERNAME=${DB_USERNAME:?Set DB_USERNAME in your private .env}
+      - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in your private .env}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in your private .env}
+      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY in your private .env}
+      - CORS_ALLOWED_ORIGIN_PATTERNS=${CORS_ALLOWED_ORIGIN_PATTERNS:?Set CORS_ALLOWED_ORIGIN_PATTERNS in your private .env}
+      - SPRING_DATA_REDIS_HOST=${REDIS_HOST:?Set REDIS_HOST in your private .env}
+      - SPRING_DATA_REDIS_PORT=${REDIS_PORT:-6379}
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - CRAWLER_SERVICE_URL=${CRAWLER_SERVICE_URL:-http://crawler:3000/crawl}
     ports:
       - "8080:8080"
@@ -45,6 +46,7 @@ services:
 
   # 看门狗：每隔 5 分钟自动检查是否有新镜像，自动拉取重启
   watchtower:
+    profiles: ["auto-update"]
     image: ghcr.io/containrrr/watchtower:latest
     container_name: watchtower
     restart: always

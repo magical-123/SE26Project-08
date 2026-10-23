@@ -2,13 +2,12 @@
 
 // 1. 获取当前token
 const token = sessionStorage.getItem('token');
-console.log('当前Token:', token);
+console.log('已保存登录令牌:', Boolean(token));
 
 // 2. 解析JWT token（JWT格式是 header.payload.signature）
 if (token) {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        console.log('Token Payload:', payload);
         console.log('用户名:', payload.sub || payload.username);
         console.log('Token过期时间:', new Date(payload.exp * 1000));
     } catch (e) {

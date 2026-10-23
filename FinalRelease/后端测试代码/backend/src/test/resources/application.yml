@@ -20,7 +20,7 @@ security:
   jwt:
     secret: testSecretKeyWithAtLeast32CharsForTestingPurposes12345
   credentials:
-    encryption-key: REPLACE_ME
+    encryption-key: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=
 
 app:
   cors:

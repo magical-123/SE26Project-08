@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RedisQueueConfig {
 
-    @Value("${spring.data.redis.host:127.0.0.1}")
+    @Value("${spring.data.redis.host:localhost}")
     private String host;
 
     @Value("${spring.data.redis.port:6379}")

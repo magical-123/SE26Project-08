@@ -1,10 +1,10 @@
-import paramiko
+from deployment_config import create_ssh_client, ssh_connect_kwargs
 
 def upload_and_install():
     try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect('127.0.0.1', username='root', password='REPLACE_ME', timeout=10)
+        ssh = create_ssh_client()
+
+        ssh.connect(**ssh_connect_kwargs(timeout=10))
         
         print("Uploading docker-compose...")
         sftp = ssh.open_sftp()
