@@ -75,13 +75,30 @@ smoke 会验证哈希、单一顶层目录、BUILD_INFO 与运行时版本一致
 | --- | --- |
 | 本地依赖安装、205 项测试、生产构建 | 通过 |
 | 本地包校验及静态启动 | 通过 |
-| 迁移 PR | [PR #36](https://github.com/magical-123/SE26Project-08/pull/36)，待其他成员审批 |
+| 迁移 PR | [PR #36](https://github.com/magical-123/SE26Project-08/pull/36)，经 Bugbank2 审批后 squash 合入 main，提交 e609f8e86d4db438ae1f852eeffc378aeb999d94 |
 | PR 失败 CI | [run 40079231793](https://github.com/magical-123/SE26Project-08/actions/runs/40079231793)，故意错误的鉴权断言导致 1 项失败、204 项通过，构建步骤被跳过 |
 | 修复后成功 CI | [run 40079374698](https://github.com/magical-123/SE26Project-08/actions/runs/40079374698)，Ubuntu 上检查、205 项测试和生产构建通过 |
 | main 规则集 | [main-merge-gate](https://github.com/magical-123/SE26Project-08/rules/25775887)，Active、无 Bypass、ci 必需、1 次其他成员审批 |
-| main 制品 | 待合并后运行 |
+| main 制品 | [run 40080173019](https://github.com/magical-123/SE26Project-08/actions/runs/40080173019)，ci 成功并上传 infodigest-frontend-4-e609f8e86d4db438ae1f852eeffc378aeb999d94，版本 0.0.0-main，保留 14 天 |
 | 非 main 标签被拒绝 | [run 40079415954](https://github.com/magical-123/SE26Project-08/actions/runs/40079415954)，v0.0.0 在 Check release gate 失败，后续构建/发布跳过；未创建 Release |
-| 正常标签 Release 及下载校验 | 待合并后运行 |
+| 正常标签 Release 及下载校验 | [v1.0.0 Release](https://github.com/magical-123/SE26Project-08/releases/tag/v1.0.0)，[发布 run 40080459868](https://github.com/magical-123/SE26Project-08/actions/runs/40080459868)，实际下载两个附件后 SHA256、BUILD_INFO 和本地 HTTP 静态启动均通过 |
+
+### 正式制品下载与追溯验收
+
+下载的附件为 `infodigest-frontend_1.0.0_static.tar.gz` 及同名 `.sha256`。
+归档 SHA256：`105a694fe885425d289caebf9b0e0bc18eedf7ffc4448f977c4e03f320b62a91`。
+在实际下载的包上执行 smoke，哈希、单一顶层目录、BUILD_INFO 和本地 HTTP 版本查询一致。
+实际运行 `/version.json` 返回：
+
+```json
+{"name":"infodigest-frontend","version":"1.0.0","build_no":"2","run_id":"40080459868","commit":"e609f8e86d4db438ae1f852eeffc378aeb999d94"}
+```
+
+trace 输出以下链接，与包内元数据一致：
+
+- [源码提交 e609f8e](https://github.com/magical-123/SE26Project-08/commit/e609f8e86d4db438ae1f852eeffc378aeb999d94)
+- [Actions 发布运行](https://github.com/magical-123/SE26Project-08/actions/runs/40080459868)
+- [正式 Release](https://github.com/magical-123/SE26Project-08/releases/tag/v1.0.0)
 
 ### 管理员直接推 main 被拒绝
 
