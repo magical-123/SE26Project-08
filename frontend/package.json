@@ -3,8 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": { "node": "24.14.0" },
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/write-version.mjs",
     "build": "vite build",
     "lint": "oxlint",
     "test": "vitest run",

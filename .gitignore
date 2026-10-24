@@ -65,10 +65,13 @@ __pycache__/
 coverage/
 frontend/coverage/
 
-# Test files (not needed for deployment)
-frontend/src/test/
+# Backend tests will be restored during the backend migration.
 backend/src/test/
 frontend/test-results.json
+
+# Generated frontend release metadata and archives
+frontend/public/version.json
+/release/
 
 # Personal administration helpers and downloaded runtimes
 /fix_env.py

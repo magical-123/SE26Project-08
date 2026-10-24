@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.node-version
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Print build context
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          COMMIT: ${{ github.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: printf 'event=%s\nref=%s\nsha=%s\npr_head=%s\n' "$EVENT" "$REF" "$COMMIT" "$PR_HEAD"
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Static checks
+        working-directory: frontend
+        run: npm run lint
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm test
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VERSION: 0.0.0-main
+          BUILD_NO: ${{ github.run_number }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT: ${{ github.sha }}
+        run: npm run build
+      - name: Package main build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: python scripts/frontend_release.py package
+      - name: Verify main artifact and static runtime
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          COMMIT: ${{ github.sha }}
+        run: python scripts/frontend_release.py smoke release/*.tar.gz --version 0.0.0-main --commit "$COMMIT"
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: infodigest-frontend-${{ github.run_number }}-${{ github.sha }}
+          path: |
+            release/*.tar.gz
+            release/*.tar.gz.sha256
+          retention-days: 14
+          if-no-files-found: error
