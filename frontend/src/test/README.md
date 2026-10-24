@@ -8,7 +8,7 @@ O3 restores five existing suites from `FinalRelease/前端测试报告及代码/
 - `graphShared.test.jsx`: shared graph transformation logic.
 - `useInboxItems.test.js`: loading, filtering and pagination behavior.
 
-These contain 205 assertions and mock external requests. No database, Redis,
+These contain 205 test cases and mock external requests. No database, Redis,
 crawler or live user account is required. Vitest fails if no tests are found.
 
 The complete historical suite remains in `FinalRelease`. A trial of all 864

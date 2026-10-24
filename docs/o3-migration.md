@@ -77,10 +77,32 @@ smoke 会验证哈希、单一顶层目录、BUILD_INFO 与运行时版本一致
 | 本地包校验及静态启动 | 通过 |
 | 迁移 PR | [PR #36](https://github.com/magical-123/SE26Project-08/pull/36)，待其他成员审批 |
 | PR 失败 CI | [run 40079231793](https://github.com/magical-123/SE26Project-08/actions/runs/40079231793)，故意错误的鉴权断言导致 1 项失败、204 项通过，构建步骤被跳过 |
-| 修复后成功 CI | 待运行 |
+| 修复后成功 CI | [run 40079374698](https://github.com/magical-123/SE26Project-08/actions/runs/40079374698)，Ubuntu 上检查、205 项测试和生产构建通过 |
 | main 规则集 | [main-merge-gate](https://github.com/magical-123/SE26Project-08/rules/25775887)，Active、无 Bypass、ci 必需、1 次其他成员审批 |
 | main 制品 | 待合并后运行 |
-| 非 main 标签被拒绝 | 待运行 |
+| 非 main 标签被拒绝 | [run 40079415954](https://github.com/magical-123/SE26Project-08/actions/runs/40079415954)，v0.0.0 在 Check release gate 失败，后续构建/发布跳过；未创建 Release |
 | 正常标签 Release 及下载校验 | 待合并后运行 |
+
+### 管理员直接推 main 被拒绝
+
+2026-10-24 使用当前 main 的同一份 tree 创建空变更提交，实际尝试直接推送 main。
+GitHub 返回以下信息，推送前后 main 均为 d4a2617262e8215f9c3e956b4d3b8477d85385ce：
+
+```text
+GH013: Repository rule violations found for refs/heads/main.
+Changes must be made through a pull request.
+Required status check "ci" is expected.
+[remote rejected] -> main (push declined due to repository rule violations)
+```
+
+这是服务器实际拒绝结果，不是 dry-run。对应规则集无 Bypass，账号管理员同样受限。
+
+### 仓库公开与历史边界
+
+原仓库已公开。公开前对十个分支应用脱敏历史，原始历史 bundle 留在私有本地备份。
+已识别的旧凭据按部署负责人确认已失效或轮换；公开分支历史复查未发现这些原文。
+GitHub 旧 PR 引用和缓存不受普通分支推送控制，仍可能访问旧提交及旧文档作者字段；
+因此“清理后的分支无已识别凭据”不等于“GitHub 全站旧引用均已删除”。
+团队继续开发时应重新克隆当前仓库，避免将旧克隆的历史重新推送。
 
 本轮 O3 迁移不包含 O1 镜像加分项或整套后端部署验收。
