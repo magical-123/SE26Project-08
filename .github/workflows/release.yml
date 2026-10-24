@@ -1,0 +1,63 @@
+name: release
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check release gate
+        env:
+          COMMIT: ${{ github.sha }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git fetch origin main
+          git merge-base --is-ancestor "$COMMIT" origin/main
+          printf 'VERSION=%s\n' "${TAG#v}" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: frontend/.node-version
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Static checks
+        working-directory: frontend
+        run: npm run lint
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm test
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          BUILD_NO: ${{ github.run_number }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT: ${{ github.sha }}
+        run: npm run build
+      - name: Package frontend
+        run: python scripts/frontend_release.py package
+      - name: Verify release and static runtime
+        env:
+          COMMIT: ${{ github.sha }}
+          BUILD_NO: ${{ github.run_number }}
+          RUN_ID: ${{ github.run_id }}
+        run: python scripts/frontend_release.py smoke release/*.tar.gz --version "$VERSION" --commit "$COMMIT" --build-no "$BUILD_NO" --run-id "$RUN_ID"
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" release/*.tar.gz release/*.tar.gz.sha256 --verify-tag --generate-notes --title "InfoDigest frontend $TAG"

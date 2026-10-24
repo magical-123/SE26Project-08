@@ -1,5 +1,7 @@
 # InfoDigest
 
+前端 CI、版本包发布和本地验证见 [O3 迁移说明](docs/o3-migration.md)。原校内服务器已停用，看门狗自动部署当前暂停；前端发布通过 GitHub Actions 和 GitHub Release 完成。
+
 部署配置和公开发布前的迁移步骤见 [公开发布与凭据迁移](docs/public-release.md)。密码和应用密钥必须通过私有环境配置提供，示例文件不包含可用凭据。
 
 ### 当前实现边界（2026-07）
