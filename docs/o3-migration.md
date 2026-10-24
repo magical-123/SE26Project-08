@@ -75,9 +75,10 @@ smoke 会验证哈希、单一顶层目录、BUILD_INFO 与运行时版本一致
 | --- | --- |
 | 本地依赖安装、205 项测试、生产构建 | 通过 |
 | 本地包校验及静态启动 | 通过 |
-| 迁移 PR | 待创建 |
-| PR 失败/修复后成功 CI | 待运行 |
-| main 规则集 | 待启用 |
+| 迁移 PR | [PR #36](https://github.com/magical-123/SE26Project-08/pull/36)，待其他成员审批 |
+| PR 失败 CI | [run 40079231793](https://github.com/magical-123/SE26Project-08/actions/runs/40079231793)，故意错误的鉴权断言导致 1 项失败、204 项通过，构建步骤被跳过 |
+| 修复后成功 CI | 待运行 |
+| main 规则集 | [main-merge-gate](https://github.com/magical-123/SE26Project-08/rules/25775887)，Active、无 Bypass、ci 必需、1 次其他成员审批 |
 | main 制品 | 待合并后运行 |
 | 非 main 标签被拒绝 | 待运行 |
 | 正常标签 Release 及下载校验 | 待合并后运行 |

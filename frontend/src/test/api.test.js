@@ -62,7 +62,7 @@ describe('apiFetch — 核心请求封装', () => {
   test('自动注入 JWT Token（Authorization header）', async () => {
     setToken('my-token');
     global.fetch = vi.fn().mockImplementation((url, options) => {
-      expect(options.headers['Authorization']).toBe('Bearer intentionally-invalid-gate-demo');
+      expect(options.headers['Authorization']).toBe('Bearer my-token');
       return Promise.resolve(createMockResponse());
     });
     await apiFetch('/api/test');

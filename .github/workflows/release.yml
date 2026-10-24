@@ -24,12 +24,12 @@ jobs:
           git fetch origin main
           git merge-base --is-ancestor "$COMMIT" origin/main
           printf 'VERSION=%s\n' "${TAG#v}" >> "$GITHUB_ENV"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: frontend/.node-version
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12'
       - name: Install locked frontend dependencies
