@@ -13,8 +13,8 @@ spring:
       validation-timeout: 2000
       idle-timeout: 600000
       max-lifetime: 1800000
-      minimum-idle: 2
-      maximum-pool-size: 10
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -31,6 +31,18 @@ spring:
 
 server:
   port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 security:
   jwt:

@@ -30,6 +30,14 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>com.mysql</groupId>
@@ -44,6 +52,11 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<!-- JWT -->
@@ -104,8 +117,7 @@
 					<execution>
 						<id>prepare-agent</id>
 						<configuration>
-							<!-- Keep the execution-data path ASCII-only on Windows. -->
-							<destFile>C:/temp/infodigest-jacoco.exec</destFile>
+							<destFile>${project.build.directory}/jacoco.exec</destFile>
 						</configuration>
 						<goals>
 							<goal>prepare-agent</goal>
@@ -115,7 +127,7 @@
 						<id>report</id>
 						<phase>test</phase>
 						<configuration>
-							<dataFile>C:/temp/infodigest-jacoco.exec</dataFile>
+							<dataFile>${project.build.directory}/jacoco.exec</dataFile>
 						</configuration>
 						<goals>
 							<goal>report</goal>

@@ -11,6 +11,8 @@ services:
       - DB_URL=${DB_URL:?Set DB_URL in your private .env}
       - DB_USERNAME=${DB_USERNAME:?Set DB_USERNAME in your private .env}
       - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in your private .env}
+      - DB_POOL_MAX_SIZE=${DB_POOL_MAX_SIZE:-10}
+      - DB_POOL_MIN_IDLE=${DB_POOL_MIN_IDLE:-2}
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in your private .env}
       - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY:?Set CREDENTIAL_ENCRYPTION_KEY in your private .env}
       - CORS_ALLOWED_ORIGIN_PATTERNS=${CORS_ALLOWED_ORIGIN_PATTERNS:?Set CORS_ALLOWED_ORIGIN_PATTERNS in your private .env}

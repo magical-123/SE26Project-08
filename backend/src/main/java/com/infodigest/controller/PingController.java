@@ -20,7 +20,7 @@ public class PingController {
 
     /**
      * 数据库健康检查：执行 SELECT 1，验证数据库连通性。
-     * 数据库断开时会抛异常 → Spring 统一异常处理返回 500。
+     * 数据库连接故障由统一异常处理返回 503，其他数据访问异常返回 500。
      */
     @GetMapping("/api/health/db")
     public Map<String, Object> dbHealth() {

@@ -65,8 +65,6 @@ __pycache__/
 coverage/
 frontend/coverage/
 
-# Backend tests will be restored during the backend migration.
-backend/src/test/
 frontend/test-results.json
 
 # Generated frontend release metadata and archives
